@@ -1,0 +1,65 @@
+<div class="fixed inset-y-0 left-0 z-50 w-64 bg-blue-900 transform transition-transform duration-300 ease-in-out"
+     [class.-translate-x-full]="!isOpen"
+     [class.lg:translate-x-0]="true">
+  
+  <div class="flex items-center justify-center h-16 bg-blue-800">
+    <h1 class="text-white text-xl font-bold">FactuFast</h1>
+  </div>
+  
+  <nav class="mt-8">
+    <a routerLink="/dashboard" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-chart-line mr-3"></i>
+      Dashboard
+    </a>
+    
+    <a routerLink="/invoices" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-file-invoice mr-3"></i>
+      Facturas
+    </a>
+    
+    <a routerLink="/quotes" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-quote-right mr-3"></i>
+      Cotizaciones
+    </a>
+    
+    <a routerLink="/clients" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-users mr-3"></i>
+      Clientes
+    </a>
+    
+    <a routerLink="/payments" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-credit-card mr-3"></i>
+      Pagos
+    </a>
+    
+    <a routerLink="/automation" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-clock mr-3"></i>
+      Automatización
+    </a>
+    
+    <a routerLink="/settings" 
+       routerLinkActive="bg-blue-800 text-white"
+       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+      <i class="fas fa-cog mr-3"></i>
+      Configuración
+    </a>
+  </nav>
+</div>
+
+<!-- Overlay for mobile -->
+<div *ngIf="isOpen" 
+     class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+     (click)="closeSidebar()">
+</div>

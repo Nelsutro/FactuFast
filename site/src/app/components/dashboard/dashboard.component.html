@@ -1,0 +1,241 @@
+<!-- src/app/components/dashboard/dashboard.component.html -->
+<div class="p-6 fade-in">
+  <!-- Welcome Section -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Bienvenido a FactuFast</h1>
+    <p class="text-gray-600">Aquí tienes un resumen de tu actividad financiera</p>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center py-20">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <div class="flex">
+      <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+      <p class="text-red-700">{{ error }}</p>
+    </div>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Facturas Pendientes</p>
+            <p class="text-3xl font-bold text-gray-900">{{ dashboardStats?.pending_invoices || 0 }}</p>
+          </div>
+          <div class="bg-yellow-100 p-3 rounded-full">
+            <i class="fas fa-clock text-yellow-600"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-sm">
+          <span class="text-red-600">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +12%
+          </span>
+          <span class="text-gray-500 ml-2">vs mes anterior</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Facturas Pagadas</p>
+            <p class="text-3xl font-bold text-gray-900">{{ dashboardStats?.paid_invoices || 0 }}</p>
+          </div>
+          <div class="bg-green-100 p-3 rounded-full">
+            <i class="fas fa-check-circle text-green-600"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-sm">
+          <span class="text-green-600">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +8%
+          </span>
+          <span class="text-gray-500 ml-2">vs mes anterior</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Facturado</p>
+            <p class="text-3xl font-bold text-gray-900">${{ formatCurrency(dashboardStats?.total_revenue || 0) }}</p>
+          </div>
+          <div class="bg-blue-100 p-3 rounded-full">
+            <i class="fas fa-dollar-sign text-blue-600"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-sm">
+          <span class="text-green-600">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +15%
+          </span>
+          <span class="text-gray-500 ml-2">vs mes anterior</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Cotizaciones Activas</p>
+            <p class="text-3xl font-bold text-gray-900">{{ dashboardStats?.active_quotes || 0 }}</p>
+          </div>
+          <div class="bg-purple-100 p-3 rounded-full">
+            <i class="fas fa-quote-right text-purple-600"></i>
+          </div>
+        </div>
+        <div class="mt-4 flex items-center text-sm">
+          <span class="text-green-600">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +3%
+          </span>
+          <span class="text-gray-500 ml-2">vs mes anterior</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <!-- Revenue Chart -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Ingresos Mensuales</h3>
+          <select class="border border-gray-300 rounded px-3 py-1 text-sm" 
+                  [(ngModel)]="chartPeriod" 
+                  (change)="onChartPeriodChange()">
+            <option value="6m">Últimos 6 meses</option>
+            <option value="1y">Este año</option>
+          </select>
+        </div>
+        <canvas #revenueChart width="400" height="200"></canvas>
+      </div>
+
+      <!-- Invoice Status Chart -->
+      <div class="card">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Estado de Facturas</h3>
+        </div>
+        <canvas #statusChart width="400" height="200"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Recent Invoices -->
+      <div class="lg:col-span-2 bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Facturas Recientes</h3>
+        </div>
+        <div class="p-6">
+          <div class="space-y-4" *ngIf="dashboardStats?.recent_invoices?.length; else noInvoices">
+            <div *ngFor="let invoice of dashboardStats.recent_invoices" 
+                 class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                 (click)="viewInvoice(invoice.id)">
+              <div class="flex items-center space-x-4">
+                <div [ngClass]="{
+                  'bg-blue-100': invoice.status === 'pending',
+                  'bg-green-100': invoice.status === 'paid',
+                  'bg-red-100': invoice.status === 'cancelled'
+                }" class="p-2 rounded-full">
+                  <i [ngClass]="{
+                    'fas fa-clock text-yellow-600': invoice.status === 'pending',
+                    'fas fa-check-circle text-green-600': invoice.status === 'paid',
+                    'fas fa-times-circle text-red-600': invoice.status === 'cancelled'
+                  }"></i>
+                </div>
+                <div>
+                  <p class="font-medium text-gray-900">Factura #{{ invoice.invoice_number }}</p>
+                  <p class="text-sm text-gray-600">{{ invoice.client?.name || 'Cliente no especificado' }}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="font-medium text-gray-900">${{ formatCurrency(invoice.amount) }}</p>
+                <span [ngClass]="{
+                  'bg-yellow-100 text-yellow-800': invoice.status === 'pending',
+                  'bg-green-100 text-green-800': invoice.status === 'paid',
+                  'bg-red-100 text-red-800': invoice.status === 'cancelled'
+                }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                  {{ getStatusLabel(invoice.status) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noInvoices>
+            <div class="text-center py-8">
+              <i class="fas fa-file-invoice text-gray-300 text-4xl mb-4"></i>
+              <p class="text-gray-500">No hay facturas recientes</p>
+            </div>
+          </ng-template>
+          
+          <div class="mt-6 text-center" *ngIf="dashboardStats?.recent_invoices?.length">
+            <button class="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    (click)="goToInvoices()">
+              Ver todas las facturas
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions & Alerts -->
+      <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-900">Acciones Rápidas</h3>
+        </div>
+        <div class="p-6 space-y-4">
+          <button class="btn-primary w-full" (click)="createInvoice()">
+            <i class="fas fa-plus mr-2"></i>
+            Nueva Factura
+          </button>
+          
+          <button class="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                  (click)="createQuote()">
+            <i class="fas fa-quote-right mr-2"></i>
+            Nueva Cotización
+          </button>
+          
+          <button class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors"
+                  (click)="createClient()">
+            <i class="fas fa-user-plus mr-2"></i>
+            Agregar Cliente
+          </button>
+          
+          <button class="btn-secondary w-full" (click)="importInvoices()">
+            <i class="fas fa-upload mr-2"></i>
+            Importar Facturas
+          </button>
+        </div>
+        
+        <!-- Alerts Section -->
+        <div class="px-6 py-4 border-t border-gray-200">
+          <h4 class="text-sm font-semibold text-gray-900 mb-3">Alertas</h4>
+          <div class="space-y-2">
+            <div class="flex items-center p-2 bg-red-50 rounded-lg" *ngIf="alerts.overdue > 0">
+              <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+              <span class="text-sm text-red-700">{{ alerts.overdue }} facturas vencidas</span>
+            </div>
+            <div class="flex items-center p-2 bg-yellow-50 rounded-lg" *ngIf="alerts.pending > 0">
+              <i class="fas fa-clock text-yellow-500 mr-2"></i>
+              <span class="text-sm text-yellow-700">{{ alerts.pending }} pagos pendientes</span>
+            </div>
+            <div class="flex items-center p-2 bg-blue-50 rounded-lg" *ngIf="alerts.quotes > 0">
+              <i class="fas fa-quote-right text-blue-500 mr-2"></i>
+              <span class="text-sm text-blue-700">{{ alerts.quotes }} cotizaciones esperando respuesta</span>
+            </div>
+            <div *ngIf="alerts.overdue === 0 && alerts.pending === 0 && alerts.quotes === 0" 
+                 class="flex items-center p-2 bg-green-50 rounded-lg">
+              <i class="fas fa-check-circle text-green-500 mr-2"></i>
+              <span class="text-sm text-green-700">Todo al día</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

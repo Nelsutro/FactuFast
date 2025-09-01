@@ -1,0 +1,54 @@
+<header class="bg-white shadow-sm border-b border-gray-200">
+  <div class="flex items-center justify-between px-6 py-4">
+    <button class="lg:hidden text-gray-500 hover:text-gray-700" (click)="onToggleSidebar()">
+      <i class="fas fa-bars"></i>
+    </button>
+    
+    <div class="flex items-center space-x-4">
+      <div class="relative">
+        <input type="search" 
+               placeholder="Buscar..." 
+               [(ngModel)]="searchTerm"
+               (input)="onSearch()"
+               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-4">
+      <button class="text-gray-500 hover:text-gray-700 relative"
+              (click)="toggleNotifications()">
+        <i class="fas fa-bell"></i>
+        <span *ngIf="notificationCount > 0" 
+              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          {{notificationCount}}
+        </span>
+      </button>
+      
+      <div class="relative">
+        <button class="flex items-center space-x-2 text-gray-700 hover:text-gray-900" 
+                (click)="toggleUserMenu()">
+          <img [src]="userAvatar" 
+               [alt]="userName" 
+               class="w-8 h-8 rounded-full">
+          <span class="hidden md:block">{{userName}}</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+        
+        <div *ngIf="showUserMenu" 
+             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+          <a routerLink="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            Mi Perfil
+          </a>
+          <a routerLink="/settings" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            Configuración
+          </a>
+          <hr class="my-1">
+          <button (click)="logout()" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
