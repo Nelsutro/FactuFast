@@ -1,1 +1,349 @@
-<p>quotes works!</p>
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Cotizaciones</h1>
+      <p class="text-gray-600 mt-1">Gestiona tus cotizaciones y conviértelas en facturas</p>
+    </div>
+    
+    <div class="mt-4 sm:mt-0">
+      <button class="btn-primary" (click)="createQuote()">
+        <i class="fas fa-plus mr-2"></i>
+        Nueva Cotización
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <!-- Search -->
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+        <div class="relative">
+          <input 
+            type="text" 
+            placeholder="Número de cotización, cliente..."
+            [(ngModel)]="searchTerm"
+            (input)="onSearchChange()"
+            class="input-field pl-10">
+          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+
+      <!-- Status Filter -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+        <select [(ngModel)]="statusFilter" (change)="applyFilters()" class="input-field">
+          <option value="">Todos</option>
+          <option value="draft">Borrador</option>
+          <option value="sent">Enviadas</option>
+          <option value="accepted">Aceptadas</option>
+          <option value="rejected">Rechazadas</option>
+        </select>
+      </div>
+
+      <!-- Date Range -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
+        <select [(ngModel)]="dateRange" (change)="applyFilters()" class="input-field">
+          <option value="">Todo</option>
+          <option value="week">Esta semana</option>
+          <option value="month">Este mes</option>
+          <option value="quarter">Trimestre</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-gray-200">
+      <div class="text-center">
+        <p class="text-2xl font-bold text-gray-600">{{ stats.total }}</p>
+        <p class="text-sm text-gray-600">Total</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-blue-600">{{ stats.sent }}</p>
+        <p class="text-sm text-gray-600">Enviadas</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-green-600">{{ stats.accepted }}</p>
+        <p class="text-sm text-gray-600">Aceptadas</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-red-600">{{ stats.rejected }}</p>
+        <p class="text-sm text-gray-600">Rechazadas</p>
+      </div>
+      <div class="text-center">
+        <p class="text-2xl font-bold text-purple-600">${{ formatCurrency(stats.totalValue) }}</p>
+        <p class="text-sm text-gray-600">Valor Total</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center py-20">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+      <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+      <p class="text-red-700">{{ error }}</p>
+      <button (click)="loadQuotes()" class="ml-auto text-red-600 hover:text-red-700">
+        <i class="fas fa-redo mr-1"></i>
+        Reintentar
+      </button>
+    </div>
+  </div>
+
+  <!-- Quotes Grid -->
+  <div *ngIf="!loading && !error" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div *ngFor="let quote of paginatedQuotes; trackBy: trackByQuoteId" 
+         class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200">
+      
+      <!-- Quote Header -->
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">#{{ quote.quote_number }}</h3>
+            <p class="text-sm text-gray-600">{{ quote.client?.name || 'Sin cliente' }}</p>
+          </div>
+          
+          <span [ngClass]="{
+            'bg-gray-100 text-gray-800': quote.status === 'draft',
+            'bg-blue-100 text-blue-800': quote.status === 'sent',
+            'bg-green-100 text-green-800': quote.status === 'accepted',
+            'bg-red-100 text-red-800': quote.status === 'rejected'
+          }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+            {{ getStatusLabel(quote.status) }}
+          </span>
+        </div>
+
+        <div class="mb-3">
+          <p class="text-2xl font-bold text-gray-900">${{ formatCurrency(quote.amount) }}</p>
+          <p class="text-sm text-gray-600" *ngIf="quote.valid_until">
+            Válida hasta: {{ formatDate(quote.valid_until) }}
+            <i *ngIf="isExpiringSoon(quote.valid_until)" class="fas fa-clock text-yellow-500 ml-1"></i>
+            <i *ngIf="isExpired(quote.valid_until)" class="fas fa-exclamation-triangle text-red-500 ml-1"></i>
+          </p>
+        </div>
+      </div>
+
+      <!-- Quote Body -->
+      <div class="p-6">
+        <!-- Client Info -->
+        <div class="mb-4">
+          <h4 class="text-sm font-medium text-gray-900 mb-2">Cliente</h4>
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <i class="fas fa-user text-gray-600 text-xs"></i>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-900">{{ quote.client?.name }}</p>
+              <p class="text-xs text-gray-500" *ngIf="quote.client?.email">{{ quote.client?.email }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quote Details -->
+        <div class="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span class="text-gray-600">Creada:</span>
+            <p class="font-medium">{{ formatDate(quote.created_at) }}</p>
+          </div>
+          <div>
+            <span class="text-gray-600">Actualizada:</span>
+            <p class="font-medium">{{ formatDate(quote.updated_at) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quote Actions -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+          <!-- Primary Actions -->
+          <div class="flex space-x-2">
+            <button *ngIf="quote.status === 'draft'" 
+                    (click)="sendQuote(quote)"
+                    class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+              <i class="fas fa-paper-plane mr-1"></i>
+              Enviar
+            </button>
+            
+            <button *ngIf="quote.status === 'sent'" 
+                    (click)="convertToInvoice(quote)"
+                    class="text-green-600 hover:text-green-700 text-sm font-medium">
+              <i class="fas fa-arrow-right mr-1"></i>
+              Convertir
+            </button>
+
+            <button *ngIf="quote.status === 'accepted'" 
+                    (click)="convertToInvoice(quote)"
+                    class="text-green-600 hover:text-green-700 text-sm font-medium">
+              <i class="fas fa-file-invoice mr-1"></i>
+              Facturar
+            </button>
+          </div>
+
+          <!-- Secondary Actions -->
+          <div class="flex space-x-2">
+            <button (click)="viewQuote(quote)" 
+                    class="text-gray-600 hover:text-gray-700 p-1"
+                    title="Ver detalles">
+              <i class="fas fa-eye"></i>
+            </button>
+            <button (click)="duplicateQuote(quote)" 
+                    class="text-purple-600 hover:text-purple-700 p-1"
+                    title="Duplicar">
+              <i class="fas fa-copy"></i>
+            </button>
+            <button (click)="downloadQuote(quote)" 
+                    class="text-blue-600 hover:text-blue-700 p-1"
+                    title="Descargar PDF">
+              <i class="fas fa-download"></i>
+            </button>
+            <button (click)="editQuote(quote)" 
+                    class="text-gray-600 hover:text-gray-700 p-1"
+                    title="Editar">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button (click)="deleteQuote(quote)" 
+                    class="text-red-600 hover:text-red-700 p-1"
+                    title="Eliminar">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredQuotes.length === 0" class="col-span-full text-center py-12">
+      <i class="fas fa-quote-right text-gray-300 text-6xl mb-4"></i>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">No hay cotizaciones</h3>
+      <p class="text-gray-500 mb-4">
+        {{ searchTerm || statusFilter || dateRange ? 'No se encontraron cotizaciones con los filtros aplicados.' : 'Comienza creando tu primera cotización.' }}
+      </p>
+      <button *ngIf="!searchTerm && !statusFilter && !dateRange" 
+              (click)="createQuote()" 
+              class="btn-primary">
+        <i class="fas fa-plus mr-2"></i>
+        Crear Primera Cotización
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div *ngIf="!loading && !error && filteredQuotes.length > pageSize" 
+       class="mt-6 flex items-center justify-between">
+    <p class="text-sm text-gray-700">
+      Mostrando {{ (currentPage - 1) * pageSize + 1 }} a {{ Math.min(currentPage * pageSize, filteredQuotes.length) }} 
+      de {{ filteredQuotes.length }} cotizaciones
+    </p>
+    
+    <div class="flex items-center space-x-2">
+      <button (click)="previousPage()" 
+              [disabled]="currentPage === 1"
+              [class.opacity-50]="currentPage === 1"
+              [class.cursor-not-allowed]="currentPage === 1"
+              class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
+        <i class="fas fa-chevron-left mr-1"></i>
+        Anterior
+      </button>
+      
+      <span class="text-sm text-gray-700">
+        Página {{ currentPage }} de {{ totalPages }}
+      </span>
+      
+      <button (click)="nextPage()" 
+              [disabled]="currentPage === totalPages"
+              [class.opacity-50]="currentPage === totalPages"
+              [class.cursor-not-allowed]="currentPage === totalPages"
+              class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
+        Siguiente
+        <i class="fas fa-chevron-right ml-1"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Confirmación para Eliminar -->
+<div *ngIf="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 transition-opacity" (click)="cancelDelete()">
+      <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+    </div>
+
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="sm:flex sm:items-start">
+          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+            <i class="fas fa-exclamation-triangle text-red-600"></i>
+          </div>
+          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+              Eliminar Cotización
+            </h3>
+            <div class="mt-2">
+              <p class="text-sm text-gray-500">
+                ¿Estás seguro de que deseas eliminar la cotización #{{ quoteToDelete?.quote_number }}? 
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <button (click)="confirmDelete()" 
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+          Eliminar
+        </button>
+        <button (click)="cancelDelete()" 
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Conversión a Factura -->
+<div *ngIf="showConvertModal" class="fixed inset-0 z-50 overflow-y-auto">
+  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+    <div class="fixed inset-0 transition-opacity" (click)="cancelConvert()">
+      <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+    </div>
+
+    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+        <div class="sm:flex sm:items-start">
+          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+            <i class="fas fa-arrow-right text-green-600"></i>
+          </div>
+          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">
+              Convertir a Factura
+            </h3>
+            <div class="mt-2">
+              <p class="text-sm text-gray-500">
+                ¿Deseas convertir la cotización #{{ quoteToConvert?.quote_number }} en una factura?
+                El monto será de ${{ formatCurrency(quoteToConvert?.amount || 0) }}.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+        <button (click)="confirmConvert()" 
+                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
+          Convertir
+        </button>
+        <button (click)="cancelConvert()" 
+                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

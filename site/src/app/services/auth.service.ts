@@ -25,17 +25,17 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
-  login(email: string, password: string) {
+  login(email: string, password: string): Promise<any> {
     return this.http.post<any>(`${this.apiUrl}/login`, { email, password })
-      .subscribe({
-        next: (user) => {
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          this.currentUserSubject.next(user);
-          this.router.navigate(['/dashboard']);
-        },
-        error: (error) => {
-          console.error('Error en login:', error);
-        }
+      .toPromise()
+      .then(user => {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        this.currentUserSubject.next(user);
+        return user;
+      })
+      .catch(error => {
+        console.error('Error en login:', error);
+        throw error;
       });
   }
 

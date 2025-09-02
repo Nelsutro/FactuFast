@@ -3,17 +3,51 @@ import { RouterModule, Routes } from '@angular/router';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { InvoicesComponent } from './components/invoices/invoices.component';
 import { ClientsComponent } from './components/clients/clients.component';
+import { QuotesComponent } from './components/quotes/quotes.component';
+import { PaymentsComponent } from './components/payments/payments.component';
+import { LoginComponent } from './components/auth/login/login.component';
+import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: 'dashboard', component: DashboardComponent },
-  { path: 'invoices', component: InvoicesComponent },
-  { path: 'quotes', component: DashboardComponent }, // Temporalmente
-  { path: 'clients', component: ClientsComponent },
-  { path: 'payments', component: DashboardComponent }, // Temporalmente
-  { path: 'automation', component: DashboardComponent }, // Temporalmente
-  { path: 'settings', component: DashboardComponent }, // Temporalmente
-  { path: '**', redirectTo: '/dashboard' }
+  { path: 'login', component: LoginComponent },
+  { 
+    path: 'dashboard', 
+    component: DashboardComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'invoices', 
+    component: InvoicesComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'quotes', 
+    component: QuotesComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'clients', 
+    component: ClientsComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'payments', 
+    component: PaymentsComponent,
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'automation', 
+    component: DashboardComponent, // Temporalmente
+    canActivate: [AuthGuard]
+  },
+  { 
+    path: 'settings', 
+    component: DashboardComponent, // Temporalmente
+    canActivate: [AuthGuard]
+  },
+  // Redirect any unknown routes to login
+  { path: '**', redirectTo: '/login' }
 ];
 
 @NgModule({

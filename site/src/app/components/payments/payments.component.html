@@ -1,1 +1,283 @@
-<p>payments works!</p>
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Gestión de Pagos</h1>
+      <p class="text-gray-600 mt-1">Seguimiento de pagos y conciliación bancaria</p>
+    </div>
+    
+    <div class="mt-4 sm:mt-0 flex gap-3">
+      <button class="btn-secondary" (click)="reconcilePayments()">
+        <i class="fas fa-sync mr-2"></i>
+        Conciliar
+      </button>
+      <button class="btn-primary" (click)="recordPayment()">
+        <i class="fas fa-plus mr-2"></i>
+        Registrar Pago
+      </button>
+    </div>
+  </div>
+
+  <!-- Payment Stats -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600">Pagos del Mes</p>
+          <p class="text-2xl font-bold text-gray-900">{{ stats.monthlyPayments }}</p>
+        </div>
+        <div class="bg-green-100 p-3 rounded-full">
+          <i class="fas fa-money-bill-wave text-green-600"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600">Monto Recaudado</p>
+          <p class="text-2xl font-bold text-gray-900">${{ formatCurrency(stats.totalCollected) }}</p>
+        </div>
+        <div class="bg-blue-100 p-3 rounded-full">
+          <i class="fas fa-chart-line text-blue-600"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600">Pagos Pendientes</p>
+          <p class="text-2xl font-bold text-gray-900">{{ stats.pendingPayments }}</p>
+        </div>
+        <div class="bg-yellow-100 p-3 rounded-full">
+          <i class="fas fa-hourglass-half text-yellow-600"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-600">Pagos Fallidos</p>
+          <p class="text-2xl font-bold text-gray-900">{{ stats.failedPayments }}</p>
+        </div>
+        <div class="bg-red-100 p-3 rounded-full">
+          <i class="fas fa-exclamation-triangle text-red-600"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <!-- Search -->
+      <div class="md:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+        <div class="relative">
+          <input 
+            type="text" 
+            placeholder="Factura, cliente, método..."
+            [(ngModel)]="searchTerm"
+            (input)="onSearchChange()"
+            class="input-field pl-10">
+          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+
+      <!-- Status Filter -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+        <select [(ngModel)]="statusFilter" (change)="applyFilters()" class="input-field">
+          <option value="">Todos</option>
+          <option value="completed">Completados</option>
+          <option value="pending">Pendientes</option>
+          <option value="failed">Fallidos</option>
+        </select>
+      </div>
+
+      <!-- Method Filter -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Método</label>
+        <select [(ngModel)]="methodFilter" (change)="applyFilters()" class="input-field">
+          <option value="">Todos</option>
+          <option value="credit_card">Tarjeta</option>
+          <option value="bank_transfer">Transferencia</option>
+          <option value="cash">Efectivo</option>
+          <option value="other">Otro</option>
+        </select>
+      </div>
+
+      <!-- Date Range -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
+        <select [(ngModel)]="dateRange" (change)="applyFilters()" class="input-field">
+          <option value="">Todo</option>
+          <option value="today">Hoy</option>
+          <option value="week">Esta semana</option>
+          <option value="month">Este mes</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="flex justify-center items-center py-20">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+
+  <!-- Payments List -->
+  <div *ngIf="!loading && !error" class="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Factura
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Cliente
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Monto
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Método
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Estado
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Fecha
+            </th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let payment of paginatedPayments; trackBy: trackByPaymentId" 
+              class="hover:bg-gray-50 transition-colors">
+            
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div>
+                <div class="text-sm font-medium text-gray-900">#{{ payment.invoice?.invoice_number || 'N/A' }}</div>
+                <div class="text-sm text-gray-500">ID: {{ payment.id }}</div>
+              </div>
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ payment.invoice?.client?.name || 'N/A' }}</div>
+              <div class="text-sm text-gray-500">{{ payment.invoice?.client?.email || '' }}</div>
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm font-medium text-gray-900">${{ formatCurrency(payment.amount) }}</div>
+              <div class="text-sm text-gray-500" *ngIf="payment.invoice">
+                de ${{ formatCurrency(payment.invoice.amount) }}
+              </div>
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <i [ngClass]="{
+                  'fas fa-credit-card text-blue-600': payment.method === 'credit_card',
+                  'fas fa-university text-green-600': payment.method === 'bank_transfer',
+                  'fas fa-money-bill text-yellow-600': payment.method === 'cash',
+                  'fas fa-ellipsis-h text-gray-600': payment.method === 'other'
+                }" class="mr-2"></i>
+                <span class="text-sm text-gray-900">{{ getMethodLabel(payment.method) }}</span>
+              </div>
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [ngClass]="{
+                'bg-green-100 text-green-800': payment.status === 'completed',
+                'bg-yellow-100 text-yellow-800': payment.status === 'pending',
+                'bg-red-100 text-red-800': payment.status === 'failed'
+              }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
+                {{ getStatusLabel(payment.status) }}
+              </span>
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {{ formatDate(payment.payment_date) }}
+            </td>
+
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <div class="flex items-center justify-end space-x-2">
+                <button (click)="viewPayment(payment)" 
+                        class="text-blue-600 hover:text-blue-700 p-1"
+                        title="Ver detalles">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button *ngIf="payment.status === 'pending'" 
+                        (click)="processPayment(payment)" 
+                        class="text-green-600 hover:text-green-700 p-1"
+                        title="Procesar pago">
+                  <i class="fas fa-check"></i>
+                </button>
+                <button *ngIf="payment.status === 'failed'" 
+                        (click)="retryPayment(payment)" 
+                        class="text-yellow-600 hover:text-yellow-700 p-1"
+                        title="Reintentar pago">
+                  <i class="fas fa-redo"></i>
+                </button>
+                <button (click)="downloadReceipt(payment)" 
+                        class="text-purple-600 hover:text-purple-700 p-1"
+                        title="Descargar comprobante">
+                  <i class="fas fa-receipt"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Empty State -->
+      <div *ngIf="filteredPayments.length === 0" class="text-center py-12">
+        <i class="fas fa-credit-card text-gray-300 text-6xl mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay pagos</h3>
+        <p class="text-gray-500 mb-4">
+          {{ searchTerm || statusFilter || methodFilter || dateRange ? 'No se encontraron pagos con los filtros aplicados.' : 'Los pagos aparecerán aquí una vez que se registren.' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="filteredPayments.length > pageSize" 
+         class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-gray-700">
+          Mostrando {{ (currentPage - 1) * pageSize + 1 }} a {{ Math.min(currentPage * pageSize, filteredPayments.length) }} 
+          de {{ filteredPayments.length }} pagos
+        </p>
+        
+        <div class="flex items-center space-x-2">
+          <button (click)="previousPage()" 
+                  [disabled]="currentPage === 1"
+                  [class.opacity-50]="currentPage === 1"
+                  [class.cursor-not-allowed]="currentPage === 1"
+                  class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
+            <i class="fas fa-chevron-left mr-1"></i>
+            Anterior
+          </button>
+          
+          <span class="text-sm text-gray-700">
+            Página {{ currentPage }} de {{ totalPages }}
+          </span>
+          
+          <button (click)="nextPage()" 
+                  [disabled]="currentPage === totalPages"
+                  [class.opacity-50]="currentPage === totalPages"
+                  [class.cursor-not-allowed]="currentPage === totalPages"
+                  class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
+            Siguiente
+            <i class="fas fa-chevron-right ml-1"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

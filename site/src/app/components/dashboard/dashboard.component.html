@@ -134,7 +134,7 @@
         </div>
         <div class="p-6">
           <div class="space-y-4" *ngIf="dashboardStats?.recent_invoices?.length; else noInvoices">
-            <div *ngFor="let invoice of dashboardStats.recent_invoices" 
+            <div *ngFor="let invoice of dashboardStats?.recent_invoices" 
                  class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
                  (click)="viewInvoice(invoice.id)">
               <div class="flex items-center space-x-4">
