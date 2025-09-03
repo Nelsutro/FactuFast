@@ -5,6 +5,14 @@ import { Chart, ChartConfiguration, ChartType, registerables } from 'chart.js';
 import { ApiService } from '../../services/api.service';
 import { DashboardStats, Invoice } from '../../models';
 
+import { MatSelectModule } from '@angular/material/select';
+import { MatOptionModule } from '@angular/material/core';
+import { MatChipsModule, MatChip } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatListModule } from '@angular/material/list';
+
 Chart.register(...registerables);
 
 @Component({
@@ -284,5 +292,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       'cancelled': 'Cancelada'
     };
     return labels[status] || status;
+  }
+
+  getStatusIcon(status: string): string {
+    const icons: { [key: string]: string } = {
+      'pending': 'schedule',
+      'paid': 'check_circle',
+      'cancelled': 'cancel'
+    };
+    return icons[status] || 'help_outline';
   }
 }

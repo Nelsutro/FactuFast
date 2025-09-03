@@ -1,11 +1,17 @@
-<div class="min-h-screen bg-gray-50">
-  <app-sidebar [isOpen]="sidebarOpen" (toggleSidebar)="toggleSidebar()"></app-sidebar>
-  
-  <div class="lg:ml-64 flex flex-col min-h-screen">
-    <app-header (toggleSidebar)="toggleSidebar()"></app-header>
+<mat-sidenav-container class="app-container">
+  <!-- Sidebar -->
+  <mat-sidenav #sidenav mode="over" [opened]="sidebarOpen" (closed)="sidebarOpen = false" class="app-sidenav">
+    <app-sidebar (closeSidenav)="sidenav.close()"></app-sidebar>
+  </mat-sidenav>
+
+  <!-- Main Content -->
+  <mat-sidenav-content class="app-content">
+    <!-- Header -->
+    <app-header (toggleSidenav)="sidenav.toggle()"></app-header>
     
-    <main class="flex-1">
+    <!-- Page Content -->
+    <main class="main-content">
       <router-outlet></router-outlet>
     </main>
-  </div>
-</div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

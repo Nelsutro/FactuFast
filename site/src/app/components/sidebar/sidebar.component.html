@@ -1,65 +1,47 @@
-<div class="fixed inset-y-0 left-0 z-50 w-64 bg-blue-900 transform transition-transform duration-300 ease-in-out"
-     [class.-translate-x-full]="!isOpen"
-     [class.lg:translate-x-0]="true">
-  
-  <div class="flex items-center justify-center h-16 bg-blue-800">
-    <h1 class="text-white text-xl font-bold">FactuFast</h1>
+<div class="sidebar-container">
+  <!-- Logo/Header -->
+  <div class="sidebar-header">
+    <mat-icon class="logo-icon">bolt</mat-icon>
+    <h2 class="logo-text">FactuFast</h2>
   </div>
-  
-  <nav class="mt-8">
-    <a routerLink="/dashboard" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-chart-line mr-3"></i>
-      Dashboard
-    </a>
-    
-    <a routerLink="/invoices" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-file-invoice mr-3"></i>
-      Facturas
-    </a>
-    
-    <a routerLink="/quotes" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-quote-right mr-3"></i>
-      Cotizaciones
-    </a>
-    
-    <a routerLink="/clients" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-users mr-3"></i>
-      Clientes
-    </a>
-    
-    <a routerLink="/payments" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-credit-card mr-3"></i>
-      Pagos
-    </a>
-    
-    <a routerLink="/automation" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-clock mr-3"></i>
-      Automatización
-    </a>
-    
-    <a routerLink="/settings" 
-       routerLinkActive="bg-blue-800 text-white"
-       class="flex items-center px-6 py-3 text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
-      <i class="fas fa-cog mr-3"></i>
-      Configuración
-    </a>
-  </nav>
-</div>
 
-<!-- Overlay for mobile -->
-<div *ngIf="isOpen" 
-     class="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
-     (click)="closeSidebar()">
+  <!-- Navigation Menu -->
+  <mat-nav-list class="nav-list">
+    <a mat-list-item routerLink="/dashboard" routerLinkActive="active" #dashboardLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="dashboardLink.isActive">dashboard</mat-icon>
+      <span matLine>Dashboard</span>
+    </a>
+
+    <a mat-list-item routerLink="/invoices" routerLinkActive="active" #invoicesLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="invoicesLink.isActive">receipt</mat-icon>
+      <span matLine>Facturas</span>
+    </a>
+
+    <a mat-list-item routerLink="/quotes" routerLinkActive="active" #quotesLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="quotesLink.isActive">format_quote</mat-icon>
+      <span matLine>Cotizaciones</span>
+    </a>
+
+    <a mat-list-item routerLink="/clients" routerLinkActive="active" #clientsLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="clientsLink.isActive">people</mat-icon>
+      <span matLine>Clientes</span>
+    </a>
+
+    <a mat-list-item routerLink="/payments" routerLinkActive="active" #paymentsLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="paymentsLink.isActive">payment</mat-icon>
+      <span matLine>Pagos</span>
+    </a>
+
+    <a mat-list-item routerLink="/automation" routerLinkActive="active" #automationLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="automationLink.isActive">schedule</mat-icon>
+      <span matLine>Automatización</span>
+    </a>
+
+    <mat-divider></mat-divider>
+
+    <a mat-list-item routerLink="/settings" routerLinkActive="active" #settingsLink="routerLinkActive">
+      <mat-icon matListIcon [class.active-icon]="settingsLink.isActive">settings</mat-icon>
+      <span matLine>Configuración</span>
+    </a>
+  </mat-nav-list>
 </div>

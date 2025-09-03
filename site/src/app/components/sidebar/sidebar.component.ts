@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter } from '@angular/core';
 
 @Component({
   selector: 'app-sidebar',
@@ -7,10 +7,10 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
   standalone: false
 })
 export class SidebarComponent {
-  @Input() isOpen: boolean = false;
-  @Output() toggleSidebar = new EventEmitter<void>();
+  @Output() closeSidenav = new EventEmitter<void>();
 
-  closeSidebar() {
-    this.toggleSidebar.emit();
+  onItemClick() {
+    // Close sidenav on mobile after navigation
+    this.closeSidenav.emit();
   }
 }

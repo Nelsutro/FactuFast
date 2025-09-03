@@ -1,0 +1,51 @@
+.search-field {
+  margin-left: 16px;
+  margin-right: 16px;
+  width: 300px;
+  max-width: 40%;
+}
+
+.search-field ::ng-deep .mat-form-field-outline {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.search-field ::ng-deep .mat-form-field-outline-thick {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.search-field ::ng-deep .mat-form-field-label {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.search-field ::ng-deep .mat-input-element {
+  color: white !important;
+}
+
+.search-field ::ng-deep .mat-input-element::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.search-field ::ng-deep .mat-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.menu-button {
+  margin-right: 16px;
+}
+
+@media (max-width: 768px) {
+  .search-field {
+    display: none;
+  }
+}

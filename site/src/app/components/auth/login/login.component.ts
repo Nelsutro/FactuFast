@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -9,25 +10,28 @@ import { AuthService } from '../../../services/auth.service';
   standalone: false
 })
 export class LoginComponent implements OnInit {
-  
-  credentials = {
-    email: '',
-    password: ''
-  };
 
+  loginForm!: FormGroup;
   loading = false;
   error: string | null = null;
   showPassword = false;
-  rememberMe = false;
   returnUrl = '/dashboard';
 
   constructor(
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private formBuilder: FormBuilder
   ) {}
 
   ngOnInit() {
+    // Initialize form
+    this.loginForm = this.formBuilder.group({
+      email: ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required, Validators.minLength(6)]],
+      rememberMe: [false]
+    });
+
     // Get return url from route parameters or default to dashboard
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
 
@@ -51,14 +55,15 @@ export class LoginComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
-      // Validate form
-      if (!this.credentials.email || !this.credentials.password) {
-        this.error = 'Por favor completa todos los campos';
+      if (this.loginForm.invalid) {
+        this.error = 'Por favor completa todos los campos correctamente';
         return;
       }
 
+      const formValue = this.loginForm.value;
+
       // Simulate login (replace with real API call)
-      await this.simulateLogin();
+      await this.simulateLogin(formValue.email, formValue.password);
 
     } catch (error: any) {
       this.error = error.message || 'Error al iniciar sesión. Verifica tus credenciales.';
@@ -68,23 +73,23 @@ export class LoginComponent implements OnInit {
   }
 
   // Simulate login - Replace with real authService.login()
-  private simulateLogin(): Promise<void> {
+  private simulateLogin(email: string, password: string): Promise<void> {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         // Mock validation
-        if (this.credentials.email === 'admin@factufast.com' && this.credentials.password === 'password') {
+        if (email === 'admin@factufast.com' && password === 'password') {
           // Mock successful login
           const mockUser = {
             id: 1,
             name: 'Administrador',
-            email: this.credentials.email,
+            email: email,
             role: 'admin',
             token: 'mock-jwt-token-' + Date.now()
           };
 
           // Store user data
           localStorage.setItem('currentUser', JSON.stringify(mockUser));
-          
+
           // Navigate to return URL
           this.router.navigate([this.returnUrl]);
           resolve();
@@ -175,7 +180,9 @@ export class LoginComponent implements OnInit {
 
   // Demo credentials
   fillDemoCredentials() {
-    this.credentials.email = 'admin@factufast.com';
-    this.credentials.password = 'password';
+    this.loginForm.patchValue({
+      email: 'admin@factufast.com',
+      password: 'password'
+    });
   }
 }

@@ -1,54 +1,224 @@
-<header class="bg-white shadow-sm border-b border-gray-200">
-  <div class="flex items-center justify-between px-6 py-4">
-    <button class="lg:hidden text-gray-500 hover:text-gray-700" (click)="onToggleSidebar()">
-      <i class="fas fa-bars"></i>
-    </button>
-    
-    <div class="flex items-center space-x-4">
-      <div class="relative">
-        <input type="search" 
-               placeholder="Buscar..." 
-               [(ngModel)]="searchTerm"
-               (input)="onSearch()"
-               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-      </div>
-    </div>
+<!-- header.component.html -->
+<mat-toolbar color="primary" class="app-header">
+  <!-- Menu Toggle (Mobile) -->
+  <button mat-icon-button 
+          (click)="onToggleSidenav()" 
+          class="menu-toggle-btn"
+          matTooltip="Abrir menú"
+          matTooltipPosition="below">
+    <mat-icon>menu</mat-icon>
+  </button>
 
-    <div class="flex items-center space-x-4">
-      <button class="text-gray-500 hover:text-gray-700 relative"
-              (click)="toggleNotifications()">
-        <i class="fas fa-bell"></i>
-        <span *ngIf="notificationCount > 0" 
-              class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-          {{notificationCount}}
-        </span>
+  <!-- Logo/Brand -->
+  <div class="brand-section">
+    <mat-icon class="brand-icon">bolt</mat-icon>
+    <span class="brand-text">FactuFast</span>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="search-container">
+    <mat-form-field appearance="outline" class="search-field" subscriptSizing="dynamic">
+      <mat-icon matPrefix color="primary">search</mat-icon>
+      <input matInput 
+             placeholder="Buscar facturas, clientes, cotizaciones..." 
+             [(ngModel)]="searchTerm"
+             (input)="onSearch()"
+             (keydown.enter)="performSearch()"
+             [matAutocomplete]="searchAutocomplete">
+      <button matSuffix 
+              mat-icon-button 
+              *ngIf="searchTerm" 
+              (click)="clearSearch()"
+              matTooltip="Limpiar búsqueda">
+        <mat-icon>close</mat-icon>
       </button>
-      
-      <div class="relative">
-        <button class="flex items-center space-x-2 text-gray-700 hover:text-gray-900" 
-                (click)="toggleUserMenu()">
-          <img [src]="userAvatar" 
-               [alt]="userName" 
-               class="w-8 h-8 rounded-full">
-          <span class="hidden md:block">{{userName}}</span>
-          <i class="fas fa-chevron-down"></i>
+    </mat-form-field>
+
+    <!-- Search Autocomplete -->
+    <mat-autocomplete #searchAutocomplete="matAutocomplete" 
+                      (optionSelected)="onSearchOptionSelected($event)">
+      <mat-option *ngFor="let result of searchResults" [value]="result.display">
+        <mat-icon class="search-result-icon">{{ result.icon }}</mat-icon>
+        <span class="search-result-text">{{ result.display }}</span>
+        <small class="search-result-type">{{ result.type }}</small>
+      </mat-option>
+      <mat-option *ngIf="searchResults.length === 0 && searchTerm" disabled>
+        <em>No se encontraron resultados</em>
+      </mat-option>
+    </mat-autocomplete>
+  </div>
+
+  <!-- Spacer -->
+  <span class="header-spacer"></span>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <button mat-icon-button 
+            (click)="quickCreateInvoice()"
+            matTooltip="Nueva Factura"
+            matTooltipPosition="below"
+            class="quick-action-btn">
+      <mat-icon>receipt_long</mat-icon>
+    </button>
+
+    <button mat-icon-button 
+            (click)="quickCreateClient()"
+            matTooltip="Nuevo Cliente"
+            matTooltipPosition="below"
+            class="quick-action-btn">
+      <mat-icon>person_add</mat-icon>
+    </button>
+  </div>
+
+  <!-- Notifications -->
+  <button mat-icon-button 
+          [matBadge]="notificationCount > 0 ? notificationCount : null"
+          matBadgeColor="warn"
+          matBadgeSize="small"
+          (click)="toggleNotifications()"
+          matTooltip="Notificaciones"
+          matTooltipPosition="below"
+          class="notifications-btn"
+          #notificationsBtn>
+    <mat-icon [class.animate-bell]="hasNewNotifications">notifications</mat-icon>
+  </button>
+
+  <!-- Notifications Panel -->
+  <mat-menu #notificationsMenu="matMenu" 
+            class="notifications-menu"
+            [overlapTrigger]="false"
+            yPosition="below">
+    <div class="notifications-panel" (click)="$event.stopPropagation()">
+      <div class="notifications-header">
+        <h3>Notificaciones</h3>
+        <button mat-icon-button 
+                (click)="markAllAsRead()"
+                matTooltip="Marcar todo como leído"
+                [disabled]="notifications.length === 0">
+          <mat-icon>done_all</mat-icon>
         </button>
-        
-        <div *ngIf="showUserMenu" 
-             class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-          <a routerLink="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            Mi Perfil
-          </a>
-          <a routerLink="/settings" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            Configuración
-          </a>
-          <hr class="my-1">
-          <button (click)="logout()" class="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            Cerrar Sesión
+      </div>
+      
+      <mat-divider></mat-divider>
+
+      <div class="notifications-list" *ngIf="notifications.length > 0; else noNotifications">
+        <div *ngFor="let notification of notifications" 
+             class="notification-item"
+             [class.unread]="!notification.read"
+             (click)="handleNotificationClick(notification)">
+          
+          <div class="notification-icon">
+            <mat-icon [style.color]="getNotificationColor(notification.type)">
+              {{ getNotificationIcon(notification.type) }}
+            </mat-icon>
+          </div>
+          
+          <div class="notification-content">
+            <div class="notification-title">{{ notification.title }}</div>
+            <div class="notification-message">{{ notification.message }}</div>
+            <div class="notification-time">{{ formatNotificationTime(notification.timestamp) }}</div>
+          </div>
+
+          <button mat-icon-button 
+                  (click)="dismissNotification(notification, $event)"
+                  class="notification-dismiss">
+            <mat-icon>close</mat-icon>
           </button>
         </div>
       </div>
+
+      <ng-template #noNotifications>
+        <div class="no-notifications">
+          <mat-icon class="no-notifications-icon">notifications_none</mat-icon>
+          <p>No hay notificaciones nuevas</p>
+        </div>
+      </ng-template>
+
+      <mat-divider></mat-divider>
+      <div class="notifications-footer">
+        <button mat-button 
+                color="primary" 
+                (click)="viewAllNotifications()"
+                class="view-all-btn">
+          Ver todas las notificaciones
+        </button>
+      </div>
     </div>
-  </div>
-</header>
+  </mat-menu>
+
+  <!-- User Profile Menu -->
+  <button mat-button 
+          [matMenuTriggerFor]="userMenu" 
+          class="user-profile-btn"
+          #userMenuTrigger="matMenuTrigger">
+    <div class="user-info">
+      <img [src]="userAvatar" 
+           [alt]="userName" 
+           class="user-avatar"
+           (error)="onAvatarError($event)">
+      <div class="user-details" [class.hide-mobile]="true">
+        <div class="user-name">{{ userName }}</div>
+        <div class="user-role">{{ userRole }}</div>
+      </div>
+      <mat-icon class="dropdown-icon">expand_more</mat-icon>
+    </div>
+  </button>
+
+  <!-- User Menu -->
+  <mat-menu #userMenu="matMenu" class="user-menu">
+    <!-- User Profile Header -->
+    <div class="user-menu-header" (click)="$event.stopPropagation()">
+      <img [src]="userAvatar" [alt]="userName" class="user-menu-avatar">
+      <div class="user-menu-info">
+        <div class="user-menu-name">{{ userName }}</div>
+        <div class="user-menu-email">{{ userEmail }}</div>
+        <div class="user-menu-role">
+          <mat-chip size="small" [color]="getRoleColor(userRole)">
+            {{ getRoleLabel(userRole) }}
+          </mat-chip>
+        </div>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <!-- Menu Items -->
+    <button mat-menu-item (click)="goToProfile()" class="menu-item">
+      <mat-icon>person</mat-icon>
+      <span>Mi Perfil</span>
+    </button>
+
+    <button mat-menu-item (click)="goToSettings()" class="menu-item">
+      <mat-icon>settings</mat-icon>
+      <span>Configuración</span>
+    </button>
+
+    <button mat-menu-item (click)="toggleTheme()" class="menu-item">
+      <mat-icon>{{ isDarkTheme ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      <span>{{ isDarkTheme ? 'Modo Claro' : 'Modo Oscuro' }}</span>
+    </button>
+
+    <mat-divider></mat-divider>
+
+    <button mat-menu-item (click)="viewHelp()" class="menu-item">
+      <mat-icon>help</mat-icon>
+      <span>Ayuda y Soporte</span>
+    </button>
+
+    <button mat-menu-item (click)="viewUpdates()" class="menu-item">
+      <mat-icon [matBadge]="updateCount > 0 ? updateCount : null" 
+                matBadgeColor="accent" 
+                matBadgeSize="small">
+        system_update
+      </mat-icon>
+      <span>Novedades</span>
+    </button>
+
+    <mat-divider></mat-divider>
+
+    <button mat-menu-item (click)="confirmLogout()" class="menu-item logout-item">
+      <mat-icon>logout</mat-icon>
+      <span>Cerrar Sesión</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>
