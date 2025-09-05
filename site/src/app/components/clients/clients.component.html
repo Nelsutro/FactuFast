@@ -1,103 +1,117 @@
-<div class="p-6">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Gestión de Clientes</h1>
-      <p class="text-gray-600 mt-1">Administra tu base de clientes</p>
-    </div>
-    
-    <div class="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
-      <button class="btn-secondary" (click)="importClients()">
-        <i class="fas fa-upload mr-2"></i>
-        Importar
-      </button>
-      <button class="btn-primary" (click)="createClient()">
-        <i class="fas fa-plus mr-2"></i>
+<mat-card class="mat-elevation-z8">
+  <mat-card-header>
+    <mat-card-title>Gestión de Clientes</mat-card-title>
+    <mat-card-subtitle>Administra tu base de clientes</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Actions -->
+    <div class="button-row">
+      <button mat-raised-button (click)="addClient()">
+        <mat-icon>add</mat-icon>
         Nuevo Cliente
       </button>
     </div>
-  </div>
 
-  <!-- Search and Filters -->
-  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <!-- Search -->
-      <div class="md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar Cliente</label>
-        <div class="relative">
-          <input 
-            type="text" 
-            placeholder="Nombre, email, teléfono..."
-            [(ngModel)]="searchTerm"
-            (input)="onSearchChange()"
-            class="input-field pl-10">
-          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-        </div>
-      </div>
-
-      <!-- View Toggle -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Vista</label>
-        <div class="flex rounded-lg border border-gray-300">
-          <button 
-            [class.bg-blue-600]="viewMode === 'cards'"
-            [class.text-white]="viewMode === 'cards'"
-            [class.text-gray-600]="viewMode !== 'cards'"
-            class="flex-1 px-3 py-2 text-sm rounded-l-lg transition-colors flex items-center justify-center"
-            (click)="viewMode = 'cards'">
-            <i class="fas fa-th-large mr-1"></i>
-            Cards
-          </button>
-          <button 
-            [class.bg-blue-600]="viewMode === 'list'"
-            [class.text-white]="viewMode === 'list'"
-            [class.text-gray-600]="viewMode !== 'list'"
-            class="flex-1 px-3 py-2 text-sm rounded-r-lg transition-colors flex items-center justify-center"
-            (click)="viewMode = 'list'">
-            <i class="fas fa-list mr-1"></i>
-            Lista
-          </button>
-        </div>
-      </div>
+    <!-- Stats Cards -->
+    <div class="stats-container">
+      <mat-grid-list cols="4" rowHeight="100px">
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.total}}</mat-card-title>
+              <mat-card-subtitle>Total Clientes</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.active}}</mat-card-title>
+              <mat-card-subtitle>Clientes Activos</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.totalInvoices}}</mat-card-title>
+              <mat-card-subtitle>Total Facturas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>${{stats.totalRevenue}}</mat-card-title>
+              <mat-card-subtitle>Ingresos Totales</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+      </mat-grid-list>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
-      <div class="text-center">
-        <p class="text-2xl font-bold text-blue-600">{{ stats.total }}</p>
-        <p class="text-sm text-gray-600">Total Clientes</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-green-600">{{ stats.active }}</p>
-        <p class="text-sm text-gray-600">Activos</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-gray-600">{{ stats.totalInvoices }}</p>
-        <p class="text-sm text-gray-600">Facturas</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-gray-600">${{ formatCurrency(stats.totalRevenue) }}</p>
-        <p class="text-sm text-gray-600">Ingresos</p>
-      </div>
-    </div>
-  </div>
+    <!-- Filter -->
+    <mat-form-field appearance="outline">
+      <mat-label>Filtrar</mat-label>
+      <input matInput (keyup)="applyFilter($event)" placeholder="Buscar cliente..." #input>
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
 
-  <!-- Loading State -->
-  <div *ngIf="loading" class="flex justify-center items-center py-20">
-    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-  </div>
+    <!-- Table -->
+    <div class="mat-elevation-z8">
+      <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+      
+      <mat-table [dataSource]="dataSource" matSort>
+        <!-- ID Column -->
+        <ng-container matColumnDef="id">
+          <mat-header-cell *matHeaderCellDef mat-sort-header> ID </mat-header-cell>
+          <mat-cell *matCellDef="let client"> {{client.id}} </mat-cell>
+        </ng-container>
 
-  <!-- Error State -->
-  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-    <div class="flex items-center">
-      <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-      <p class="text-red-700">{{ error }}</p>
-      <button (click)="loadClients()" class="ml-auto text-red-600 hover:text-red-700">
-        <i class="fas fa-redo mr-1"></i>
-        Reintentar
-      </button>
+        <!-- Name Column -->
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef mat-sort-header> Nombre </mat-header-cell>
+          <mat-cell *matCellDef="let client"> {{client.name}} </mat-cell>
+        </ng-container>
+
+        <!-- Email Column -->
+        <ng-container matColumnDef="email">
+          <mat-header-cell *matHeaderCellDef mat-sort-header> Email </mat-header-cell>
+          <mat-cell *matCellDef="let client"> {{client.email}} </mat-cell>
+        </ng-container>
+
+        <!-- Phone Column -->
+        <ng-container matColumnDef="phone">
+          <mat-header-cell *matHeaderCellDef mat-sort-header> Teléfono </mat-header-cell>
+          <mat-cell *matCellDef="let client"> {{client.phone}} </mat-cell>
+        </ng-container>
+
+        <!-- Address Column -->
+        <ng-container matColumnDef="address">
+          <mat-header-cell *matHeaderCellDef mat-sort-header> Dirección </mat-header-cell>
+          <mat-cell *matCellDef="let client"> {{client.address}} </mat-cell>
+        </ng-container>
+
+        <!-- Actions Column -->
+        <ng-container matColumnDef="actions">
+          <mat-header-cell *matHeaderCellDef> Acciones </mat-header-cell>
+          <mat-cell *matCellDef="let client">
+            <button mat-icon-button color="primary" (click)="editClient(client)">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button color="warn" (click)="deleteClient(client)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
+      </mat-table>
+
+      <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" showFirstLastButtons></mat-paginator>
     </div>
-  </div>
 
   <!-- Clients Content -->
   <div *ngIf="!loading && !error">
@@ -315,7 +329,6 @@
       </div>
     </div>
   </div>
-</div>
 
 <!-- Modal de Confirmación para Eliminar Cliente -->
 <div *ngIf="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">

@@ -5,6 +5,7 @@ export interface Company {
   email?: string;
   phone?: string;
   address?: string;
+  website?: string;
   created_at: Date;
   updated_at: Date;
 }

@@ -20,7 +20,175 @@ tbody tr:hover {
   transition: background-color 0.2s ease;
 }
 
-/* Estilos para botones de acción */
+.mat-card {
+  margin: 20px;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.stats-container {
+  margin: 20px 0;
+}
+
+.stats-card {
+  width: 90%;
+  height: 90%;
+}
+
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.mat-form-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.table-container {
+  margin-top: 20px;
+}
+
+.mat-table {
+  width: 100%;
+}
+
+.mat-header-cell {
+  font-weight: bold;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.primary-text {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.secondary-text {
+  color: rgba(0, 0, 0, 0.54);
+  font-size: 12px;
+}
+
+.mat-chip.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.mat-chip.status-paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.mat-chip.status-cancelled {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.text-overdue {
+  color: #dc3545;
+}
+
+.text-due-soon {
+  color: #ffc107;
+}
+
+.warning-icon {
+  color: #dc3545;
+  font-size: 18px;
+  vertical-align: bottom;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+}
+
+.empty-state mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  color: rgba(0, 0, 0, 0.38);
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  color: rgba(0, 0, 0, 0.54);
+  margin-bottom: 16px;
+}
+
+.delete-dialog-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.delete-dialog-content .warning-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.delete-dialog-content h2 {
+  margin-bottom: 16px;
+}
+
+.delete-dialog-content .warning-text {
+  color: #dc3545;
+  margin-top: 8px;
+}
+
+.mat-column-actions {
+  width: 80px;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 16px;
+  border-radius: 4px;
+  margin: 20px 0;
+}
+
+.error-message mat-icon {
+  margin-right: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .mat-card {
+    margin: 10px;
+  }
+  
+  .filters-container {
+    flex-direction: column;
+  }
+  
+  .mat-form-field {
+    width: 100%;
+  }
+  
+  .button-row {
+    flex-direction: column;
+  }
+  
+  .button-row button {
+    width: 100%;
+  }
+}
 .action-button {
   opacity: 0.7;
   transition: opacity 0.2s ease;

@@ -1,396 +1,239 @@
-<div class="p-6">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Gestión de Facturas</h1>
-      <p class="text-gray-600 mt-1">Administra todas tus facturas desde aquí</p>
-    </div>
-    
-    <div class="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
-      <button class="btn-secondary" (click)="importInvoices()">
-        <i class="fas fa-upload mr-2"></i>
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Gestión de Facturas</mat-card-title>
+    <mat-card-subtitle>Administra todas tus facturas desde aquí</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Actions -->
+    <div class="button-row">
+      <button mat-raised-button (click)="importInvoices()">
+        <mat-icon>upload</mat-icon>
         Importar
       </button>
-      <button class="btn-primary" (click)="createInvoice()">
-        <i class="fas fa-plus mr-2"></i>
+      <button mat-raised-button color="primary" (click)="createInvoice()">
+        <mat-icon>add</mat-icon>
         Nueva Factura
       </button>
     </div>
-  </div>
 
-  <!-- Filters and Search -->
-  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <!-- Search -->
-      <div class="lg:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-        <div class="relative">
-          <input 
-            type="text" 
-            placeholder="Número de factura, cliente..."
-            [(ngModel)]="searchTerm"
-            (input)="onSearchChange()"
-            class="input-field pl-10">
-          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-        </div>
-      </div>
-
-      <!-- Status Filter -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-        <select [(ngModel)]="statusFilter" (change)="applyFilters()" class="input-field">
-          <option value="">Todos los estados</option>
-          <option value="pending">Pendientes</option>
-          <option value="paid">Pagadas</option>
-          <option value="cancelled">Canceladas</option>
-        </select>
-      </div>
-
-      <!-- Date Range -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
-        <select [(ngModel)]="dateRange" (change)="applyFilters()" class="input-field">
-          <option value="">Todo el tiempo</option>
-          <option value="today">Hoy</option>
-          <option value="week">Esta semana</option>
-          <option value="month">Este mes</option>
-          <option value="quarter">Este trimestre</option>
-        </select>
-      </div>
+    <!-- Stats Cards -->
+    <div class="stats-container">
+      <mat-grid-list cols="4" rowHeight="100px">
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.total}}</mat-card-title>
+              <mat-card-subtitle>Total Facturas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.pending}}</mat-card-title>
+              <mat-card-subtitle>Pendientes</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.paid}}</mat-card-title>
+              <mat-card-subtitle>Pagadas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>${{formatCurrency(stats.totalAmount)}}</mat-card-title>
+              <mat-card-subtitle>Monto Total</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+      </mat-grid-list>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
-      <div class="text-center">
-        <p class="text-2xl font-bold text-blue-600">{{ stats.total }}</p>
-        <p class="text-sm text-gray-600">Total</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-yellow-600">{{ stats.pending }}</p>
-        <p class="text-sm text-gray-600">Pendientes</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-green-600">{{ stats.paid }}</p>
-        <p class="text-sm text-gray-600">Pagadas</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-gray-600">${{ formatCurrency(stats.totalAmount) }}</p>
-        <p class="text-sm text-gray-600">Monto Total</p>
-      </div>
+    <!-- Filters -->
+    <div class="filters-container">
+      <mat-form-field appearance="outline">
+        <mat-label>Buscar</mat-label>
+        <input matInput (keyup)="applyFilter($event)" placeholder="Buscar facturas...">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Estado</mat-label>
+        <mat-select [(value)]="statusFilter" (selectionChange)="applyStatusFilter($event.value)">
+          <mat-option [value]="">Todos</mat-option>
+          <mat-option value="pending">Pendientes</mat-option>
+          <mat-option value="paid">Pagadas</mat-option>
+          <mat-option value="cancelled">Canceladas</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Período</mat-label>
+        <mat-select [(value)]="dateRange" (selectionChange)="applyDateFilter($event.value)">
+          <mat-option [value]="">Todo el tiempo</mat-option>
+          <mat-option value="today">Hoy</mat-option>
+          <mat-option value="week">Esta semana</mat-option>
+          <mat-option value="month">Este mes</mat-option>
+          <mat-option value="quarter">Este trimestre</mat-option>
+        </mat-select>
+      </mat-form-field>
     </div>
-  </div>
 
-  <!-- Loading State -->
-  <div *ngIf="loading" class="flex justify-center items-center py-20">
-    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-  </div>
+    <!-- Loading Progress -->
+    <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
-  <!-- Error State -->
-  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-    <div class="flex items-center">
-      <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-      <p class="text-red-700">{{ error }}</p>
-      <button (click)="loadInvoices()" class="ml-auto text-red-600 hover:text-red-700">
-        <i class="fas fa-redo mr-1"></i>
-        Reintentar
-      </button>
+    <!-- Error Message -->
+    <div *ngIf="error" class="error-message">
+      <mat-icon>error</mat-icon>
+      <span>{{error}}</span>
+      <button mat-button color="primary" (click)="loadInvoices()">Reintentar</button>
     </div>
-  </div>
 
-  <!-- Invoices Table -->
-  <div class="bg-white rounded-lg shadow-sm overflow-hidden" *ngIf="!loading && !error">
-    <!-- Table Header -->
-    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-medium text-gray-900">
-          Facturas ({{ filteredInvoices.length }})
-        </h3>
-        
-        <div class="flex items-center space-x-2">
-          <!-- View Toggle -->
-          <div class="flex rounded-lg border border-gray-300">
-            <button 
-              [class.bg-blue-600]="viewMode === 'table'"
-              [class.text-white]="viewMode === 'table'"
-              [class.text-gray-600]="viewMode !== 'table'"
-              class="px-3 py-1 text-sm rounded-l-lg transition-colors"
-              (click)="viewMode = 'table'">
-              <i class="fas fa-list"></i>
+    <!-- Table -->
+    <div class="mat-elevation-z8 table-container" *ngIf="!loading && !error">
+
+      <table mat-table [dataSource]="dataSource" matSort>
+        <!-- Invoice Number Column -->
+        <ng-container matColumnDef="invoice_number">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Factura </th>
+          <td mat-cell *matCellDef="let invoice"> 
+            <div>
+              <div class="primary-text">#{{invoice.invoice_number}}</div>
+              <div class="secondary-text">{{formatDate(invoice.issue_date)}}</div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Client Column -->
+        <ng-container matColumnDef="client.name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Cliente </th>
+          <td mat-cell *matCellDef="let invoice">
+            <div>
+              <div class="primary-text">{{invoice.client?.name || 'Sin cliente'}}</div>
+              <div class="secondary-text">{{invoice.client?.email || ''}}</div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Amount Column -->
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Monto </th>
+          <td mat-cell *matCellDef="let invoice"> ${{formatCurrency(invoice.amount)}} </td>
+        </ng-container>
+
+        <!-- Status Column -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Estado </th>
+          <td mat-cell *matCellDef="let invoice">
+            <mat-chip [ngClass]="{
+              'status-pending': invoice.status === 'pending',
+              'status-paid': invoice.status === 'paid',
+              'status-cancelled': invoice.status === 'cancelled'
+            }">
+              {{getStatusLabel(invoice.status)}}
+            </mat-chip>
+          </td>
+        </ng-container>
+
+        <!-- Due Date Column -->
+        <ng-container matColumnDef="due_date">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header> Vencimiento </th>
+          <td mat-cell *matCellDef="let invoice">
+            <div [ngClass]="{
+              'text-overdue': isOverdue(invoice.due_date),
+              'text-due-soon': isDueSoon(invoice.due_date)
+            }">
+              {{formatDate(invoice.due_date)}}
+              <mat-icon *ngIf="isOverdue(invoice.due_date)" class="warning-icon">warning</mat-icon>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Actions Column -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef> Acciones </th>
+          <td mat-cell *matCellDef="let invoice">
+            <button mat-icon-button [matMenuTriggerFor]="menu">
+              <mat-icon>more_vert</mat-icon>
             </button>
-            <button 
-              [class.bg-blue-600]="viewMode === 'cards'"
-              [class.text-white]="viewMode === 'cards'"
-              [class.text-gray-600]="viewMode !== 'cards'"
-              class="px-3 py-1 text-sm rounded-r-lg transition-colors"
-              (click)="viewMode = 'cards'">
-              <i class="fas fa-th-large"></i>
-            </button>
-          </div>
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item (click)="viewInvoice(invoice)">
+                <mat-icon>visibility</mat-icon>
+                <span>Ver detalles</span>
+              </button>
+              <button mat-menu-item (click)="editInvoice(invoice)">
+                <mat-icon>edit</mat-icon>
+                <span>Editar</span>
+              </button>
+              <button mat-menu-item (click)="duplicateInvoice(invoice)">
+                <mat-icon>content_copy</mat-icon>
+                <span>Duplicar</span>
+              </button>
+              <button mat-menu-item (click)="downloadInvoice(invoice)">
+                <mat-icon>download</mat-icon>
+                <span>Descargar PDF</span>
+              </button>
+              <mat-divider></mat-divider>
+              <button mat-menu-item (click)="deleteInvoice(invoice)" class="delete-action">
+                <mat-icon>delete</mat-icon>
+                <span>Eliminar</span>
+              </button>
+            </mat-menu>
+          </td>
+        </ng-container>
 
-          <!-- Sort -->
-          <select [(ngModel)]="sortBy" (change)="applySorting()" class="text-sm border border-gray-300 rounded px-2 py-1">
-            <option value="created_at_desc">Más recientes</option>
-            <option value="created_at_asc">Más antiguos</option>
-            <option value="amount_desc">Mayor monto</option>
-            <option value="amount_asc">Menor monto</option>
-            <option value="due_date_asc">Vence pronto</option>
-          </select>
-        </div>
-      </div>
-    </div>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
 
-    <!-- Table View -->
-    <div *ngIf="viewMode === 'table'" class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Factura
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Cliente
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Monto
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Estado
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Vencimiento
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <tr *ngFor="let invoice of paginatedInvoices; trackBy: trackByInvoiceId" 
-              class="hover:bg-gray-50 transition-colors">
-            
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div>
-                <div class="text-sm font-medium text-gray-900">#{{ invoice.invoice_number }}</div>
-                <div class="text-sm text-gray-500">{{ formatDate(invoice.issue_date) }}</div>
-              </div>
-            </td>
-
-            <td class="px-6 py-4 whitespace-nowrap">
-              <div class="text-sm text-gray-900">{{ invoice.client?.name || 'Sin cliente' }}</div>
-              <div class="text-sm text-gray-500">{{ invoice.client?.email || '' }}</div>
-            </td>
-
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              ${{ formatCurrency(invoice.amount) }}
-            </td>
-
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span [ngClass]="{
-                'bg-yellow-100 text-yellow-800': invoice.status === 'pending',
-                'bg-green-100 text-green-800': invoice.status === 'paid',
-                'bg-red-100 text-red-800': invoice.status === 'cancelled'
-              }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-                {{ getStatusLabel(invoice.status) }}
-              </span>
-            </td>
-
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-              <div [ngClass]="{
-                'text-red-600': isOverdue(invoice.due_date),
-                'text-yellow-600': isDueSoon(invoice.due_date),
-                'text-gray-900': !isOverdue(invoice.due_date) && !isDueSoon(invoice.due_date)
-              }">
-                {{ formatDate(invoice.due_date) }}
-                <i *ngIf="isOverdue(invoice.due_date)" class="fas fa-exclamation-triangle ml-1"></i>
-              </div>
-            </td>
-
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <div class="flex items-center justify-end space-x-2">
-                <button (click)="viewInvoice(invoice)" 
-                        class="text-blue-600 hover:text-blue-700 p-1"
-                        title="Ver detalles">
-                  <i class="fas fa-eye"></i>
-                </button>
-                <button (click)="editInvoice(invoice)" 
-                        class="text-gray-600 hover:text-gray-700 p-1"
-                        title="Editar">
-                  <i class="fas fa-edit"></i>
-                </button>
-                <button (click)="duplicateInvoice(invoice)" 
-                        class="text-green-600 hover:text-green-700 p-1"
-                        title="Duplicar">
-                  <i class="fas fa-copy"></i>
-                </button>
-                <button (click)="downloadInvoice(invoice)" 
-                        class="text-purple-600 hover:text-purple-700 p-1"
-                        title="Descargar PDF">
-                  <i class="fas fa-download"></i>
-                </button>
-                <button (click)="deleteInvoice(invoice)" 
-                        class="text-red-600 hover:text-red-700 p-1"
-                        title="Eliminar">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+        <!-- Row shown when there is no matching data. -->
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell" colspan="6">
+            <div class="empty-state">
+              <mat-icon>receipt</mat-icon>
+              <h3>No hay facturas</h3>
+              <p>
+                {{searchTerm || statusFilter || dateRange ? 
+                  'No se encontraron facturas con los filtros aplicados.' : 
+                  'Comienza creando tu primera factura.'}}
+              </p>
+              <button *ngIf="!searchTerm && !statusFilter && !dateRange" 
+                      mat-raised-button 
+                      color="primary" 
+                      (click)="createInvoice()">
+                <mat-icon>add</mat-icon>
+                Crear Primera Factura
+              </button>
+            </div>
+          </td>
+        </tr>
       </table>
 
-      <!-- Empty State -->
-      <div *ngIf="filteredInvoices.length === 0" class="text-center py-12">
-        <i class="fas fa-file-invoice text-gray-300 text-6xl mb-4"></i>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay facturas</h3>
-        <p class="text-gray-500 mb-4">
-          {{ searchTerm || statusFilter || dateRange ? 'No se encontraron facturas con los filtros aplicados.' : 'Comienza creando tu primera factura.' }}
-        </p>
-        <button *ngIf="!searchTerm && !statusFilter && !dateRange" 
-                (click)="createInvoice()" 
-                class="btn-primary">
-          <i class="fas fa-plus mr-2"></i>
-          Crear Primera Factura
-        </button>
-      </div>
+      <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" 
+                     showFirstLastButtons 
+                     aria-label="Seleccionar página de facturas">
+      </mat-paginator>
     </div>
+  </mat-card-content>
+</mat-card>
 
-    <!-- Cards View -->
-    <div *ngIf="viewMode === 'cards'" class="p-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div *ngFor="let invoice of paginatedInvoices; trackBy: trackByInvoiceId" 
-             class="card hover:shadow-lg transition-all duration-200 cursor-pointer"
-             (click)="viewInvoice(invoice)">
-          
-          <div class="flex items-start justify-between mb-4">
-            <div>
-              <h4 class="text-lg font-medium text-gray-900">#{{ invoice.invoice_number }}</h4>
-              <p class="text-sm text-gray-600">{{ invoice.client?.name || 'Sin cliente' }}</p>
-            </div>
-            <span [ngClass]="{
-              'bg-yellow-100 text-yellow-800': invoice.status === 'pending',
-              'bg-green-100 text-green-800': invoice.status === 'paid',
-              'bg-red-100 text-red-800': invoice.status === 'cancelled'
-            }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-              {{ getStatusLabel(invoice.status) }}
-            </span>
-          </div>
-
-          <div class="mb-4">
-            <p class="text-2xl font-bold text-gray-900">${{ formatCurrency(invoice.amount) }}</p>
-            <p class="text-sm text-gray-600">
-              Vence: {{ formatDate(invoice.due_date) }}
-              <i *ngIf="isOverdue(invoice.due_date)" class="fas fa-exclamation-triangle text-red-500 ml-1"></i>
-            </p>
-          </div>
-
-          <div class="flex items-center justify-between pt-4 border-t border-gray-200">
-            <span class="text-sm text-gray-500">{{ formatDate(invoice.issue_date) }}</span>
-            
-            <div class="flex items-center space-x-2">
-              <button (click)="editInvoice(invoice); $event.stopPropagation()" 
-                      class="text-gray-600 hover:text-gray-700 p-1"
-                      title="Editar">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button (click)="downloadInvoice(invoice); $event.stopPropagation()" 
-                      class="text-purple-600 hover:text-purple-700 p-1"
-                      title="Descargar PDF">
-                <i class="fas fa-download"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty State for Cards -->
-      <div *ngIf="filteredInvoices.length === 0" class="text-center py-12">
-        <i class="fas fa-file-invoice text-gray-300 text-6xl mb-4"></i>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay facturas</h3>
-        <p class="text-gray-500 mb-4">
-          {{ searchTerm || statusFilter || dateRange ? 'No se encontraron facturas con los filtros aplicados.' : 'Comienza creando tu primera factura.' }}
-        </p>
-        <button *ngIf="!searchTerm && !statusFilter && !dateRange" 
-                (click)="createInvoice()" 
-                class="btn-primary">
-          <i class="fas fa-plus mr-2"></i>
-          Crear Primera Factura
-        </button>
-      </div>
+<!-- Delete Confirmation Dialog -->
+<div *ngIf="showDeleteModal">
+  <mat-dialog-content>
+    <div class="delete-dialog-content">
+      <mat-icon class="warning-icon">warning</mat-icon>
+      <h2>Eliminar Factura</h2>
+      <p>¿Estás seguro de que deseas eliminar la factura #{{invoiceToDelete?.invoice_number}}?</p>
+      <p class="warning-text">Esta acción no se puede deshacer.</p>
     </div>
-
-    <!-- Pagination -->
-    <div *ngIf="filteredInvoices.length > pageSize" 
-         class="px-6 py-4 border-t border-gray-200 bg-gray-50">
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-gray-700">
-          Mostrando {{ (currentPage - 1) * pageSize + 1 }} a {{ Math.min(currentPage * pageSize, filteredInvoices.length) }} 
-          de {{ filteredInvoices.length }} facturas
-        </p>
-        
-        <div class="flex items-center space-x-2">
-          <button (click)="previousPage()" 
-                  [disabled]="currentPage === 1"
-                  [class.opacity-50]="currentPage === 1"
-                  [class.cursor-not-allowed]="currentPage === 1"
-                  class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
-            <i class="fas fa-chevron-left mr-1"></i>
-            Anterior
-          </button>
-          
-          <span class="text-sm text-gray-700">
-            Página {{ currentPage }} de {{ totalPages }}
-          </span>
-          
-          <button (click)="nextPage()" 
-                  [disabled]="currentPage === totalPages"
-                  [class.opacity-50]="currentPage === totalPages"
-                  [class.cursor-not-allowed]="currentPage === totalPages"
-                  class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
-            Siguiente
-            <i class="fas fa-chevron-right ml-1"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal de Confirmación para Eliminar -->
-<div *ngIf="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
-  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-    <div class="fixed inset-0 transition-opacity" (click)="cancelDelete()">
-      <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-    </div>
-
-    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-        <div class="sm:flex sm:items-start">
-          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-            <i class="fas fa-exclamation-triangle text-red-600"></i>
-          </div>
-          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">
-              Eliminar Factura
-            </h3>
-            <div class="mt-2">
-              <p class="text-sm text-gray-500">
-                ¿Estás seguro de que deseas eliminar la factura #{{ invoiceToDelete?.invoice_number }}? 
-                Esta acción no se puede deshacer.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-        <button (click)="confirmDelete()" 
-                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-          Eliminar
-        </button>
-        <button (click)="cancelDelete()" 
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-          Cancelar
-        </button>
-      </div>
-    </div>
-  </div>
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="cancelDelete()">Cancelar</button>
+    <button mat-raised-button color="warn" (click)="confirmDelete()">Eliminar</button>
+  </mat-dialog-actions>
 </div>

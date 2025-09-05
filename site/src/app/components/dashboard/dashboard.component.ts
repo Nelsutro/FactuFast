@@ -302,4 +302,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     };
     return icons[status] || 'help_outline';
   }
+
+  getStatusIconClass(status: string): string {
+    const classes: { [key: string]: string } = {
+      'pending': 'pending-icon',
+      'paid': 'paid-icon',
+      'cancelled': 'cancelled-icon'
+    };
+    return classes[status] || 'default-icon';
+  }
+
+  getStatusChipClass(status: string): string {
+    const classes: { [key: string]: string } = {
+      'pending': 'pending-chip',
+      'paid': 'paid-chip',
+      'cancelled': 'cancelled-chip'
+    };
+    return classes[status] || 'default-chip';
+  }
 }

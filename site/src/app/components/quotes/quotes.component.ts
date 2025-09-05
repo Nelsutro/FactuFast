@@ -192,7 +192,21 @@ export class QuotesComponent implements OnInit {
   }
 
   // Filtering and searching
-  onSearchChange() {
+  applyFilter(event: Event) {
+    const filterValue = (event.target as HTMLInputElement).value;
+    this.searchTerm = filterValue.trim().toLowerCase();
+    this.currentPage = 1;
+    this.applyFilters();
+  }
+
+  applyStatusFilter(value: string) {
+    this.statusFilter = value;
+    this.currentPage = 1;
+    this.applyFilters();
+  }
+
+  applyDateFilter(value: string) {
+    this.dateRange = value;
     this.currentPage = 1;
     this.applyFilters();
   }

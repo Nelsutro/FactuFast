@@ -1,7 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { Payment, Invoice, Client } from '../../models';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
 
 @Component({
   selector: 'app-payments',
@@ -14,20 +17,23 @@ export class PaymentsComponent implements OnInit {
   // Data properties
   payments: Payment[] = [];
   filteredPayments: Payment[] = [];
-  paginatedPayments: Payment[] = [];
   loading = true;
   error: string | null = null;
+
+  // Table and pagination properties
+  displayedColumns: string[] = ['invoice', 'client', 'amount', 'method', 'status', 'date', 'actions'];
+  dataSource!: MatTableDataSource<Payment>;
+  pageSize = 9;
+  pageSizeOptions: number[] = [9, 18, 27];
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
 
   // Filter properties
   searchTerm = '';
   statusFilter = '';
   methodFilter = '';
   dateRange = '';
-
-  // Pagination properties
-  currentPage = 1;
-  pageSize = 15;
-  totalPages = 1;
 
   // Stats
   stats = {
@@ -59,13 +65,100 @@ export class PaymentsComponent implements OnInit {
       this.payments = response;
       
       this.calculateStats();
-      this.applyFilters();
+      this.filteredPayments = [...this.payments];
+      this.dataSource = new MatTableDataSource(this.filteredPayments);
+      this.dataSource.paginator = this.paginator;
+      this.dataSource.sort = this.sort;
+
+      // Custom filter predicate
+      this.dataSource.filterPredicate = (data: Payment, filter: string) => {
+        const term = filter.toLowerCase();
+        return data.invoice?.invoice_number?.toLowerCase().includes(term) ||
+               data.invoice?.client?.name?.toLowerCase().includes(term) ||
+               data.invoice?.client?.email?.toLowerCase().includes(term) ||
+               this.getMethodLabel(data.method).toLowerCase().includes(term);
+      };
 
     } catch (error) {
       this.error = 'Error al cargar los pagos';
       console.error('Error loading payments:', error);
     } finally {
       this.loading = false;
+    }
+  }
+
+  // Filtering methods
+  applyFilter(event: Event) {
+    const filterValue = (event.target as HTMLInputElement).value;
+    this.searchTerm = filterValue.trim().toLowerCase();
+    this.applyFilters();
+  }
+
+  applyStatusFilter(value: string) {
+    this.statusFilter = value;
+    this.applyFilters();
+  }
+
+  applyMethodFilter(value: string) {
+    this.methodFilter = value;
+    this.applyFilters();
+  }
+
+  applyDateFilter(value: string) {
+    this.dateRange = value;
+    this.applyFilters();
+  }
+
+  applyFilters() {
+    let filtered = [...this.payments];
+
+    // Apply search filter
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(payment => 
+        payment.invoice?.invoice_number?.toLowerCase().includes(term) ||
+        payment.invoice?.client?.name?.toLowerCase().includes(term) ||
+        payment.invoice?.client?.email?.toLowerCase().includes(term) ||
+        this.getMethodLabel(payment.method).toLowerCase().includes(term)
+      );
+    }
+
+    // Apply status filter
+    if (this.statusFilter) {
+      filtered = filtered.filter(payment => payment.status === this.statusFilter);
+    }
+
+    // Apply method filter
+    if (this.methodFilter) {
+      filtered = filtered.filter(payment => payment.method === this.methodFilter);
+    }
+
+    // Apply date range filter
+    if (this.dateRange) {
+      const now = new Date();
+      const startDate = this.getStartDateForRange(this.dateRange, now);
+      filtered = filtered.filter(payment => 
+        new Date(payment.payment_date) >= startDate
+      );
+    }
+
+    this.filteredPayments = filtered;
+    if (this.dataSource) {
+      this.dataSource.data = this.filteredPayments;
+    }
+  }
+
+  // Material table helper methods
+  getMethodIcon(method: string): string {
+    switch (method) {
+      case 'credit_card':
+        return 'credit_card';
+      case 'bank_transfer':
+        return 'account_balance';
+      case 'cash':
+        return 'payments';
+      default:
+        return 'more_horiz';
     }
   }
 
@@ -219,48 +312,7 @@ export class PaymentsComponent implements OnInit {
     };
   }
 
-  // Filtering and searching
-  onSearchChange() {
-    this.currentPage = 1;
-    this.applyFilters();
-  }
 
-  applyFilters() {
-    let filtered = [...this.payments];
-
-    // Apply search filter
-    if (this.searchTerm) {
-      const term = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(payment => 
-        payment.invoice?.invoice_number?.toLowerCase().includes(term) ||
-        payment.invoice?.client?.name?.toLowerCase().includes(term) ||
-        payment.method.toLowerCase().includes(term) ||
-        payment.status.toLowerCase().includes(term)
-      );
-    }
-
-    // Apply status filter
-    if (this.statusFilter) {
-      filtered = filtered.filter(payment => payment.status === this.statusFilter);
-    }
-
-    // Apply method filter
-    if (this.methodFilter) {
-      filtered = filtered.filter(payment => payment.method === this.methodFilter);
-    }
-
-    // Apply date range filter
-    if (this.dateRange) {
-      const now = new Date();
-      const startDate = this.getStartDateForRange(this.dateRange, now);
-      filtered = filtered.filter(payment => 
-        new Date(payment.payment_date) >= startDate
-      );
-    }
-
-    this.filteredPayments = filtered;
-    this.updatePagination();
-  }
 
   private getStartDateForRange(range: string, now: Date): Date {
     const date = new Date(now);
@@ -277,33 +329,6 @@ export class PaymentsComponent implements OnInit {
         return date;
       default:
         return new Date(0);
-    }
-  }
-
-  updatePagination() {
-    this.totalPages = Math.ceil(this.filteredPayments.length / this.pageSize);
-    
-    if (this.currentPage > this.totalPages) {
-      this.currentPage = Math.max(1, this.totalPages);
-    }
-
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-    this.paginatedPayments = this.filteredPayments.slice(startIndex, endIndex);
-  }
-
-  // Pagination methods
-  previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      this.updatePagination();
-    }
-  }
-
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-      this.updatePagination();
     }
   }
 
@@ -384,6 +409,15 @@ export class PaymentsComponent implements OnInit {
       'other': 'Otro'
     };
     return labels[method] || method;
+  }
+
+  // Pagination handler
+  onPageChange(event: PageEvent): void {
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.pageIndex = event.pageIndex;
+      this.dataSource.paginator.pageSize = event.pageSize;
+      this.pageSize = event.pageSize;
+    }
   }
 
   trackByPaymentId(index: number, payment: Payment): number {

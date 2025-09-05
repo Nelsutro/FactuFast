@@ -59,8 +59,8 @@ import { AuthService } from './services/auth.service';
 @NgModule({
   declarations: [
     AppComponent,
-    SidebarComponent,
     HeaderComponent,
+    SidebarComponent,
     DashboardComponent,
     InvoicesComponent,
     ClientsComponent,

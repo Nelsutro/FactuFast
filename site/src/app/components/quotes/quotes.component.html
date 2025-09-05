@@ -1,222 +1,216 @@
-<div class="p-6">
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-900">Cotizaciones</h1>
-      <p class="text-gray-600 mt-1">Gestiona tus cotizaciones y conviértelas en facturas</p>
-    </div>
+<mat-card>
+  <mat-card-header>
+    <mat-card-title>Cotizaciones</mat-card-title>
+    <mat-card-subtitle>Gestiona tus cotizaciones y conviértelas en facturas</mat-card-subtitle>
+  </mat-card-header>
     
-    <div class="mt-4 sm:mt-0">
-      <button class="btn-primary" (click)="createQuote()">
-        <i class="fas fa-plus mr-2"></i>
+  <mat-card-content>
+    <!-- Actions -->
+    <div class="button-row">
+      <button mat-raised-button color="primary" (click)="createQuote()">
+        <mat-icon>add</mat-icon>
         Nueva Cotización
       </button>
     </div>
-  </div>
 
-  <!-- Filters -->
-  <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <!-- Search -->
-      <div class="md:col-span-2">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
-        <div class="relative">
-          <input 
-            type="text" 
-            placeholder="Número de cotización, cliente..."
-            [(ngModel)]="searchTerm"
-            (input)="onSearchChange()"
-            class="input-field pl-10">
-          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-        </div>
-      </div>
+    <!-- Filters -->
+    <div class="filters-container">
+      <mat-form-field appearance="outline">
+        <mat-label>Buscar</mat-label>
+        <input matInput (keyup)="applyFilter($event)" placeholder="Buscar cotizaciones...">
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
 
-      <!-- Status Filter -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
-        <select [(ngModel)]="statusFilter" (change)="applyFilters()" class="input-field">
-          <option value="">Todos</option>
-          <option value="draft">Borrador</option>
-          <option value="sent">Enviadas</option>
-          <option value="accepted">Aceptadas</option>
-          <option value="rejected">Rechazadas</option>
-        </select>
-      </div>
+      <mat-form-field appearance="outline">
+        <mat-label>Estado</mat-label>
+        <mat-select [(value)]="statusFilter" (selectionChange)="applyStatusFilter($event.value)">
+          <mat-option [value]="">Todos</mat-option>
+          <mat-option value="draft">Borrador</mat-option>
+          <mat-option value="sent">Enviadas</mat-option>
+          <mat-option value="accepted">Aceptadas</mat-option>
+          <mat-option value="rejected">Rechazadas</mat-option>
+        </mat-select>
+      </mat-form-field>
 
-      <!-- Date Range -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
-        <select [(ngModel)]="dateRange" (change)="applyFilters()" class="input-field">
-          <option value="">Todo</option>
-          <option value="week">Esta semana</option>
-          <option value="month">Este mes</option>
-          <option value="quarter">Trimestre</option>
-        </select>
-      </div>
+      <mat-form-field appearance="outline">
+        <mat-label>Período</mat-label>
+        <mat-select [(value)]="dateRange" (selectionChange)="applyDateFilter($event.value)">
+          <mat-option [value]="">Todo</mat-option>
+          <mat-option value="week">Esta semana</mat-option>
+          <mat-option value="month">Este mes</mat-option>
+          <mat-option value="quarter">Este trimestre</mat-option>
+        </mat-select>
+      </mat-form-field>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-gray-200">
-      <div class="text-center">
-        <p class="text-2xl font-bold text-gray-600">{{ stats.total }}</p>
-        <p class="text-sm text-gray-600">Total</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-blue-600">{{ stats.sent }}</p>
-        <p class="text-sm text-gray-600">Enviadas</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-green-600">{{ stats.accepted }}</p>
-        <p class="text-sm text-gray-600">Aceptadas</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-red-600">{{ stats.rejected }}</p>
-        <p class="text-sm text-gray-600">Rechazadas</p>
-      </div>
-      <div class="text-center">
-        <p class="text-2xl font-bold text-purple-600">${{ formatCurrency(stats.totalValue) }}</p>
-        <p class="text-sm text-gray-600">Valor Total</p>
-      </div>
+    <!-- Stats Cards -->
+    <div class="stats-container">
+      <mat-grid-list cols="5" rowHeight="100px">
+        <mat-grid-tile>
+          <mat-card class="stats-card">
+            <mat-card-header>
+              <mat-card-title>{{stats.total}}</mat-card-title>
+              <mat-card-subtitle>Total</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card primary">
+            <mat-card-header>
+              <mat-card-title>{{stats.sent}}</mat-card-title>
+              <mat-card-subtitle>Enviadas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card success">
+            <mat-card-header>
+              <mat-card-title>{{stats.accepted}}</mat-card-title>
+              <mat-card-subtitle>Aceptadas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card warn">
+            <mat-card-header>
+              <mat-card-title>{{stats.rejected}}</mat-card-title>
+              <mat-card-subtitle>Rechazadas</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+        <mat-grid-tile>
+          <mat-card class="stats-card accent">
+            <mat-card-header>
+              <mat-card-title>${{formatCurrency(stats.totalValue)}}</mat-card-title>
+              <mat-card-subtitle>Valor Total</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+        </mat-grid-tile>
+      </mat-grid-list>
     </div>
-  </div>
 
-  <!-- Loading State -->
-  <div *ngIf="loading" class="flex justify-center items-center py-20">
-    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-  </div>
+    <!-- Loading Progress -->
+    <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
-  <!-- Error State -->
-  <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-    <div class="flex items-center">
-      <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
-      <p class="text-red-700">{{ error }}</p>
-      <button (click)="loadQuotes()" class="ml-auto text-red-600 hover:text-red-700">
-        <i class="fas fa-redo mr-1"></i>
+    <!-- Error Message -->
+    <div *ngIf="error" class="error-message">
+      <mat-icon>error</mat-icon>
+      <span>{{error}}</span>
+      <button mat-button color="warn" (click)="loadQuotes()">
+        <mat-icon>refresh</mat-icon>
         Reintentar
       </button>
     </div>
-  </div>
 
-  <!-- Quotes Grid -->
-  <div *ngIf="!loading && !error" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div *ngFor="let quote of paginatedQuotes; trackBy: trackByQuoteId" 
-         class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200">
-      
-      <!-- Quote Header -->
-      <div class="p-6 border-b border-gray-200">
-        <div class="flex items-start justify-between mb-3">
-          <div>
-            <h3 class="text-lg font-medium text-gray-900">#{{ quote.quote_number }}</h3>
-            <p class="text-sm text-gray-600">{{ quote.client?.name || 'Sin cliente' }}</p>
-          </div>
-          
-          <span [ngClass]="{
-            'bg-gray-100 text-gray-800': quote.status === 'draft',
-            'bg-blue-100 text-blue-800': quote.status === 'sent',
-            'bg-green-100 text-green-800': quote.status === 'accepted',
-            'bg-red-100 text-red-800': quote.status === 'rejected'
-          }" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium">
-            {{ getStatusLabel(quote.status) }}
-          </span>
-        </div>
+    <!-- Quotes Grid -->
+    <div class="quotes-grid" *ngIf="!loading && !error">
+      <mat-grid-list cols="3" rowHeight="400px" gutterSize="16px">
+        <mat-grid-tile *ngFor="let quote of paginatedQuotes; trackBy: trackByQuoteId">
+          <mat-card class="quote-card">
+            <mat-card-header>
+              <mat-card-title>
+                <div class="quote-header">
+                  <span>#{{quote.quote_number}}</span>
+                  <mat-chip-set>
+                    <mat-chip [ngClass]="{
+                      'status-draft': quote.status === 'draft',
+                      'status-sent': quote.status === 'sent',
+                      'status-accepted': quote.status === 'accepted',
+                      'status-rejected': quote.status === 'rejected'
+                    }">
+                      {{getStatusLabel(quote.status)}}
+                    </mat-chip>
+                  </mat-chip-set>
+                </div>
+              </mat-card-title>
+              <mat-card-subtitle>{{quote.client?.name || 'Sin cliente'}}</mat-card-subtitle>
+            </mat-card-header>
 
-        <div class="mb-3">
-          <p class="text-2xl font-bold text-gray-900">${{ formatCurrency(quote.amount) }}</p>
-          <p class="text-sm text-gray-600" *ngIf="quote.valid_until">
-            Válida hasta: {{ formatDate(quote.valid_until) }}
-            <i *ngIf="isExpiringSoon(quote.valid_until)" class="fas fa-clock text-yellow-500 ml-1"></i>
-            <i *ngIf="isExpired(quote.valid_until)" class="fas fa-exclamation-triangle text-red-500 ml-1"></i>
-          </p>
-        </div>
-      </div>
+            <mat-card-content>
+              <div class="quote-amount">
+                ${{formatCurrency(quote.amount)}}
+              </div>
+              
+              <div class="quote-validity" *ngIf="quote.valid_until">
+                <span>Válida hasta: {{formatDate(quote.valid_until)}}</span>
+                <mat-icon *ngIf="isExpiringSoon(quote.valid_until)" class="warning-icon">schedule</mat-icon>
+                <mat-icon *ngIf="isExpired(quote.valid_until)" class="error-icon">warning</mat-icon>
+              </div>
 
-      <!-- Quote Body -->
-      <div class="p-6">
-        <!-- Client Info -->
-        <div class="mb-4">
-          <h4 class="text-sm font-medium text-gray-900 mb-2">Cliente</h4>
-          <div class="flex items-center space-x-3">
-            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <i class="fas fa-user text-gray-600 text-xs"></i>
-            </div>
-            <div>
-              <p class="text-sm font-medium text-gray-900">{{ quote.client?.name }}</p>
-              <p class="text-xs text-gray-500" *ngIf="quote.client?.email">{{ quote.client?.email }}</p>
-            </div>
-          </div>
-        </div>
+              <mat-divider></mat-divider>
 
-        <!-- Quote Details -->
-        <div class="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span class="text-gray-600">Creada:</span>
-            <p class="font-medium">{{ formatDate(quote.created_at) }}</p>
-          </div>
-          <div>
-            <span class="text-gray-600">Actualizada:</span>
-            <p class="font-medium">{{ formatDate(quote.updated_at) }}</p>
-          </div>
-        </div>
-      </div>
+              <div class="quote-details">
+                <div class="client-info">
+                  <div class="client-avatar">
+                    <mat-icon>person</mat-icon>
+                  </div>
+                  <div class="client-data">
+                    <span class="client-name">{{quote.client?.name}}</span>
+                    <span class="client-email">{{quote.client?.email}}</span>
+                  </div>
+                </div>
 
-      <!-- Quote Actions -->
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
-        <div class="flex items-center justify-between">
-          <!-- Primary Actions -->
-          <div class="flex space-x-2">
-            <button *ngIf="quote.status === 'draft'" 
-                    (click)="sendQuote(quote)"
-                    class="text-blue-600 hover:text-blue-700 text-sm font-medium">
-              <i class="fas fa-paper-plane mr-1"></i>
-              Enviar
-            </button>
-            
-            <button *ngIf="quote.status === 'sent'" 
-                    (click)="convertToInvoice(quote)"
-                    class="text-green-600 hover:text-green-700 text-sm font-medium">
-              <i class="fas fa-arrow-right mr-1"></i>
-              Convertir
-            </button>
+                <div class="quote-dates">
+                  <div>
+                    <span class="date-label">Creada:</span>
+                    <span class="date-value">{{formatDate(quote.created_at)}}</span>
+                  </div>
+                  <div>
+                    <span class="date-label">Actualizada:</span>
+                    <span class="date-value">{{formatDate(quote.updated_at)}}</span>
+                  </div>
+                </div>
+              </div>
+            </mat-card-content>
 
-            <button *ngIf="quote.status === 'accepted'" 
-                    (click)="convertToInvoice(quote)"
-                    class="text-green-600 hover:text-green-700 text-sm font-medium">
-              <i class="fas fa-file-invoice mr-1"></i>
-              Facturar
-            </button>
-          </div>
+            <mat-card-actions align="end">
+              <!-- Primary Actions -->
+              <ng-container [ngSwitch]="quote.status">
+                <button *ngSwitchCase="'draft'" mat-button color="primary" (click)="sendQuote(quote)">
+                  <mat-icon>send</mat-icon>
+                  Enviar
+                </button>
+                <button *ngSwitchCase="'sent'" mat-button color="accent" (click)="convertToInvoice(quote)">
+                  <mat-icon>arrow_forward</mat-icon>
+                  Convertir
+                </button>
+                <button *ngSwitchCase="'accepted'" mat-button color="accent" (click)="convertToInvoice(quote)">
+                  <mat-icon>receipt</mat-icon>
+                  Facturar
+                </button>
+              </ng-container>
 
-          <!-- Secondary Actions -->
-          <div class="flex space-x-2">
-            <button (click)="viewQuote(quote)" 
-                    class="text-gray-600 hover:text-gray-700 p-1"
-                    title="Ver detalles">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button (click)="duplicateQuote(quote)" 
-                    class="text-purple-600 hover:text-purple-700 p-1"
-                    title="Duplicar">
-              <i class="fas fa-copy"></i>
-            </button>
-            <button (click)="downloadQuote(quote)" 
-                    class="text-blue-600 hover:text-blue-700 p-1"
-                    title="Descargar PDF">
-              <i class="fas fa-download"></i>
-            </button>
-            <button (click)="editQuote(quote)" 
-                    class="text-gray-600 hover:text-gray-700 p-1"
-                    title="Editar">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button (click)="deleteQuote(quote)" 
-                    class="text-red-600 hover:text-red-700 p-1"
-                    title="Eliminar">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+              <!-- Secondary Actions -->
+              <button mat-icon-button [matMenuTriggerFor]="menu">
+                <mat-icon>more_vert</mat-icon>
+              </button>
+              <mat-menu #menu="matMenu">
+                <button mat-menu-item (click)="viewQuote(quote)">
+                  <mat-icon>visibility</mat-icon>
+                  <span>Ver detalles</span>
+                </button>
+                <button mat-menu-item (click)="editQuote(quote)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Editar</span>
+                </button>
+                <button mat-menu-item (click)="duplicateQuote(quote)">
+                  <mat-icon>content_copy</mat-icon>
+                  <span>Duplicar</span>
+                </button>
+                <button mat-menu-item (click)="downloadQuote(quote)">
+                  <mat-icon>download</mat-icon>
+                  <span>Descargar PDF</span>
+                </button>
+                <mat-divider></mat-divider>
+                <button mat-menu-item (click)="deleteQuote(quote)" class="delete-action">
+                  <mat-icon>delete</mat-icon>
+                  <span>Eliminar</span>
+                </button>
+              </mat-menu>
+            </mat-card-actions>
+          </mat-card>
+        </mat-grid-tile>
+      </mat-grid-list>
 
     <!-- Empty State -->
     <div *ngIf="filteredQuotes.length === 0" class="col-span-full text-center py-12">
@@ -266,7 +260,6 @@
       </button>
     </div>
   </div>
-</div>
 
 <!-- Modal de Confirmación para Eliminar -->
 <div *ngIf="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">

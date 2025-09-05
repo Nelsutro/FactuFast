@@ -1,7 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 import { Invoice } from '../../models';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 
 @Component({
   selector: 'app-invoices',
@@ -9,12 +14,15 @@ import { Invoice } from '../../models';
   styleUrls: ['./invoices.component.css'],
   standalone: false
 })
-export class InvoicesComponent implements OnInit {
+export class InvoicesComponent implements OnInit, AfterViewInit {
   
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatSort) sort!: MatSort;
+
   // Data properties
-  invoices: Invoice[] = [];
-  filteredInvoices: Invoice[] = [];
-  paginatedInvoices: Invoice[] = [];
+  dataSource = new MatTableDataSource<Invoice>();
+  originalData: Invoice[] = [];
+  displayedColumns: string[] = ['invoice_number', 'client.name', 'amount', 'status', 'due_date', 'actions'];
   loading = true;
   error: string | null = null;
 
@@ -49,11 +57,26 @@ export class InvoicesComponent implements OnInit {
 
   constructor(
     private apiService: ApiService,
-    private router: Router
+    private router: Router,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit() {
     this.loadInvoices();
+
+    // Configurar la función de filtrado
+    this.dataSource.filterPredicate = (data: Invoice, filter: string): boolean => {
+      const searchStr = filter.toLowerCase();
+      return data.invoice_number.toLowerCase().includes(searchStr) ||
+             (data.client?.name?.toLowerCase().includes(searchStr) || false) ||
+             (data.client?.email?.toLowerCase().includes(searchStr) || false);
+    };
+  }
+
+  ngAfterViewInit() {
+    this.dataSource.paginator = this.paginator;
+    this.dataSource.sort = this.sort;
   }
 
   async loadInvoices() {
@@ -63,14 +86,18 @@ export class InvoicesComponent implements OnInit {
 
       // Simulate API call - Replace with real API call
       const response = await this.simulateApiCall();
-      this.invoices = response;
-      
+      this.originalData = response;
+      this.dataSource.data = response;
       this.calculateStats();
-      this.applyFilters();
 
     } catch (error) {
       this.error = 'Error al cargar las facturas';
       console.error('Error loading invoices:', error);
+      this.snackBar.open(this.error, 'Cerrar', {
+        duration: 3000,
+        horizontalPosition: 'end',
+        verticalPosition: 'top'
+      });
     } finally {
       this.loading = false;
     }
@@ -193,50 +220,60 @@ export class InvoicesComponent implements OnInit {
   }
 
   calculateStats() {
+    const data = this.dataSource.data;
     this.stats = {
-      total: this.invoices.length,
-      pending: this.invoices.filter(i => i.status === 'pending').length,
-      paid: this.invoices.filter(i => i.status === 'paid').length,
-      totalAmount: this.invoices.reduce((sum, i) => sum + i.amount, 0)
+      total: data.length,
+      pending: data.filter(i => i.status === 'pending').length,
+      paid: data.filter(i => i.status === 'paid').length,
+      totalAmount: data.reduce((sum, i) => sum + i.amount, 0)
     };
   }
 
-  // Filtering and searching
-  onSearchChange() {
-    this.currentPage = 1;
-    this.applyFilters();
+  applyFilter(event: Event) {
+    const filterValue = (event.target as HTMLInputElement).value;
+    this.dataSource.filter = filterValue.trim().toLowerCase();
+
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
   }
 
-  applyFilters() {
-    let filtered = [...this.invoices];
+  applyStatusFilter(status: string) {
+    this.statusFilter = status;
+    this.dataSource.data = this.filteredData;
+  }
 
-    // Apply search filter
-    if (this.searchTerm) {
-      const term = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(invoice => 
-        invoice.invoice_number.toLowerCase().includes(term) ||
-        invoice.client?.name?.toLowerCase().includes(term) ||
-        invoice.client?.email?.toLowerCase().includes(term)
-      );
+  applyDateFilter(range: string) {
+    this.dateRange = range;
+    this.dataSource.data = this.filteredData;
+  }
+
+  private get filteredData(): Invoice[] {
+    return this.originalData.filter(invoice => {
+      const matchesStatus = !this.statusFilter || invoice.status === this.statusFilter;
+      const matchesDate = !this.dateRange || this.isInDateRange(invoice.issue_date, this.dateRange);
+      return matchesStatus && matchesDate;
+    });
+  }
+
+  private isInDateRange(date: Date | string, range: string): boolean {
+    const startDate = this.getStartDateForRange(range, new Date());
+    return new Date(date) >= startDate;
+  }
+
+  private updateFilter() {
+    this.dataSource.filterPredicate = (data: Invoice, filter: string): boolean => {
+      return !filter || (data.invoice_number.toLowerCase().includes(filter) ||
+             (data.client?.name?.toLowerCase().includes(filter) || false) ||
+             (data.client?.email?.toLowerCase().includes(filter) || false));
+    };
+
+    // Trigger filtering
+    this.dataSource.filter = this.searchTerm.trim().toLowerCase();
+    
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
     }
-
-    // Apply status filter
-    if (this.statusFilter) {
-      filtered = filtered.filter(invoice => invoice.status === this.statusFilter);
-    }
-
-    // Apply date range filter
-    if (this.dateRange) {
-      const now = new Date();
-      const startDate = this.getStartDateForRange(this.dateRange, now);
-      filtered = filtered.filter(invoice => 
-        new Date(invoice.issue_date) >= startDate
-      );
-    }
-
-    this.filteredInvoices = filtered;
-    this.applySorting();
-    this.updatePagination();
   }
 
   private getStartDateForRange(range: string, now: Date): Date {
@@ -260,64 +297,22 @@ export class InvoicesComponent implements OnInit {
     }
   }
 
-  applySorting() {
-    const [field, direction] = this.sortBy.split('_');
-    const isDesc = direction === 'desc';
-
-    this.filteredInvoices.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (field) {
-        case 'created':
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-          break;
-        case 'amount':
-          aValue = a.amount;
-          bValue = b.amount;
-          break;
-        case 'due':
-          aValue = new Date(a.due_date).getTime();
-          bValue = new Date(b.due_date).getTime();
-          break;
-        default:
-          return 0;
-      }
-
-      if (aValue < bValue) return isDesc ? 1 : -1;
-      if (aValue > bValue) return isDesc ? -1 : 1;
-      return 0;
-    });
-
-    this.updatePagination();
-  }
-
-  updatePagination() {
-    this.totalPages = Math.ceil(this.filteredInvoices.length / this.pageSize);
-    
-    // Adjust current page if necessary
-    if (this.currentPage > this.totalPages) {
-      this.currentPage = Math.max(1, this.totalPages);
-    }
-
-    const startIndex = (this.currentPage - 1) * this.pageSize;
-    const endIndex = startIndex + this.pageSize;
-    this.paginatedInvoices = this.filteredInvoices.slice(startIndex, endIndex);
-  }
-
-  // Pagination methods
-  previousPage() {
-    if (this.currentPage > 1) {
-      this.currentPage--;
-      this.updatePagination();
+  private applySorting(sort: { active: string; direction: string }) {
+    if (this.dataSource.sort) {
+      this.dataSource.sort.active = sort.active;
+      this.dataSource.sort.direction = sort.direction === 'asc' ? 'asc' : 'desc';
     }
   }
 
-  nextPage() {
-    if (this.currentPage < this.totalPages) {
-      this.currentPage++;
-      this.updatePagination();
+  updatePagination(e: any) {
+    this.pageSize = e.pageSize;
+    this.currentPage = e.pageIndex + 1;
+  }
+
+  clearSort() {
+    if (this.dataSource.sort) {
+      this.dataSource.sort.active = '';
+      this.dataSource.sort.direction = '';
     }
   }
 
@@ -369,25 +364,33 @@ export class InvoicesComponent implements OnInit {
 
   confirmDelete() {
     if (this.invoiceToDelete) {
-      // Implement actual deletion
-      console.log('Deleting invoice:', this.invoiceToDelete.invoice_number);
+      // Remove from data source
+      const currentData = this.dataSource.data;
+      this.dataSource.data = currentData.filter(i => i.id !== this.invoiceToDelete!.id);
       
-      // Remove from local array (in real app, call API first)
-      this.invoices = this.invoices.filter(i => i.id !== this.invoiceToDelete!.id);
+      // Update stats and close modal
       this.calculateStats();
-      this.applyFilters();
-      
-      // Close modal
       this.showDeleteModal = false;
       this.invoiceToDelete = null;
+
+      // Show success message
+      this.snackBar.open('Factura eliminada', 'Cerrar', {
+        duration: 3000,
+        horizontalPosition: 'end',
+        verticalPosition: 'top'
+      });
 
       // In real implementation:
       // this.apiService.deleteInvoice(this.invoiceToDelete.id).subscribe({
       //   next: () => {
-      //     this.loadInvoices(); // Reload the list
+      //     this.loadInvoices();
       //   },
       //   error: (error) => {
-      //     this.error = 'Error al eliminar la factura';
+      //     this.snackBar.open('Error al eliminar la factura', 'Cerrar', {
+      //       duration: 3000,
+      //       horizontalPosition: 'end',
+      //       verticalPosition: 'top'
+      //     });
       //   }
       // });
     }
