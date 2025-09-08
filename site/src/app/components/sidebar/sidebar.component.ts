@@ -1,6 +1,11 @@
 import { Component, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatListModule } from '@angular/material/list';
+import { MatIconModule } from '@angular/material/icon';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { InvoiceService } from '../../services/invoice.service';
 import { ClientService } from '../../services/client.service';
@@ -11,7 +16,15 @@ import { PaymentService } from '../../services/payment.service';
   selector: 'app-sidebar',
   templateUrl: './sidebar.component.html',
   styleUrls: ['./sidebar.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    RouterModule,
+    MatListModule,
+    MatIconModule,
+    MatBadgeModule,
+    MatTooltipModule
+  ]
 })
 export class SidebarComponent implements OnInit, OnDestroy {
   @Output() closeSidenav = new EventEmitter<void>();

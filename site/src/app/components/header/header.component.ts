@@ -2,11 +2,20 @@ import { Component, OnInit, Output, EventEmitter, ViewChild } from '@angular/cor
 import { Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatMenuTrigger } from '@angular/material/menu';
+import { MatMenuTrigger, MatMenuModule } from '@angular/material/menu';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatBadgeModule } from '@angular/material/badge';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatChipsModule } from '@angular/material/chips';
+import { CommonModule } from '@angular/common';
 import { formatDistance } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LogoutConfirmDialogComponent } from '../dialogs/logout-confirm-dialog/logout-confirm-dialog.component';
-import { AuthService } from '../../services/auth.service';
+import { AuthService } from '../../core/services/auth.service';
 
 interface Notification {
   id: number;
@@ -23,7 +32,19 @@ interface Notification {
   selector: 'app-header',
   templateUrl: './header.component.html',
   styleUrls: ['./header.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    MatToolbarModule,
+    MatButtonModule,
+    MatIconModule,
+    MatMenuModule,
+    MatBadgeModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatDividerModule,
+    MatChipsModule
+  ]
 })
 export class HeaderComponent implements OnInit {
   @Output() toggleSidenav = new EventEmitter<void>();
@@ -78,6 +99,11 @@ export class HeaderComponent implements OnInit {
   ngOnInit(): void {
     this.loadUserInfo();
     this.checkForUpdates();
+    this.updateNotificationCount();
+  }
+
+  private updateNotificationCount(): void {
+    this.notificationCount = this.notifications.filter(n => !n.read).length;
   }
 
   // Theme Management
@@ -100,12 +126,18 @@ export class HeaderComponent implements OnInit {
 
   // User Management
   private loadUserInfo(): void {
-    this.authService.currentUser.subscribe(user => {
+    this.authService.currentUser$.subscribe((user: any) => {
       if (user) {
         this.userName = user.name;
         this.userEmail = user.email;
         this.userRole = user.role;
         this.userAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.userName)}&background=1976d2&color=fff`;
+      } else {
+        // Usuario no autenticado - valores por defecto
+        this.userName = 'Usuario Demo';
+        this.userEmail = 'usuario@demo.com';
+        this.userRole = 'guest';
+        this.userAvatar = 'https://ui-avatars.com/api/?name=Usuario%20Demo&background=1976d2&color=fff';
       }
     });
   }
@@ -224,9 +256,18 @@ export class HeaderComponent implements OnInit {
   }
 
   logout(): void {
-    this.authService.logout();
-    this.router.navigate(['/login']);
-    this.showMessage('Sesión cerrada correctamente');
+    this.authService.logout().subscribe({
+      next: () => {
+        this.router.navigate(['/login']);
+        this.showMessage('Sesión cerrada correctamente');
+      },
+      error: (error) => {
+        console.error('Error al cerrar sesión:', error);
+        // Aún así redirigir al login
+        this.router.navigate(['/login']);
+        this.showMessage('Sesión cerrada');
+      }
+    });
   }
 
   // Updates
