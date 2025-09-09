@@ -23,10 +23,20 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  company_id?: number;
   company_name?: string;
   email_verified_at?: string;
   created_at: string;
   updated_at: string;
+  // Relación con la empresa (cuando se carga)
+  company?: {
+    id: number;
+    name: string;
+    tax_id: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
 }
 
 export interface LoginRequest {

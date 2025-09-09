@@ -24,6 +24,7 @@ class User extends Authenticatable
         'password',
         'role',
         'company_name',
+        'company_id',
     ];
 
     /**
@@ -47,5 +48,29 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Relación con Company
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Verificar si el usuario es admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Verificar si el usuario es cliente (empresa)
+     */
+    public function isClient(): bool
+    {
+        return $this->role === 'client';
     }
 }

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\CompanyController;
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
+    Route::get('check-session', [AuthController::class, 'checkSession']);
 });
 
 // Rutas protegidas (requieren autenticación)
@@ -29,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::get('user', [AuthController::class, 'user']);
+        Route::get('me', [AuthController::class, 'me']);
     });
 
     // Dashboard
@@ -65,3 +67,4 @@ Route::get('test', function () {
         'version' => '1.0.0'
     ]);
 });
+;

@@ -1,371 +1,107 @@
-<mat-card class="mat-elevation-z8">
-  <mat-card-header>
-    <mat-card-title>Gestión de Clientes</mat-card-title>
-    <mat-card-subtitle>Administra tu base de clientes</mat-card-subtitle>
-  </mat-card-header>
+<div class="clients-container">
+  <div class="page-header">
+    <h1>Clientes</h1>
+    <button mat-raised-button color="primary" (click)="openClientDialog()" class="add-button">
+      <mat-icon>add</mat-icon>
+      Nuevo Cliente
+    </button>
+  </div>
 
-  <mat-card-content>
-    <!-- Actions -->
-    <div class="button-row">
-      <button mat-raised-button (click)="addClient()">
-        <mat-icon>add</mat-icon>
-        Nuevo Cliente
-      </button>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="stats-container">
-      <mat-grid-list cols="4" rowHeight="100px">
-        <mat-grid-tile>
-          <mat-card class="stats-card">
-            <mat-card-header>
-              <mat-card-title>{{stats.total}}</mat-card-title>
-              <mat-card-subtitle>Total Clientes</mat-card-subtitle>
-            </mat-card-header>
-          </mat-card>
-        </mat-grid-tile>
-        <mat-grid-tile>
-          <mat-card class="stats-card">
-            <mat-card-header>
-              <mat-card-title>{{stats.active}}</mat-card-title>
-              <mat-card-subtitle>Clientes Activos</mat-card-subtitle>
-            </mat-card-header>
-          </mat-card>
-        </mat-grid-tile>
-        <mat-grid-tile>
-          <mat-card class="stats-card">
-            <mat-card-header>
-              <mat-card-title>{{stats.totalInvoices}}</mat-card-title>
-              <mat-card-subtitle>Total Facturas</mat-card-subtitle>
-            </mat-card-header>
-          </mat-card>
-        </mat-grid-tile>
-        <mat-grid-tile>
-          <mat-card class="stats-card">
-            <mat-card-header>
-              <mat-card-title>${{stats.totalRevenue}}</mat-card-title>
-              <mat-card-subtitle>Ingresos Totales</mat-card-subtitle>
-            </mat-card-header>
-          </mat-card>
-        </mat-grid-tile>
-      </mat-grid-list>
-    </div>
-
-    <!-- Filter -->
-    <mat-form-field appearance="outline">
-      <mat-label>Filtrar</mat-label>
-      <input matInput (keyup)="applyFilter($event)" placeholder="Buscar cliente..." #input>
-      <mat-icon matPrefix>search</mat-icon>
+  <!-- Filtros y búsqueda -->
+  <div class="filters-section">
+    <mat-form-field appearance="outline" class="search-field">
+      <mat-label>Buscar cliente</mat-label>
+      <input matInput [(ngModel)]="searchTerm" (input)="filterClients()" placeholder="Nombre, email o teléfono">
+      <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
-
-    <!-- Table -->
-    <div class="mat-elevation-z8">
-      <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
-      
-      <mat-table [dataSource]="dataSource" matSort>
-        <!-- ID Column -->
-        <ng-container matColumnDef="id">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> ID </mat-header-cell>
-          <mat-cell *matCellDef="let client"> {{client.id}} </mat-cell>
-        </ng-container>
-
-        <!-- Name Column -->
-        <ng-container matColumnDef="name">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Nombre </mat-header-cell>
-          <mat-cell *matCellDef="let client"> {{client.name}} </mat-cell>
-        </ng-container>
-
-        <!-- Email Column -->
-        <ng-container matColumnDef="email">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Email </mat-header-cell>
-          <mat-cell *matCellDef="let client"> {{client.email}} </mat-cell>
-        </ng-container>
-
-        <!-- Phone Column -->
-        <ng-container matColumnDef="phone">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Teléfono </mat-header-cell>
-          <mat-cell *matCellDef="let client"> {{client.phone}} </mat-cell>
-        </ng-container>
-
-        <!-- Address Column -->
-        <ng-container matColumnDef="address">
-          <mat-header-cell *matHeaderCellDef mat-sort-header> Dirección </mat-header-cell>
-          <mat-cell *matCellDef="let client"> {{client.address}} </mat-cell>
-        </ng-container>
-
-        <!-- Actions Column -->
-        <ng-container matColumnDef="actions">
-          <mat-header-cell *matHeaderCellDef> Acciones </mat-header-cell>
-          <mat-cell *matCellDef="let client">
-            <button mat-icon-button color="primary" (click)="editClient(client)">
-              <mat-icon>edit</mat-icon>
-            </button>
-            <button mat-icon-button color="warn" (click)="deleteClient(client)">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </mat-cell>
-        </ng-container>
-
-        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
-        <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
-      </mat-table>
-
-      <mat-paginator [pageSizeOptions]="[5, 10, 25, 100]" showFirstLastButtons></mat-paginator>
-    </div>
-
-  <!-- Clients Content -->
-  <div *ngIf="!loading && !error">
-    
-    <!-- Cards View -->
-    <div *ngIf="viewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div *ngFor="let client of paginatedClients; trackBy: trackByClientId" 
-           class="card hover:shadow-lg transition-all duration-200">
-        
-        <!-- Client Header -->
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-              <i class="fas fa-user text-blue-600 text-lg"></i>
-            </div>
-            <div>
-              <h3 class="text-lg font-medium text-gray-900">{{ client.name }}</h3>
-              <p class="text-sm text-gray-600" *ngIf="client.email">{{ client.email }}</p>
-            </div>
-          </div>
-          
-          <div class="flex space-x-1">
-            <button (click)="editClient(client)" 
-                    class="text-gray-400 hover:text-gray-600 p-1"
-                    title="Editar">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button (click)="deleteClient(client)" 
-                    class="text-gray-400 hover:text-red-600 p-1"
-                    title="Eliminar">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Client Details -->
-        <div class="space-y-2 mb-4">
-          <div *ngIf="client.phone" class="flex items-center text-sm text-gray-600">
-            <i class="fas fa-phone w-4 mr-2"></i>
-            {{ client.phone }}
-          </div>
-          <div *ngIf="client.address" class="flex items-center text-sm text-gray-600">
-            <i class="fas fa-map-marker-alt w-4 mr-2"></i>
-            {{ client.address }}
-          </div>
-        </div>
-
-        <!-- Client Stats -->
-        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-          <div class="text-center">
-            <p class="text-lg font-bold text-gray-900">{{ getClientInvoiceCount(client.id) }}</p>
-            <p class="text-xs text-gray-600">Facturas</p>
-          </div>
-          <div class="text-center">
-            <p class="text-lg font-bold text-green-600">${{ formatCurrency(getClientRevenue(client.id)) }}</p>
-            <p class="text-xs text-gray-600">Ingresos</p>
-          </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex space-x-2 mt-4">
-          <button (click)="viewClient(client)" 
-                  class="flex-1 bg-blue-50 text-blue-600 px-3 py-2 rounded text-sm font-medium hover:bg-blue-100 transition-colors">
-            <i class="fas fa-eye mr-1"></i>
-            Ver Detalles
-          </button>
-          <button (click)="createInvoiceForClient(client)" 
-                  class="flex-1 bg-green-50 text-green-600 px-3 py-2 rounded text-sm font-medium hover:bg-green-100 transition-colors">
-            <i class="fas fa-plus mr-1"></i>
-            Facturar
-          </button>
-        </div>
-      </div>
-
-      <!-- Empty State Cards -->
-      <div *ngIf="filteredClients.length === 0" class="col-span-full text-center py-12">
-        <i class="fas fa-users text-gray-300 text-6xl mb-4"></i>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
-        <p class="text-gray-500 mb-4">
-          {{ searchTerm ? 'No se encontraron clientes con los filtros aplicados.' : 'Comienza agregando tu primer cliente.' }}
-        </p>
-        <button *ngIf="!searchTerm" (click)="createClient()" class="btn-primary">
-          <i class="fas fa-plus mr-2"></i>
-          Agregar Primer Cliente
-        </button>
-      </div>
-    </div>
-
-    <!-- List View -->
-    <div *ngIf="viewMode === 'list'" class="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cliente
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contacto
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estadísticas
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Última Factura
-              </th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr *ngFor="let client of paginatedClients; trackBy: trackByClientId" 
-                class="hover:bg-gray-50 transition-colors">
-              
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center">
-                  <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                    <i class="fas fa-user text-blue-600"></i>
-                  </div>
-                  <div>
-                    <div class="text-sm font-medium text-gray-900">{{ client.name }}</div>
-                    <div class="text-sm text-gray-500">Cliente desde {{ formatDate(client.created_at) }}</div>
-                  </div>
-                </div>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">{{ client.email || 'Sin email' }}</div>
-                <div class="text-sm text-gray-500">{{ client.phone || 'Sin teléfono' }}</div>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">{{ getClientInvoiceCount(client.id) }} facturas</div>
-                <div class="text-sm font-medium text-green-600">${{ formatCurrency(getClientRevenue(client.id)) }}</div>
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {{ getLastInvoiceDate(client.id) || 'Nunca' }}
-              </td>
-
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="flex items-center justify-end space-x-2">
-                  <button (click)="viewClient(client)" 
-                          class="text-blue-600 hover:text-blue-700 p-1"
-                          title="Ver detalles">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button (click)="createInvoiceForClient(client)" 
-                          class="text-green-600 hover:text-green-700 p-1"
-                          title="Crear factura">
-                    <i class="fas fa-file-invoice"></i>
-                  </button>
-                  <button (click)="editClient(client)" 
-                          class="text-gray-600 hover:text-gray-700 p-1"
-                          title="Editar">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button (click)="deleteClient(client)" 
-                          class="text-red-600 hover:text-red-700 p-1"
-                          title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <!-- Empty State List -->
-        <div *ngIf="filteredClients.length === 0" class="text-center py-12">
-          <i class="fas fa-users text-gray-300 text-6xl mb-4"></i>
-          <h3 class="text-lg font-medium text-gray-900 mb-2">No hay clientes</h3>
-          <p class="text-gray-500 mb-4">
-            {{ searchTerm ? 'No se encontraron clientes con los filtros aplicados.' : 'Comienza agregando tu primer cliente.' }}
-          </p>
-          <button *ngIf="!searchTerm" (click)="createClient()" class="btn-primary">
-            <i class="fas fa-plus mr-2"></i>
-            Agregar Primer Cliente
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Pagination -->
-    <div *ngIf="filteredClients.length > pageSize" 
-         class="mt-6 flex items-center justify-between">
-      <p class="text-sm text-gray-700">
-        Mostrando {{ (currentPage - 1) * pageSize + 1 }} a {{ Math.min(currentPage * pageSize, filteredClients.length) }} 
-        de {{ filteredClients.length }} clientes
-      </p>
-      
-      <div class="flex items-center space-x-2">
-        <button (click)="previousPage()" 
-                [disabled]="currentPage === 1"
-                [class.opacity-50]="currentPage === 1"
-                [class.cursor-not-allowed]="currentPage === 1"
-                class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
-          <i class="fas fa-chevron-left mr-1"></i>
-          Anterior
-        </button>
-        
-        <span class="text-sm text-gray-700">
-          Página {{ currentPage }} de {{ totalPages }}
-        </span>
-        
-        <button (click)="nextPage()" 
-                [disabled]="currentPage === totalPages"
-                [class.opacity-50]="currentPage === totalPages"
-                [class.cursor-not-allowed]="currentPage === totalPages"
-                class="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-100 transition-colors">
-          Siguiente
-          <i class="fas fa-chevron-right ml-1"></i>
-        </button>
-      </div>
-    </div>
   </div>
 
-<!-- Modal de Confirmación para Eliminar Cliente -->
-<div *ngIf="showDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
-  <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-    <div class="fixed inset-0 transition-opacity" (click)="cancelDelete()">
-      <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
-    </div>
+  <!-- Loading spinner -->
+  <div *ngIf="loading" class="loading-container">
+    <mat-spinner></mat-spinner>
+    <p>Cargando clientes...</p>
+  </div>
 
-    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-      <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-        <div class="sm:flex sm:items-start">
-          <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-            <i class="fas fa-exclamation-triangle text-red-600"></i>
+  <!-- Lista de clientes -->
+  <div *ngIf="!loading" class="clients-grid">
+    <mat-card *ngFor="let client of filteredClients" class="client-card">
+      <mat-card-header>
+        <div mat-card-avatar class="client-avatar">
+          <mat-icon>person</mat-icon>
+        </div>
+        <mat-card-title>{{ client.name }}</mat-card-title>
+        <mat-card-subtitle>{{ client.email }}</mat-card-subtitle>
+        
+        <!-- Menú de acciones -->
+        <button mat-icon-button [matMenuTriggerFor]="menu" class="action-menu">
+          <mat-icon>more_vert</mat-icon>
+        </button>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="openClientDialog(client)">
+            <mat-icon>edit</mat-icon>
+            <span>Editar</span>
+          </button>
+          <button mat-menu-item (click)="viewClientInvoices(client)">
+            <mat-icon>receipt</mat-icon>
+            <span>Ver Facturas</span>
+          </button>
+          <button mat-menu-item (click)="deleteClient(client)" class="delete-action">
+            <mat-icon>delete</mat-icon>
+            <span>Eliminar</span>
+          </button>
+        </mat-menu>
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="client-info">
+          <div class="info-row" *ngIf="client.phone">
+            <mat-icon>phone</mat-icon>
+            <span>{{ client.phone }}</span>
           </div>
-          <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">
-              Eliminar Cliente
-            </h3>
-            <div class="mt-2">
-              <p class="text-sm text-gray-500">
-                ¿Estás seguro de que deseas eliminar al cliente "{{ clientToDelete?.name }}"? 
-                Esta acción eliminará también todas sus facturas asociadas y no se puede deshacer.
-              </p>
-            </div>
+          <div class="info-row" *ngIf="client.address">
+            <mat-icon>location_on</mat-icon>
+            <span>{{ client.address }}</span>
+          </div>
+          <div class="info-row" *ngIf="client.company_id">
+            <mat-icon>business</mat-icon>
+            <span>Empresa ID: {{ client.company_id }}</span>
           </div>
         </div>
-      </div>
-      <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-        <button (click)="confirmDelete()" 
-                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-          Eliminar
+      </mat-card-content>
+
+      <mat-card-actions>
+        <button mat-button color="primary" (click)="openClientDialog(client)">
+          <mat-icon>edit</mat-icon>
+          Editar
         </button>
-        <button (click)="cancelDelete()" 
-                class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-          Cancelar
+        <button mat-button color="accent" (click)="viewClientInvoices(client)">
+          <mat-icon>receipt</mat-icon>
+          Facturas
         </button>
-      </div>
-    </div>
+      </mat-card-actions>
+    </mat-card>
   </div>
+
+  <!-- Estado vacío -->
+  <div *ngIf="!loading && filteredClients.length === 0" class="empty-state">
+    <mat-icon class="empty-icon">people_outline</mat-icon>
+    <h3>No hay clientes</h3>
+    <p *ngIf="searchTerm">No se encontraron clientes que coincidan con "{{ searchTerm }}"</p>
+    <p *ngIf="!searchTerm">Aún no has agregado ningún cliente.</p>
+    <button mat-raised-button color="primary" (click)="openClientDialog()">
+      <mat-icon>add</mat-icon>
+      Agregar primer cliente
+    </button>
+  </div>
+</div>
+
+<!-- Error state -->
+<div *ngIf="error" class="error-container">
+  <mat-icon class="error-icon">error_outline</mat-icon>
+  <h3>Error al cargar clientes</h3>
+  <p>{{ error }}</p>
+  <button mat-raised-button color="primary" (click)="loadClients()">
+    <mat-icon>refresh</mat-icon>
+    Reintentar
+  </button>
 </div>

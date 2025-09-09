@@ -40,6 +40,9 @@ export class AuthService {
       userData ? JSON.parse(userData) : null
     );
     this.currentUser = this.currentUserSubject.asObservable();
+    
+    // Verificar sesión al inicializar el servicio
+    this.checkSessionOnInit();
   }
 
   public get currentUserValue(): User | null {
@@ -144,5 +147,34 @@ export class AuthService {
   hasAnyRole(roles: string[]): boolean {
     const user = this.currentUserValue;
     return user ? roles.includes(user.role) : false;
+  }
+
+  // Método para verificar la sesión al inicializar
+  private checkSessionOnInit(): void {
+    const token = this.getToken();
+    if (token && !this.isTokenExpired()) {
+      this.checkSession().subscribe({
+        next: (response) => {
+          if (response.data) {
+            this.updateUserData(response.data);
+          }
+        },
+        error: () => {
+          // Si hay error, limpiar datos locales
+          this.logout();
+        }
+      });
+    }
+  }
+
+  // Método para verificar sesión en el servidor
+  checkSession(): Observable<{success: boolean, data?: User, message?: string}> {
+    return this.http.get<{success: boolean, data?: User, message?: string}>(`${environment.apiUrl}/auth/check-session`)
+      .pipe(
+        catchError(error => {
+          console.error('Error verificando sesión:', error);
+          return of({success: false, message: 'Error al verificar sesión'});
+        })
+      );
   }
 }

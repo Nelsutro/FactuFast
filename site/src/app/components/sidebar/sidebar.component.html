@@ -66,6 +66,18 @@
       <span class="nav-count" *ngIf="totalClients">{{ totalClients }}</span>
     </a>
 
+    <!-- Companies option - Only visible for admins -->
+    <a mat-list-item 
+       *ngIf="isAdmin()"
+       routerLink="/companies" 
+       routerLinkActive="active"
+       matTooltip="Gestión de empresas"
+       matTooltipPosition="right"
+       (click)="onItemClick()">
+      <mat-icon matListIcon>business</mat-icon>
+      <span matLine>Empresas</span>
+    </a>
+
     <a mat-list-item 
        routerLink="/payments" 
        routerLinkActive="active"

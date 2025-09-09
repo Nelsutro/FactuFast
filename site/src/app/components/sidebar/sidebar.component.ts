@@ -7,6 +7,7 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
 import { InvoiceService } from '../../services/invoice.service';
 import { ClientService } from '../../services/client.service';
 import { QuoteService } from '../../services/quote.service';
@@ -45,6 +46,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private snackBar: MatSnackBar,
+    private authService: AuthService,
     private invoiceService: InvoiceService,
     private clientService: ClientService,
     private quoteService: QuoteService,
@@ -199,5 +201,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
   updatePaymentCount(count: number) {
     this.overduePayments = count;
     this.loadDashboardNotifications();
+  }
+
+  // Método para verificar si el usuario es admin
+  isAdmin(): boolean {
+    return this.authService.isAdmin();
   }
 }

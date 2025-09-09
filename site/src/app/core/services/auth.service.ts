@@ -125,6 +125,37 @@ export class AuthService {
   }
 
   /**
+   * Verificar si el usuario actual es admin
+   */
+  isAdmin(): boolean {
+    const currentUser = this.currentUserSubject.value;
+    return currentUser?.role === 'admin';
+  }
+
+  /**
+   * Verificar si el usuario actual es client
+   */
+  isClient(): boolean {
+    const currentUser = this.currentUserSubject.value;
+    return currentUser?.role === 'client';
+  }
+
+  /**
+   * Obtener la empresa del usuario actual
+   */
+  getUserCompany(): any | null {
+    const currentUser = this.currentUserSubject.value;
+    return currentUser?.company || null;
+  }
+
+  /**
+   * Obtener el usuario actual directamente
+   */
+  getCurrentUserData(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  /**
    * Obtener token de autenticación
    */
   getToken(): string | null {

@@ -6,26 +6,29 @@ import { ApiResponse } from '../interfaces/api-response.interface';
 
 export interface Client {
   id: number;
+  company_id: number;
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
-  company?: string;
   address?: string;
-  city?: string;
-  country?: string;
-  status: string;
   created_at: string;
-  updated_at?: string;
+  updated_at: string;
+  // Relación con Company (solo cuando se carga)
+  company?: {
+    id: number;
+    name: string;
+    tax_id: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
 }
 
 export interface CreateClientRequest {
   name: string;
-  email: string;
+  email?: string;
   phone?: string;
-  company?: string;
   address?: string;
-  city?: string;
-  country?: string;
 }
 
 @Injectable({
