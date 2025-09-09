@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, Router, ActivatedRouteSnapshot, RouterStateSnapshot } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { Observable } from 'rxjs';
+import { AuthService } from '../core/services/auth.service';
 
 @Injectable({
   providedIn: 'root'
@@ -15,19 +16,36 @@ export class AuthGuard implements CanActivate {
   canActivate(
     route: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
-  ): boolean {
+  ): Observable<boolean> | Promise<boolean> | boolean {
     
-    // Check if user is authenticated
-    if (this.authService.isAuthenticated()) {
-      return true;
+    console.log('AuthGuard - Verificando acceso a:', state.url);
+    
+    // Verificar token básico
+    const hasToken = this.authService.isAuthenticated();
+    console.log('AuthGuard - Tiene token válido:', hasToken);
+    
+    if (!hasToken) {
+      console.log('AuthGuard - No autenticado, redirigiendo a login...');
+      this.router.navigate(['/login'], { 
+        queryParams: { returnUrl: state.url } 
+      });
+      return false;
     }
 
-    // If not authenticated, redirect to login
-    console.log('Usuario no autenticado, redirigiendo a login...');
-    this.router.navigate(['/login'], { 
-      queryParams: { returnUrl: state.url } 
-    });
+    // Verificar roles si están especificados en la ruta
+    const expectedRoles = route.data['roles'] as string[];
+    if (expectedRoles) {
+      const hasRole = this.authService.hasAnyRole(expectedRoles);
+      console.log('AuthGuard - Verificando roles:', expectedRoles, 'Usuario tiene acceso:', hasRole);
+      
+      if (!hasRole) {
+        console.log('AuthGuard - Sin permisos suficientes, redirigiendo...');
+        this.router.navigate(['/unauthorized']);
+        return false;
+      }
+    }
     
-    return false;
+    console.log('AuthGuard - Acceso permitido');
+    return true;
   }
 }

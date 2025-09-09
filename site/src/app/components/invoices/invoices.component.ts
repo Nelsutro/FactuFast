@@ -1,18 +1,55 @@
 import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ApiService } from '../../services/api.service';
-import { Invoice } from '../../models';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
+import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatDialogModule } from '@angular/material/dialog';
+import { ApiService } from '../../services/api.service';
+import { Invoice } from '../../models';
 
 @Component({
   selector: 'app-invoices',
   templateUrl: './invoices.component.html',
   styleUrls: ['./invoices.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatButtonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatChipsModule,
+    MatCardModule,
+    MatProgressSpinnerModule,
+    MatProgressBarModule,
+    MatTooltipModule,
+    MatGridListModule,
+    MatMenuModule,
+    MatDividerModule,
+    MatDialogModule
+  ]
 })
 export class InvoicesComponent implements OnInit, AfterViewInit {
   

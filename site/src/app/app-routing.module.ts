@@ -1,49 +1,50 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
-import { InvoicesComponent } from './components/invoices/invoices.component';
-import { ClientsComponent } from './components/clients/clients.component';
-import { QuotesComponent } from './components/quotes/quotes.component';
-import { PaymentsComponent } from './components/payments/payments.component';
-import { LoginComponent } from './components/auth/login/login.component';
 import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
-  { path: 'login', component: LoginComponent },
+  { 
+    path: 'login', 
+    loadComponent: () => import('./components/auth/login/login.component').then(m => m.LoginComponent)
+  },
+  { 
+    path: 'register', 
+    loadComponent: () => import('./components/auth/register/register.component').then(m => m.RegisterComponent)
+  },
   { 
     path: 'dashboard', 
-    component: DashboardComponent,
+    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [AuthGuard]
   },
   { 
     path: 'invoices', 
-    component: InvoicesComponent,
+    loadComponent: () => import('./components/invoices/invoices.component').then(m => m.InvoicesComponent),
     canActivate: [AuthGuard]
   },
   { 
     path: 'quotes', 
-    component: QuotesComponent,
+    loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
     canActivate: [AuthGuard]
   },
   { 
     path: 'clients', 
-    component: ClientsComponent,
+    loadComponent: () => import('./components/clients/clients.component').then(m => m.ClientsComponent),
     canActivate: [AuthGuard]
   },
   { 
     path: 'payments', 
-    component: PaymentsComponent,
+    loadComponent: () => import('./components/payments/payments.component').then(m => m.PaymentsComponent),
     canActivate: [AuthGuard]
   },
   { 
     path: 'automation', 
-    component: DashboardComponent, // Temporalmente
+    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent), // Temporalmente
     canActivate: [AuthGuard]
   },
   { 
     path: 'settings', 
-    component: DashboardComponent, // Temporalmente
+    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent), // Temporalmente
     canActivate: [AuthGuard]
   },
   // Redirect any unknown routes to login

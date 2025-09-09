@@ -1,16 +1,52 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSortModule, MatSort } from '@angular/material/sort';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatMenuModule } from '@angular/material/menu';
 import { ApiService } from '../../services/api.service';
 import { Payment, Invoice, Client } from '../../models';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
 
 @Component({
   selector: 'app-payments',
   templateUrl: './payments.component.html',
   styleUrls: ['./payments.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatSortModule,
+    MatButtonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCardModule,
+    MatProgressSpinnerModule,
+    MatChipsModule,
+    MatTooltipModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    MatGridListModule,
+    MatMenuModule
+  ]
 })
 export class PaymentsComponent implements OnInit {
   

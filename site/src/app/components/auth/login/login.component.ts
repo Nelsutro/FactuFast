@@ -1,13 +1,34 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { AuthService } from '../../../services/auth.service';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatCheckboxModule,
+    MatProgressSpinnerModule,
+    MatDividerModule
+  ]
 })
 export class LoginComponent implements OnInit {
 
@@ -43,133 +64,63 @@ export class LoginComponent implements OnInit {
     // Check for registration success message
     const message = this.route.snapshot.queryParams['message'];
     if (message === 'registration-success') {
-      // Show success message (you can implement a toast service)
       console.log('Registro exitoso, ya puedes iniciar sesión');
     }
+
+    console.log('Login component initialized, returnUrl:', this.returnUrl);
   }
 
   async onSubmit() {
     if (this.loading) return;
 
-    try {
-      this.loading = true;
-      this.error = null;
+    this.loading = true;
+    this.error = null;
 
-      if (this.loginForm.invalid) {
-        this.error = 'Por favor completa todos los campos correctamente';
-        return;
-      }
-
-      const formValue = this.loginForm.value;
-
-      // Simulate login (replace with real API call)
-      await this.simulateLogin(formValue.email, formValue.password);
-
-    } catch (error: any) {
-      this.error = error.message || 'Error al iniciar sesión. Verifica tus credenciales.';
-    } finally {
+    if (this.loginForm.invalid) {
+      this.error = 'Por favor completa todos los campos correctamente';
       this.loading = false;
+      return;
     }
-  }
 
-  // Simulate login - Replace with real authService.login()
-  private simulateLogin(email: string, password: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // Mock validation
-        if (email === 'admin@factufast.com' && password === 'password') {
-          // Mock successful login
-          const mockUser = {
-            id: 1,
-            name: 'Administrador',
-            email: email,
-            role: 'admin',
-            token: 'mock-jwt-token-' + Date.now()
-          };
+    const formValue = this.loginForm.value;
+    console.log('Intentando login con:', formValue.email);
 
-          // Store user data
-          localStorage.setItem('currentUser', JSON.stringify(mockUser));
-
-          // Navigate to return URL
-          this.router.navigate([this.returnUrl]);
-          resolve();
+    this.authService.login({
+      email: formValue.email,
+      password: formValue.password
+    }).subscribe({
+      next: (response) => {
+        console.log('Response received:', response);
+        
+        if (response.success && response.data) {
+          console.log('Login exitoso, token guardado');
+          console.log('Usuario logueado:', response.data.user);
+          
+          // Forzar actualización del estado de autenticación
+          this.authService.loadUserFromStorage();
+          
+          // Usar timeout para dar tiempo a la actualización del estado
+          setTimeout(() => {
+            console.log('Navegando a:', this.returnUrl);
+            this.router.navigate([this.returnUrl]).then((navigated) => {
+              console.log('Navigation result:', navigated);
+              if (!navigated) {
+                console.error('Navegación falló, usando window.location');
+                window.location.href = this.returnUrl;
+              }
+            });
+          }, 100);
         } else {
-          reject(new Error('Credenciales inválidas'));
+          this.error = response.message || 'Error al iniciar sesión';
         }
-      }, 1500);
-    });
-  }
-
-  // Social login methods
-  async loginWithGoogle() {
-    try {
-      this.loading = true;
-      this.error = null;
-
-      console.log('Iniciando sesión con Google...');
-      
-      // In real implementation, integrate with Google OAuth
-      // For now, simulate successful Google login
-      await this.simulateOAuthLogin('google', 'Usuario Google');
-
-    } catch (error: any) {
-      this.error = 'Error al iniciar sesión con Google';
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  async loginWithMicrosoft() {
-    try {
-      this.loading = true;
-      this.error = null;
-
-      console.log('Iniciando sesión con Microsoft...');
-      
-      // In real implementation, integrate with Microsoft OAuth
-      await this.simulateOAuthLogin('microsoft', 'Usuario Microsoft');
-
-    } catch (error: any) {
-      this.error = 'Error al iniciar sesión con Microsoft';
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  async loginWithApple() {
-    try {
-      this.loading = true;
-      this.error = null;
-
-      console.log('Iniciando sesión con Apple...');
-      
-      // In real implementation, integrate with Apple OAuth
-      await this.simulateOAuthLogin('apple', 'Usuario Apple');
-
-    } catch (error: any) {
-      this.error = 'Error al iniciar sesión con Apple';
-    } finally {
-      this.loading = false;
-    }
-  }
-
-  // Simulate OAuth login
-  private simulateOAuthLogin(provider: string, name: string): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser = {
-          id: Date.now(),
-          name: name,
-          email: `user@${provider}.com`,
-          role: 'client',
-          token: `mock-${provider}-token-` + Date.now(),
-          provider: provider
-        };
-
-        localStorage.setItem('currentUser', JSON.stringify(mockUser));
-        this.router.navigate([this.returnUrl]);
-        resolve();
-      }, 2000);
+      },
+      error: (error) => {
+        console.error('Error en login:', error);
+        this.error = error.error?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
+      },
+      complete: () => {
+        this.loading = false;
+      }
     });
   }
 
@@ -182,7 +133,20 @@ export class LoginComponent implements OnInit {
   fillDemoCredentials() {
     this.loginForm.patchValue({
       email: 'admin@factufast.com',
-      password: 'password'
+      password: 'password123'
     });
+  }
+
+  // Navigate to register
+  goToRegister() {
+    console.log('Navigating to register...');
+    this.router.navigate(['/register']).then((navigated) => {
+      console.log('Register navigation result:', navigated);
+    });
+  }
+
+  // Navigate to forgot password
+  goToForgotPassword() {
+    this.router.navigate(['/forgot-password']);
   }
 }

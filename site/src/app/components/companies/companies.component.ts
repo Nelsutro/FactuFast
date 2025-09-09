@@ -1,6 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { PageEvent } from '@angular/material/paginator';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTableModule } from '@angular/material/table';
+import { MatSortModule } from '@angular/material/sort';
 import { ApiService } from '../../services/api.service';
 import { Company, Invoice } from '../../models';
 
@@ -8,7 +21,24 @@ import { Company, Invoice } from '../../models';
   selector: 'app-companies',
   templateUrl: './companies.component.html',
   styleUrls: ['./companies.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    MatPaginatorModule,
+    MatButtonModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatCardModule,
+    MatProgressSpinnerModule,
+    MatChipsModule,
+    MatTooltipModule,
+    MatTableModule,
+    MatSortModule
+  ]
 })
 export class CompaniesComponent implements OnInit {
 
@@ -26,6 +56,7 @@ export class CompaniesComponent implements OnInit {
 
   // View properties
   viewMode: 'cards' | 'list' = 'cards';
+  displayedColumns: string[] = ['name', 'email', 'phone', 'address', 'invoices', 'revenue', 'actions'];
 
   // Pagination properties
   currentPage = 1;
@@ -344,5 +375,11 @@ export class CompaniesComponent implements OnInit {
 
   trackByCompanyId(index: number, company: Company): number {
     return company.id;
+  }
+
+  onPageChange(event: PageEvent): void {
+    this.currentPage = event.pageIndex + 1;
+    this.pageSize = event.pageSize;
+    this.updatePagination();
   }
 }

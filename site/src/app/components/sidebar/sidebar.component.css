@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: flex-start;
   width: 100%;                 /* asegura ocupar todo el ancho */
-  padding: 12px 16px;             /* antes estaba en 24px, reducimos un poco */
+  padding: 0 16px;             /* antes estaba en 24px, reducimos un poco */
   background: rgba(0, 0, 0, 0.1);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   height: var(--header-height);
@@ -19,6 +19,16 @@
   box-sizing: border-box;      /* incluye padding dentro del ancho total */
 }
 
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: var(--header-height);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+}
 
 .logo-icon {
   font-size: 30px;
@@ -37,7 +47,6 @@
   letter-spacing: 0.5px;
   color: white;
   white-space: nowrap;
-  margin-bottom: 0;
 }
 
 .nav-list {
@@ -144,7 +153,7 @@ a.mat-list-item.active .mat-list-icon {
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar-container {
-    width: 100%;
+    width: 200px;
   }
 
   .logo-text {
@@ -153,7 +162,13 @@ a.mat-list-item.active .mat-list-icon {
 }
 
 @media (max-width: 600px) {
+  .sidebar-container {
+    width: 70px;
+  }
 
+  .logo-text {
+    display: none;
+  }
 
   a.mat-list-item span[matLine] {
     display: none;

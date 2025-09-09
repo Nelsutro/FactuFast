@@ -1,0 +1,67 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\ClientController;
+use App\Http\Controllers\Api\QuoteController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\CompanyController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
+
+// Rutas públicas (sin autenticación)
+Route::prefix('auth')->group(function () {
+    Route::post('login', [AuthController::class, 'login']);
+    Route::post('register', [AuthController::class, 'register']);
+});
+
+// Rutas protegidas (requieren autenticación)
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // Autenticación
+    Route::prefix('auth')->group(function () {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('refresh', [AuthController::class, 'refresh']);
+        Route::get('user', [AuthController::class, 'user']);
+    });
+
+    // Dashboard
+    Route::prefix('dashboard')->group(function () {
+        Route::get('stats', [DashboardController::class, 'stats']);
+        Route::get('revenue', [DashboardController::class, 'revenue']);
+    });
+
+    // Facturas
+    Route::apiResource('invoices', InvoiceController::class);
+    Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send']);
+    Route::post('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
+
+    // Clientes
+    Route::apiResource('clients', ClientController::class);
+
+    // Cotizaciones
+    Route::apiResource('quotes', QuoteController::class);
+    Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertToInvoice']);
+
+    // Pagos
+    Route::apiResource('payments', PaymentController::class);
+
+    // Empresas
+    Route::apiResource('companies', CompanyController::class);
+    Route::get('companies/{company}/invoices', [CompanyController::class, 'invoices']);
+});
+
+// Ruta de prueba
+Route::get('test', function () {
+    return response()->json([
+        'message' => 'API FactuFast funcionando correctamente',
+        'timestamp' => now(),
+        'version' => '1.0.0'
+    ]);
+});

@@ -1,9 +1,12 @@
 // src/app/components/dashboard/dashboard.component.ts
 import { Component, OnInit, ViewChild, ElementRef, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Chart, ChartConfiguration, ChartType, registerables } from 'chart.js';
 import { ApiService } from '../../services/api.service';
-import { DashboardStats, Invoice } from '../../models';
+import { AuthService } from '../../core/services/auth.service';
+import { DashboardStats, Invoice, User } from '../../models';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatOptionModule } from '@angular/material/core';
@@ -12,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 Chart.register(...registerables);
 
@@ -19,7 +23,19 @@ Chart.register(...registerables);
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.css'],
-  standalone: false
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatSelectModule,
+    MatOptionModule,
+    MatChipsModule,
+    MatIconModule,
+    MatButtonModule,
+    MatCardModule,
+    MatListModule,
+    MatProgressSpinnerModule
+  ]
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   @ViewChild('revenueChart') revenueChartRef!: ElementRef<HTMLCanvasElement>;
@@ -27,6 +43,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Data properties
   dashboardStats: DashboardStats | null = null;
+  currentUser: User | null = null;
   loading = true;
   error: string | null = null;
   chartPeriod = '6m';
@@ -44,11 +61,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   constructor(
     private apiService: ApiService,
+    private authService: AuthService,
     private router: Router
   ) {}
 
   ngOnInit() {
+    this.loadUserData();
     this.loadDashboardData();
+  }
+
+  private loadUserData() {
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
   }
 
   ngOnDestroy() {
@@ -319,5 +344,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
       'cancelled': 'cancelled-chip'
     };
     return classes[status] || 'default-chip';
+  }
+
+  logout(): void {
+    console.log('Cerrando sesión...');
+    this.authService.logout().subscribe({
+      next: () => {
+        console.log('Logout exitoso');
+        this.router.navigate(['/login']);
+      },
+      error: (error) => {
+        console.error('Error en logout:', error);
+        // Aunque haya error, remover token localmente
+        this.router.navigate(['/login']);
+      }
+    });
   }
 }
