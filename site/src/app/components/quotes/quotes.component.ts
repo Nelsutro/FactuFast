@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -17,7 +18,9 @@ import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { ApiService } from '../../services/api.service';
-import { Quote, Client } from '../../models';
+import { AuthService } from '../../core/services/auth.service';
+import { Quote, Client, User } from '../../models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-quotes',
@@ -52,6 +55,7 @@ export class QuotesComponent implements OnInit {
   paginatedQuotes: Quote[] = [];
   loading = true;
   error: string | null = null;
+  currentUser: User | null = null;
 
   // Filter properties
   searchTerm = '';
@@ -83,11 +87,23 @@ export class QuotesComponent implements OnInit {
 
   constructor(
     private apiService: ApiService,
-    private router: Router
+    private authService: AuthService,
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   ngOnInit() {
+    this.loadUserData();
     this.loadQuotes();
+  }
+
+  private loadUserData() {
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+      if (this.currentUser && this.quotes.length === 0) {
+        this.loadQuotes();
+      }
+    });
   }
 
   async loadQuotes() {
@@ -95,125 +111,39 @@ export class QuotesComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
-      // Simulate API call - Replace with real API call
-      const response = await this.simulateApiCall();
-      this.quotes = response;
-      
-      this.calculateStats();
-      this.applyFilters();
+      // Usar las rutas reales con autenticación
+      this.apiService.getQuotes().subscribe({
+        next: (response) => {
+          console.log('Respuesta de la API:', response);
+          if (response.success && response.data) {
+            this.quotes = response.data.map((quote: any) => ({
+              id: quote.id,
+              quote_number: quote.quote_number,
+              client: { name: quote.client?.name || 'Cliente desconocido' },
+              amount: parseFloat(quote.amount),
+              status: quote.status,
+              quote_date: quote.quote_date,
+              valid_until: quote.valid_until,
+              notes: quote.notes,
+              items: quote.items || []
+            }));
+            this.calculateStats();
+            this.applyFilters();
+          }
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error cargando cotizaciones:', error);
+          this.error = 'Error al cargar las cotizaciones';
+          this.loading = false;
+        }
+      });
 
     } catch (error) {
       this.error = 'Error al cargar las cotizaciones';
       console.error('Error loading quotes:', error);
-    } finally {
       this.loading = false;
     }
-  }
-
-  // Simulate API call - Replace with real apiService.getQuotes()
-  private simulateApiCall(): Promise<Quote[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockQuotes: Quote[] = [
-          {
-            id: 1,
-            company_id: 1,
-            client_id: 1,
-            quote_number: 'Q-2024-001',
-            amount: 5200.00,
-            status: 'sent',
-            valid_until: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // Valid for 10 more days
-            created_at: new Date('2024-01-15'),
-            updated_at: new Date('2024-01-15'),
-            client: { 
-              id: 1, 
-              company_id: 1, 
-              name: 'ABC Corp', 
-              email: 'contacto@abccorp.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 2,
-            company_id: 1,
-            client_id: 2,
-            quote_number: 'Q-2024-002',
-            amount: 3800.00,
-            status: 'accepted',
-            valid_until: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Valid for 5 more days
-            created_at: new Date('2024-01-20'),
-            updated_at: new Date('2024-01-22'),
-            client: { 
-              id: 2, 
-              company_id: 1, 
-              name: 'XYZ Ltd', 
-              email: 'admin@xyzltd.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 3,
-            company_id: 1,
-            client_id: 3,
-            quote_number: 'Q-2024-003',
-            amount: 1500.00,
-            status: 'draft',
-            valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Valid for 30 more days
-            created_at: new Date('2024-01-25'),
-            updated_at: new Date('2024-01-25'),
-            client: { 
-              id: 3, 
-              company_id: 1, 
-              name: 'Tech Solutions Inc', 
-              email: 'billing@techsolutions.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 4,
-            company_id: 1,
-            client_id: 4,
-            quote_number: 'Q-2024-004',
-            amount: 2250.00,
-            status: 'rejected',
-            valid_until: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Expired 5 days ago
-            created_at: new Date('2024-01-10'),
-            updated_at: new Date('2024-01-18'),
-            client: { 
-              id: 4, 
-              company_id: 1, 
-              name: 'Startup Innovadora', 
-              email: 'founders@startup.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 5,
-            company_id: 1,
-            client_id: 1,
-            quote_number: 'Q-2024-005',
-            amount: 4750.00,
-            status: 'sent',
-            valid_until: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Expires in 2 days
-            created_at: new Date('2024-01-28'),
-            updated_at: new Date('2024-01-28'),
-            client: { 
-              id: 1, 
-              company_id: 1, 
-              name: 'ABC Corp', 
-              email: 'contacto@abccorp.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          }
-        ];
-        resolve(mockQuotes);
-      }, 700);
-    });
   }
 
   calculateStats() {

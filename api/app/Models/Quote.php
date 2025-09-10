@@ -13,22 +13,17 @@ class Quote extends Model
         'company_id',
         'client_id',
         'quote_number',
-        'issue_date',
+        'quote_date',
         'expiry_date',
-        'subtotal',
-        'tax_amount',
-        'total',
+        'amount',
         'status',
-        'notes',
-        'terms_conditions'
+        'notes'
     ];
 
     protected $casts = [
-        'issue_date' => 'date',
+        'quote_date' => 'date',
         'expiry_date' => 'date',
-        'subtotal' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'total' => 'decimal:2'
+        'amount' => 'decimal:2'
     ];
 
     // Relaciones
@@ -42,7 +37,7 @@ class Quote extends Model
         return $this->belongsTo(Client::class);
     }
 
-    public function quoteItems()
+    public function items()
     {
         return $this->hasMany(QuoteItem::class);
     }

@@ -2,6 +2,7 @@ import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -22,7 +23,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialogModule } from '@angular/material/dialog';
 import { ApiService } from '../../services/api.service';
-import { Invoice } from '../../models';
+import { AuthService } from '../../core/services/auth.service';
+import { Invoice, User } from '../../models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-invoices',
@@ -62,6 +65,7 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
   displayedColumns: string[] = ['invoice_number', 'client.name', 'amount', 'status', 'due_date', 'actions'];
   loading = true;
   error: string | null = null;
+  currentUser: User | null = null;
 
   // Filter properties
   searchTerm = '';
@@ -94,12 +98,16 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
 
   constructor(
     private apiService: ApiService,
+    private authService: AuthService,
     private router: Router,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private http: HttpClient
   ) {}
 
   ngOnInit() {
+    console.log('InvoicesComponent iniciando...');
+    this.loadUserData();
     this.loadInvoices();
 
     // Configurar la función de filtrado
@@ -111,21 +119,69 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
     };
   }
 
+  private loadUserData() {
+    console.log('Cargando datos del usuario...');
+    this.authService.currentUser$.subscribe(user => {
+      console.log('Usuario actual:', user);
+      this.currentUser = user;
+      if (user) {
+        console.log('Usuario autenticado, cargando facturas...');
+        this.loadInvoices();
+      } else {
+        console.log('Usuario no autenticado');
+      }
+    });
+  }
+
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
   }
 
   async loadInvoices() {
+    console.log('Iniciando carga de facturas...');
+    const token = localStorage.getItem('auth_token');
+    console.log('Token disponible:', !!token);
+    
     try {
       this.loading = true;
       this.error = null;
 
-      // Simulate API call - Replace with real API call
-      const response = await this.simulateApiCall();
-      this.originalData = response;
-      this.dataSource.data = response;
-      this.calculateStats();
+      // Usar las rutas reales con autenticación
+      this.apiService.getInvoices().subscribe({
+        next: (response) => {
+          console.log('Respuesta de la API:', response);
+          if (response.success && response.data) {
+            console.log('Número de facturas recibidas:', response.data.length);
+            this.originalData = response.data.map((invoice: any) => ({
+              id: invoice.id,
+              invoice_number: invoice.invoice_number,
+              client: { name: invoice.client?.name || 'Cliente desconocido' },
+              amount: parseFloat(invoice.amount),
+              status: invoice.status,
+              issue_date: invoice.issue_date,
+              due_date: invoice.due_date,
+              notes: invoice.notes,
+              items: invoice.items || []
+            }));
+            this.dataSource.data = this.originalData;
+            this.calculateStats();
+            console.log('Facturas cargadas exitosamente:', this.originalData.length);
+          } else {
+            console.log('Respuesta sin datos válidos:', response);
+          }
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error cargando facturas:', error);
+          this.error = 'Error al cargar las facturas';
+          this.loading = false;
+          this.snackBar.open('Error al cargar las facturas', 'Cerrar', {
+            duration: 3000,
+            panelClass: ['error-snackbar']
+          });
+        }
+      });
 
     } catch (error) {
       this.error = 'Error al cargar las facturas';
@@ -135,125 +191,8 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
         horizontalPosition: 'end',
         verticalPosition: 'top'
       });
-    } finally {
       this.loading = false;
     }
-  }
-
-  // Simulate API call - Replace this with real apiService.getInvoices()
-  private simulateApiCall(): Promise<Invoice[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockInvoices: Invoice[] = [
-          {
-            id: 1,
-            company_id: 1,
-            client_id: 1,
-            invoice_number: '001234',
-            amount: 1250.00,
-            status: 'pending',
-            issue_date: new Date('2024-01-15'),
-            due_date: new Date('2024-02-15'),
-            notes: 'Servicios de consultoría enero',
-            created_at: new Date('2024-01-15'),
-            updated_at: new Date('2024-01-15'),
-            client: { 
-              id: 1, 
-              company_id: 1, 
-              name: 'ABC Corp', 
-              email: 'contacto@abccorp.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 2,
-            company_id: 1,
-            client_id: 2,
-            invoice_number: '001235',
-            amount: 2850.00,
-            status: 'paid',
-            issue_date: new Date('2024-01-10'),
-            due_date: new Date('2024-02-10'),
-            notes: 'Desarrollo de aplicación móvil',
-            created_at: new Date('2024-01-10'),
-            updated_at: new Date('2024-01-20'),
-            client: { 
-              id: 2, 
-              company_id: 1, 
-              name: 'XYZ Ltd', 
-              email: 'admin@xyzltd.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 3,
-            company_id: 1,
-            client_id: 3,
-            invoice_number: '001236',
-            amount: 750.00,
-            status: 'pending',
-            issue_date: new Date('2024-01-20'),
-            due_date: new Date('2024-01-25'), // Overdue
-            notes: 'Mantenimiento servidor',
-            created_at: new Date('2024-01-20'),
-            updated_at: new Date('2024-01-20'),
-            client: { 
-              id: 3, 
-              company_id: 1, 
-              name: 'Tech Solutions Inc', 
-              email: 'billing@techsolutions.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 4,
-            company_id: 1,
-            client_id: 1,
-            invoice_number: '001237',
-            amount: 3200.00,
-            status: 'cancelled',
-            issue_date: new Date('2024-01-12'),
-            due_date: new Date('2024-02-12'),
-            notes: 'Proyecto cancelado por el cliente',
-            created_at: new Date('2024-01-12'),
-            updated_at: new Date('2024-01-25'),
-            client: { 
-              id: 1, 
-              company_id: 1, 
-              name: 'ABC Corp', 
-              email: 'contacto@abccorp.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          },
-          {
-            id: 5,
-            company_id: 1,
-            client_id: 4,
-            invoice_number: '001238',
-            amount: 1890.00,
-            status: 'pending',
-            issue_date: new Date(),
-            due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // Due in 5 days
-            notes: 'Diseño UI/UX aplicación web',
-            created_at: new Date(),
-            updated_at: new Date(),
-            client: { 
-              id: 4, 
-              company_id: 1, 
-              name: 'Startup Innovadora', 
-              email: 'founders@startup.com',
-              created_at: new Date(), 
-              updated_at: new Date() 
-            }
-          }
-        ];
-        resolve(mockInvoices);
-      }, 800);
-    });
   }
 
   calculateStats() {

@@ -16,6 +16,33 @@ export const routes: Routes = [
     path: 'register',
     loadComponent: () => import('./components/auth/register/register.component').then(m => m.RegisterComponent)
   },
+  // Rutas del Portal de Clientes (sin autenticación normal)
+  {
+    path: 'client-portal',
+    children: [
+      {
+        path: '',
+        redirectTo: 'access',
+        pathMatch: 'full'
+      },
+      {
+        path: 'access',
+        loadComponent: () => import('./components/client-portal/access/access.component').then(m => m.AccessComponent)
+      },
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./components/client-portal/dashboard/dashboard.component').then(m => m.ClientPortalDashboardComponent)
+      },
+      {
+        path: 'invoice/:id',
+        loadComponent: () => import('./components/client-portal/invoice-detail/invoice-detail.component').then(m => m.InvoiceDetailComponent)
+      },
+      {
+        path: 'pay/:id',
+        loadComponent: () => import('./components/client-portal/payment/payment.component').then(m => m.PaymentComponent)
+      }
+    ]
+  },
   {
     path: 'dashboard',
     loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),

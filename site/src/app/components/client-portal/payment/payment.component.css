@@ -1,0 +1,263 @@
+.payment-container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding: 24px;
+}
+
+.payment-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.payment-header h2 {
+  margin: 0;
+  color: #333;
+  font-weight: 500;
+}
+
+.back-btn {
+  color: #667eea;
+}
+
+.payment-content {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Invoice Summary */
+.invoice-summary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.invoice-summary .mat-mdc-card-title {
+  color: white;
+}
+
+.invoice-details {
+  margin-top: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+
+.detail-row .label {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.detail-row .value {
+  color: white;
+  font-weight: 600;
+}
+
+.detail-row .value.overdue {
+  color: #ffcdd2;
+}
+
+.detail-row.total {
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  margin-top: 16px;
+  padding-top: 16px;
+  font-size: 1.1rem;
+}
+
+.detail-row.pending {
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 16px -16px -16px -16px;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+/* Payment Form */
+.payment-form-card .mat-mdc-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-section {
+  margin-bottom: 32px;
+}
+
+.form-section h3 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-weight: 500;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 8px;
+}
+
+.amount-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.amount-field {
+  flex: 1;
+}
+
+.full-amount-btn {
+  margin-top: 8px;
+  color: #667eea;
+  border: 1px solid #667eea;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.payment-method-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Payment Summary */
+.payment-summary {
+  background-color: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.payment-summary h3 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-weight: 500;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.summary-row .amount {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4caf50;
+}
+
+.summary-row .remaining {
+  color: #ff9800;
+  font-weight: 500;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #eee;
+}
+
+.process-btn {
+  background-color: #4caf50;
+  min-width: 160px;
+}
+
+.process-btn mat-spinner {
+  margin-right: 8px;
+}
+
+/* Security Info */
+.security-info {
+  background-color: #e8f5e8;
+  border-left: 4px solid #4caf50;
+}
+
+.security-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.security-content mat-icon {
+  color: #4caf50;
+  margin-top: 4px;
+}
+
+.security-text h4 {
+  margin: 0 0 8px 0;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.security-text p {
+  margin: 0;
+  color: #388e3c;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+}
+
+.loading-container p {
+  margin-top: 16px;
+  color: #666;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .payment-container {
+    padding: 16px;
+  }
+  
+  .payment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .amount-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions button {
+    width: 100%;
+  }
+  
+  .security-content {
+    flex-direction: column;
+    text-align: center;
+  }
+}

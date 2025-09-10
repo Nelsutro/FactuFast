@@ -2,8 +2,9 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,12 +15,12 @@ import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
 import { ApiService } from '../../services/api.service';
-import { Payment, Invoice, Client } from '../../models';
+import { AuthService } from '../../core/services/auth.service';
+import { Payment, User } from '../../models';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-payments',
@@ -42,53 +43,66 @@ import { Payment, Invoice, Client } from '../../models';
     MatProgressSpinnerModule,
     MatChipsModule,
     MatTooltipModule,
-    MatDatepickerModule,
-    MatNativeDateModule,
     MatGridListModule,
     MatMenuModule
   ]
 })
 export class PaymentsComponent implements OnInit {
   
-  // Data properties
-  payments: Payment[] = [];
-  filteredPayments: Payment[] = [];
-  loading = true;
-  error: string | null = null;
-
-  // Table and pagination properties
-  displayedColumns: string[] = ['invoice', 'client', 'amount', 'method', 'status', 'date', 'actions'];
-  dataSource!: MatTableDataSource<Payment>;
-  pageSize = 9;
-  pageSizeOptions: number[] = [9, 18, 27];
-
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
 
-  // Filter properties
-  searchTerm = '';
-  statusFilter = '';
-  methodFilter = '';
-  dateRange = '';
+  displayedColumns: string[] = ['invoice', 'client', 'amount', 'method', 'status', 'date', 'actions'];
+  dataSource = new MatTableDataSource<Payment>();
+  
+  payments: Payment[] = [];
+  filteredPayments: Payment[] = [];
+  searchTerm: string = '';
+  methodFilter: string = '';
+  dateFilter: string = '';
+  statusFilter: string = '';
+  dateRange: string = '';
+  pageSize: number = 10;
+  loading = true;
+  error: string | null = null;
+  currentUser: User | null = null;
 
-  // Stats
   stats = {
+    total: 0,
+    totalAmount: 0,
+    cash: 0,
+    card: 0,
+    transfer: 0,
+    thisMonth: 0,
     monthlyPayments: 0,
     totalCollected: 0,
     pendingPayments: 0,
     failedPayments: 0
   };
 
-  // Math property for template
-  Math = Math;
+  paymentMethods = [
+    { value: 'cash', label: 'Efectivo', icon: 'account_balance_wallet' },
+    { value: 'credit_card', label: 'Tarjeta', icon: 'credit_card' },
+    { value: 'bank_transfer', label: 'Transferencia', icon: 'account_balance' },
+    { value: 'other', label: 'Otro', icon: 'more_horiz' }
+  ];
 
   constructor(
     private apiService: ApiService,
-    private router: Router
+    private authService: AuthService,
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   ngOnInit() {
+    this.loadUserData();
     this.loadPayments();
+  }
+
+  private loadUserData() {
+    this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
   }
 
   async loadPayments() {
@@ -96,38 +110,71 @@ export class PaymentsComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
-      // Simulate API call - Replace with real API call
-      const response = await this.simulateApiCall();
-      this.payments = response;
-      
-      this.calculateStats();
-      this.filteredPayments = [...this.payments];
-      this.dataSource = new MatTableDataSource(this.filteredPayments);
-      this.dataSource.paginator = this.paginator;
-      this.dataSource.sort = this.sort;
+      // Usar las rutas reales con autenticación
+      this.apiService.getPayments().subscribe({
+        next: (response) => {
+          console.log('Respuesta de pagos API:', response);
+          if (response.success && response.data) {
+            this.payments = response.data.map((payment: any) => ({
+              id: payment.id,
+              invoice_id: payment.invoice_id,
+              amount: parseFloat(payment.amount),
+              payment_date: new Date(payment.payment_date),
+              method: payment.payment_method || 'other',
+              status: payment.status,
+              created_at: new Date(payment.created_at),
+              updated_at: new Date(payment.updated_at),
+              invoice: {
+                invoice_number: payment.invoice?.invoice_number || 'N/A',
+                client: { 
+                  name: payment.invoice?.client?.name || 'Cliente desconocido' 
+                }
+              }
+            }));
+            
+            this.calculateStats();
+            this.filteredPayments = [...this.payments];
+            this.dataSource = new MatTableDataSource(this.filteredPayments);
+            
+            setTimeout(() => {
+              if (this.paginator) {
+                this.dataSource.paginator = this.paginator;
+              }
+              if (this.sort) {
+                this.dataSource.sort = this.sort;
+              }
+            });
 
-      // Custom filter predicate
-      this.dataSource.filterPredicate = (data: Payment, filter: string) => {
-        const term = filter.toLowerCase();
-        return data.invoice?.invoice_number?.toLowerCase().includes(term) ||
-               data.invoice?.client?.name?.toLowerCase().includes(term) ||
-               data.invoice?.client?.email?.toLowerCase().includes(term) ||
-               this.getMethodLabel(data.method).toLowerCase().includes(term);
-      };
+            this.dataSource.filterPredicate = (data: Payment, filter: string) => {
+              const term = filter.toLowerCase();
+              return data.invoice?.invoice_number?.toLowerCase().includes(term) ||
+                     data.invoice?.client?.name?.toLowerCase().includes(term) ||
+                     data.method?.toLowerCase().includes(term);
+            };
+          }
+          this.loading = false;
+        },
+        error: (error) => {
+          console.error('Error cargando pagos:', error);
+          this.error = 'Error al cargar los pagos';
+          this.loading = false;
+        }
+      });
 
     } catch (error) {
       this.error = 'Error al cargar los pagos';
       console.error('Error loading payments:', error);
-    } finally {
       this.loading = false;
     }
   }
 
-  // Filtering methods
   applyFilter(event: Event) {
     const filterValue = (event.target as HTMLInputElement).value;
-    this.searchTerm = filterValue.trim().toLowerCase();
-    this.applyFilters();
+    this.dataSource.filter = filterValue.trim().toLowerCase();
+
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
   }
 
   applyStatusFilter(value: string) {
@@ -141,236 +188,103 @@ export class PaymentsComponent implements OnInit {
   }
 
   applyDateFilter(value: string) {
-    this.dateRange = value;
+    this.dateFilter = value;
     this.applyFilters();
   }
 
   applyFilters() {
     let filtered = [...this.payments];
 
-    // Apply search filter
-    if (this.searchTerm) {
-      const term = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(payment => 
-        payment.invoice?.invoice_number?.toLowerCase().includes(term) ||
-        payment.invoice?.client?.name?.toLowerCase().includes(term) ||
-        payment.invoice?.client?.email?.toLowerCase().includes(term) ||
-        this.getMethodLabel(payment.method).toLowerCase().includes(term)
-      );
-    }
-
-    // Apply status filter
     if (this.statusFilter) {
       filtered = filtered.filter(payment => payment.status === this.statusFilter);
     }
 
-    // Apply method filter
     if (this.methodFilter) {
       filtered = filtered.filter(payment => payment.method === this.methodFilter);
     }
 
-    // Apply date range filter
-    if (this.dateRange) {
+    if (this.dateFilter) {
       const now = new Date();
-      const startDate = this.getStartDateForRange(this.dateRange, now);
-      filtered = filtered.filter(payment => 
-        new Date(payment.payment_date) >= startDate
+      const startDate = this.getStartDateForRange(this.dateFilter, now);
+      filtered = filtered.filter(payment => {
+        const paymentDate = new Date(payment.payment_date);
+        return paymentDate >= startDate && paymentDate <= now;
+      });
+    }
+
+    if (this.searchTerm) {
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(payment =>
+        payment.invoice?.invoice_number?.toLowerCase().includes(term) ||
+        payment.invoice?.client?.name?.toLowerCase().includes(term) ||
+        payment.method?.toLowerCase().includes(term)
       );
     }
 
     this.filteredPayments = filtered;
-    if (this.dataSource) {
-      this.dataSource.data = this.filteredPayments;
-    }
+    this.dataSource.data = this.filteredPayments;
+    this.calculateStats();
   }
 
-  // Material table helper methods
-  getMethodIcon(method: string): string {
-    switch (method) {
-      case 'credit_card':
-        return 'credit_card';
-      case 'bank_transfer':
-        return 'account_balance';
-      case 'cash':
-        return 'payments';
+  private getStartDateForRange(range: string, now: Date): Date {
+    const start = new Date(now);
+    switch (range) {
+      case 'today':
+        start.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        start.setDate(start.getDate() - 7);
+        break;
+      case 'month':
+        start.setMonth(start.getMonth() - 1);
+        break;
+      case 'year':
+        start.setFullYear(start.getFullYear() - 1);
+        break;
       default:
-        return 'more_horiz';
+        start.setDate(start.getDate() - 30);
     }
+    return start;
   }
 
-  // Simulate API call - Replace with real apiService.getPayments()
-  private simulateApiCall(): Promise<Payment[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockPayments: Payment[] = [
-          {
-            id: 1,
-            invoice_id: 2,
-            amount: 2850.00,
-            payment_date: new Date('2024-01-20'),
-            method: 'credit_card',
-            status: 'completed',
-            created_at: new Date('2024-01-20'),
-            updated_at: new Date('2024-01-20'),
-            invoice: {
-              id: 2,
-              company_id: 1,
-              client_id: 2,
-              invoice_number: '001235',
-              amount: 2850.00,
-              status: 'paid',
-              issue_date: new Date('2024-01-10'),
-              due_date: new Date('2024-02-10'),
-              created_at: new Date('2024-01-10'),
-              updated_at: new Date('2024-01-20'),
-              client: {
-                id: 2,
-                company_id: 1,
-                name: 'XYZ Ltd',
-                email: 'admin@xyzltd.com',
-                created_at: new Date(),
-                updated_at: new Date()
-              }
-            }
-          },
-          {
-            id: 2,
-            invoice_id: 5,
-            amount: 1890.00,
-            payment_date: new Date('2024-02-05'),
-            method: 'bank_transfer',
-            status: 'completed',
-            created_at: new Date('2024-02-05'),
-            updated_at: new Date('2024-02-05'),
-            invoice: {
-              id: 5,
-              company_id: 1,
-              client_id: 4,
-              invoice_number: '001238',
-              amount: 1890.00,
-              status: 'paid',
-              issue_date: new Date('2024-01-28'),
-              due_date: new Date('2024-02-28'),
-              created_at: new Date('2024-01-28'),
-              updated_at: new Date('2024-02-05'),
-              client: {
-                id: 4,
-                company_id: 1,
-                name: 'Startup Innovadora',
-                email: 'founders@startup.com',
-                created_at: new Date(),
-                updated_at: new Date()
-              }
-            }
-          },
-          {
-            id: 3,
-            invoice_id: 1,
-            amount: 625.00, // Partial payment
-            payment_date: new Date('2024-02-01'),
-            method: 'credit_card',
-            status: 'pending',
-            created_at: new Date('2024-02-01'),
-            updated_at: new Date('2024-02-01'),
-            invoice: {
-              id: 1,
-              company_id: 1,
-              client_id: 1,
-              invoice_number: '001234',
-              amount: 1250.00,
-              status: 'pending',
-              issue_date: new Date('2024-01-15'),
-              due_date: new Date('2024-02-15'),
-              created_at: new Date('2024-01-15'),
-              updated_at: new Date('2024-01-15'),
-              client: {
-                id: 1,
-                company_id: 1,
-                name: 'ABC Corp',
-                email: 'contacto@abccorp.com',
-                created_at: new Date(),
-                updated_at: new Date()
-              }
-            }
-          },
-          {
-            id: 4,
-            invoice_id: 6,
-            amount: 980.00,
-            payment_date: new Date('2024-02-03'),
-            method: 'bank_transfer',
-            status: 'failed',
-            created_at: new Date('2024-02-03'),
-            updated_at: new Date('2024-02-03'),
-            invoice: {
-              id: 6,
-              company_id: 1,
-              client_id: 3,
-              invoice_number: '001239',
-              amount: 980.00,
-              status: 'pending',
-              issue_date: new Date('2024-02-01'),
-              due_date: new Date('2024-03-01'),
-              created_at: new Date('2024-02-01'),
-              updated_at: new Date('2024-02-01'),
-              client: {
-                id: 3,
-                company_id: 1,
-                name: 'Tech Solutions Inc',
-                email: 'billing@techsolutions.com',
-                created_at: new Date(),
-                updated_at: new Date()
-              }
-            }
-          }
-        ];
-        resolve(mockPayments);
-      }, 600);
-    });
+  getMethodIcon(method: string): string {
+    const methodObj = this.paymentMethods.find(m => m.value === method);
+    return methodObj?.icon || 'payment';
+  }
+
+  getMethodLabel(method: string): string {
+    const methodObj = this.paymentMethods.find(m => m.value === method);
+    return methodObj?.label || method;
   }
 
   calculateStats() {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
+    const filtered = this.filteredPayments;
     this.stats = {
-      monthlyPayments: this.payments.filter(p => {
+      total: filtered.length,
+      totalAmount: filtered.reduce((sum, p) => sum + p.amount, 0),
+      cash: filtered.filter(p => p.method === 'cash').length,
+      card: filtered.filter(p => p.method === 'credit_card').length,
+      transfer: filtered.filter(p => p.method === 'bank_transfer').length,
+      thisMonth: filtered.filter(p => {
         const paymentDate = new Date(p.payment_date);
-        return paymentDate.getMonth() === currentMonth && 
-               paymentDate.getFullYear() === currentYear;
+        const now = new Date();
+        return paymentDate.getMonth() === now.getMonth() && 
+               paymentDate.getFullYear() === now.getFullYear();
       }).length,
-      totalCollected: this.payments
-        .filter(p => p.status === 'completed')
-        .reduce((sum, p) => sum + p.amount, 0),
-      pendingPayments: this.payments.filter(p => p.status === 'pending').length,
-      failedPayments: this.payments.filter(p => p.status === 'failed').length
+      monthlyPayments: filtered.filter(p => {
+        const paymentDate = new Date(p.payment_date);
+        const now = new Date();
+        return paymentDate.getMonth() === now.getMonth() && 
+               paymentDate.getFullYear() === now.getFullYear();
+      }).length,
+      totalCollected: filtered.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0),
+      pendingPayments: filtered.filter(p => p.status === 'pending').length,
+      failedPayments: filtered.filter(p => p.status === 'failed').length
     };
   }
 
-
-
-  private getStartDateForRange(range: string, now: Date): Date {
-    const date = new Date(now);
-    
-    switch (range) {
-      case 'today':
-        date.setHours(0, 0, 0, 0);
-        return date;
-      case 'week':
-        date.setDate(date.getDate() - 7);
-        return date;
-      case 'month':
-        date.setMonth(date.getMonth() - 1);
-        return date;
-      default:
-        return new Date(0);
-    }
-  }
-
-  // Action methods
   recordPayment() {
-    this.router.navigate(['/payments/create']);
+    this.router.navigate(['/payments/new']);
   }
 
   viewPayment(payment: Payment) {
@@ -378,85 +292,61 @@ export class PaymentsComponent implements OnInit {
   }
 
   processPayment(payment: Payment) {
-    console.log('Processing payment:', payment.id);
-    
-    // Simulate payment processing
-    payment.status = 'completed';
-    payment.updated_at = new Date();
-    this.calculateStats();
-    
-    alert(`Pago de $${this.formatCurrency(payment.amount)} procesado exitosamente`);
-  }
-
-  retryPayment(payment: Payment) {
-    console.log('Retrying payment:', payment.id);
-    
-    // Simulate retry
-    payment.status = 'pending';
-    payment.updated_at = new Date();
-    this.calculateStats();
-    
-    alert(`Reintentando pago de $${this.formatCurrency(payment.amount)}`);
+    console.log('Processing payment:', payment);
   }
 
   downloadReceipt(payment: Payment) {
-    console.log('Downloading receipt for payment:', payment.id);
-    // Implement PDF receipt download
+    console.log('Downloading receipt for payment:', payment);
   }
 
-  reconcilePayments() {
-    console.log('Starting payment reconciliation...');
-    // Navigate to reconciliation page or open modal
-    // this.router.navigate(['/payments/reconcile']);
-    alert('Función de conciliación bancaria - En desarrollo');
-  }
-
-  // Utility methods
   formatCurrency(amount: number): string {
-    return amount.toLocaleString('es-CL', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    });
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(amount);
   }
 
   formatDate(date: Date | string): string {
-    const d = new Date(date);
-    return d.toLocaleDateString('es-CL', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
+    return new Date(date).toLocaleDateString('es-CL');
   }
 
-  getStatusLabel(status: string): string {
-    const labels: { [key: string]: string } = {
-      'completed': 'Completado',
-      'pending': 'Pendiente',
-      'failed': 'Fallido'
-    };
-    return labels[status] || status;
-  }
-
-  getMethodLabel(method: string): string {
-    const labels: { [key: string]: string } = {
-      'credit_card': 'Tarjeta de Crédito',
-      'bank_transfer': 'Transferencia',
-      'cash': 'Efectivo',
-      'other': 'Otro'
-    };
-    return labels[method] || method;
-  }
-
-  // Pagination handler
-  onPageChange(event: PageEvent): void {
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.pageIndex = event.pageIndex;
-      this.dataSource.paginator.pageSize = event.pageSize;
-      this.pageSize = event.pageSize;
+  getStatusColor(status: string): string {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'pending': return 'warning';
+      case 'failed': return 'danger';
+      default: return 'default';
     }
   }
 
-  trackByPaymentId(index: number, payment: Payment): number {
-    return payment.id;
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'completed': return 'check_circle';
+      case 'pending': return 'schedule';
+      case 'failed': return 'error';
+      default: return 'help';
+    }
+  }
+
+  getStatusLabel(status: string): string {
+    switch (status) {
+      case 'completed': return 'Completado';
+      case 'pending': return 'Pendiente';
+      case 'failed': return 'Fallido';
+      default: return status;
+    }
+  }
+
+  retryPayment(payment: Payment) {
+    console.log('Retrying payment:', payment);
+  }
+
+  reconcilePayments() {
+    console.log('Reconciling payments');
+  }
+
+  onPageChange(event: any) {
+    console.log('Page changed:', event);
   }
 }

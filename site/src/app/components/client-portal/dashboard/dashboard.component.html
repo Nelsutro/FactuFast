@@ -1,0 +1,127 @@
+<div class="client-portal-dashboard">
+  <!-- Header del Portal -->
+  <div class="portal-header">
+    <div class="header-content">
+      <div class="client-info">
+        <mat-icon class="client-icon">account_circle</mat-icon>
+        <div class="client-details">
+          <h2>{{ client?.client?.name || 'Cliente' }}</h2>
+          <p>{{ client?.company?.name || 'Portal de Facturas' }}</p>
+        </div>
+      </div>
+      <button mat-button (click)="logout()" class="logout-btn">
+        <mat-icon>logout</mat-icon>
+        Salir
+      </button>
+    </div>
+  </div>
+
+  <div class="dashboard-content">
+    <!-- Resumen -->
+    <div class="summary-cards">
+      <mat-card class="summary-card pending">
+        <mat-card-content>
+          <div class="card-header">
+            <mat-icon>pending_actions</mat-icon>
+            <span class="label">Facturas Pendientes</span>
+          </div>
+          <div class="amount">${{ totalPending | number:'1.2-2' }}</div>
+          <div class="count">{{ pendingInvoices.length }} facturas</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card overdue" *ngIf="overdueInvoices.length > 0">
+        <mat-card-content>
+          <div class="card-header">
+            <mat-icon>warning</mat-icon>
+            <span class="label">Facturas Vencidas</span>
+          </div>
+          <div class="count urgent">{{ overdueInvoices.length }} facturas</div>
+          <div class="message">Requieren atención inmediata</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="summary-card total">
+        <mat-card-content>
+          <div class="card-header">
+            <mat-icon>receipt_long</mat-icon>
+            <span class="label">Total de Facturas</span>
+          </div>
+          <div class="count">{{ invoices.length }}</div>
+          <div class="message">Historial completo</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Lista de Facturas -->
+    <div class="invoices-section">
+      <div class="section-header">
+        <h3>Mis Facturas</h3>
+        <div class="filters">
+          <!-- Aquí se pueden agregar filtros más adelante -->
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loading" class="loading-container">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p>Cargando facturas...</p>
+      </div>
+
+      <!-- Lista de facturas -->
+      <div *ngIf="!loading" class="invoices-list">
+        <mat-card *ngFor="let invoice of invoices" class="invoice-card" [class.overdue]="invoice.is_overdue">
+          <mat-card-content>
+            <div class="invoice-header">
+              <div class="invoice-info">
+                <h4>{{ invoice.invoice_number }}</h4>
+                <p class="date">Emitida: {{ invoice.issue_date | date:'dd/MM/yyyy' }}</p>
+                <p class="due-date" [class.overdue-text]="invoice.is_overdue">
+                  Vence: {{ invoice.due_date | date:'dd/MM/yyyy' }}
+                </p>
+              </div>
+              <div class="invoice-status">
+                <mat-chip [color]="getStatusColor(invoice.status)" selected>
+                  {{ getStatusText(invoice.status) }}
+                </mat-chip>
+              </div>
+            </div>
+
+            <div class="invoice-amounts">
+              <div class="amount-row">
+                <span class="label">Total:</span>
+                <span class="amount total">${{ invoice.total | number:'1.2-2' }}</span>
+              </div>
+              <div class="amount-row" *ngIf="invoice.status !== 'paid'">
+                <span class="label">Pendiente:</span>
+                <span class="amount pending">${{ invoice.remaining_amount | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <div class="invoice-actions">
+              <button mat-button (click)="viewInvoice(invoice)" class="view-btn">
+                <mat-icon>visibility</mat-icon>
+                Ver Detalle
+              </button>
+              <button mat-raised-button 
+                      color="primary" 
+                      (click)="payInvoice(invoice)"
+                      *ngIf="invoice.status === 'pending' && invoice.remaining_amount > 0"
+                      class="pay-btn">
+                <mat-icon>payment</mat-icon>
+                Pagar
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Estado vacío -->
+        <div *ngIf="invoices.length === 0" class="empty-state">
+          <mat-icon class="empty-icon">receipt_long</mat-icon>
+          <h3>No hay facturas</h3>
+          <p>No tienes facturas registradas en este momento.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -73,4 +73,60 @@ class User extends Authenticatable
     {
         return $this->role === 'client';
     }
+
+    /**
+     * Relación con Invoices (facturas creadas por el usuario)
+     */
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Relación con Quotes (cotizaciones creadas por el usuario)
+     */
+    public function quotes()
+    {
+        return $this->hasMany(Quote::class);
+    }
+
+    /**
+     * Relación con Payments (pagos registrados por el usuario)
+     */
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    // Scopes
+    public function scopeAdmins($query)
+    {
+        return $query->where('role', 'admin');
+    }
+
+    public function scopeClients($query)
+    {
+        return $query->where('role', 'client');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNotNull('email_verified_at');
+    }
+
+    public function scopeForCompany($query, $companyId)
+    {
+        return $query->where('company_id', $companyId);
+    }
+
+    // Accessors
+    public function getFullNameAttribute()
+    {
+        return $this->name;
+    }
+
+    public function getCompanyNameAttribute()
+    {
+        return $this->company ? $this->company->name : null;
+    }
 }

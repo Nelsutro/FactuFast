@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->string('invoice_number')->unique();
             $table->decimal('amount', 12, 2);
-            $table->enum('status', ['pending', 'paid', 'cancelled'])->default('pending');
+            $table->enum('status', ['draft', 'pending', 'paid', 'overdue', 'cancelled'])->default('draft');
             $table->date('issue_date');
             $table->date('due_date');
             $table->text('notes')->nullable();

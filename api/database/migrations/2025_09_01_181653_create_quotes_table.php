@@ -14,8 +14,9 @@ return new class extends Migration
             $table->foreignId('client_id')->constrained('clients')->onDelete('cascade');
             $table->string('quote_number')->unique();
             $table->decimal('amount', 12, 2);
-            $table->enum('status', ['draft', 'sent', 'accepted', 'rejected'])->default('draft');
+            $table->enum('status', ['draft', 'sent', 'accepted', 'rejected', 'expired'])->default('draft');
             $table->date('valid_until')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

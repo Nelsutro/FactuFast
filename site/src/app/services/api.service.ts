@@ -15,7 +15,7 @@ export interface ApiResponse<T> {
   providedIn: 'root'
 })
 export class ApiService {
-  private apiUrl = environment.production ? environment.apiUrl : 'http://localhost:8000/api';
+  private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
 
@@ -108,7 +108,6 @@ export class ApiService {
     }
     return this.http.get<ApiResponse<any>>(url, { headers: this.getHeaders() })
       .pipe(
-        map(response => response.data),
         catchError(this.handleError)
       );
   }
@@ -140,6 +139,14 @@ export class ApiService {
   deleteInvoice(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/invoices/${id}`, { headers: this.getHeaders() })
       .pipe(catchError(this.handleError));
+  }
+
+  getInvoiceStats(): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/invoices-stats`, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
   }
 
   // Métodos para Clientes
@@ -194,13 +201,20 @@ export class ApiService {
     }
     return this.http.get<ApiResponse<any>>(url, { headers: this.getHeaders() })
       .pipe(
-        map(response => response.data),
         catchError(this.handleError)
       );
   }
 
   createQuote(quote: any): Observable<any> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/quotes`, quote, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
+  getQuoteStats(): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/quotes-stats`, { headers: this.getHeaders() })
       .pipe(
         map(response => response.data),
         catchError(this.handleError)
@@ -216,13 +230,28 @@ export class ApiService {
     }
     return this.http.get<ApiResponse<any>>(url, { headers: this.getHeaders() })
       .pipe(
-        map(response => response.data),
         catchError(this.handleError)
       );
   }
 
   createPayment(payment: any): Observable<any> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/payments`, payment, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
+  getPaymentStats(): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/payments-stats`, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
+  getInvoicePayments(invoiceId: number): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/invoices/${invoiceId}/payments`, { headers: this.getHeaders() })
       .pipe(
         map(response => response.data),
         catchError(this.handleError)

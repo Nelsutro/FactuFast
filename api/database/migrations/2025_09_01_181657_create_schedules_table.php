@@ -11,10 +11,15 @@ return new class extends Migration
         Schema::create('schedules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->constrained('companies')->onDelete('cascade');
-            $table->string('task_name');
+            $table->string('name');
+            $table->enum('type', ['invoice_reminder', 'payment_followup', 'quote_followup', 'report_generation', 'backup']);
             $table->enum('frequency', ['daily', 'weekly', 'monthly', 'yearly']);
-            $table->time('execution_time')->nullable();
-            $table->json('config')->nullable();
+            $table->time('time')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamp('last_run')->nullable();
+            $table->timestamp('next_run')->nullable();
+            $table->text('description')->nullable();
+            $table->json('settings')->nullable();
             $table->timestamps();
         });
     }

@@ -1,0 +1,122 @@
+<div class="client-portal-access">
+  <div class="container">
+    <div class="access-card">
+      <mat-card>
+        <mat-card-header>
+          <div mat-card-avatar class="portal-avatar">
+            <mat-icon>account_circle</mat-icon>
+          </div>
+          <mat-card-title>Portal del Cliente</mat-card-title>
+          <mat-card-subtitle>Accede a tus facturas y realiza pagos</mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <!-- Paso 1: Solicitar acceso -->
+          <div *ngIf="step === 'request'" class="step-content">
+            <h3>Solicitar Acceso</h3>
+            <p>Ingresa tu email para recibir un enlace de acceso temporal a tu portal de facturas.</p>
+            
+            <form [formGroup]="requestForm" (ngSubmit)="requestAccess()">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Email</mat-label>
+                <input matInput 
+                       formControlName="email" 
+                       type="email" 
+                       placeholder="tu@email.com">
+                <mat-icon matSuffix>email</mat-icon>
+                <mat-error *ngIf="requestForm.get('email')?.hasError('required')">
+                  El email es requerido
+                </mat-error>
+                <mat-error *ngIf="requestForm.get('email')?.hasError('email')">
+                  Ingresa un email válido
+                </mat-error>
+              </mat-form-field>
+
+              <div class="actions">
+                <button mat-raised-button 
+                        color="primary" 
+                        type="submit" 
+                        [disabled]="requestForm.invalid || loading"
+                        class="full-width">
+                  <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+                  <span *ngIf="!loading">Solicitar Acceso</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Paso 2: Ingresar con token -->
+          <div *ngIf="step === 'access'" class="step-content">
+            <h3>Ingresar al Portal</h3>
+            <p>Ingresa el código de acceso que recibiste en tu email.</p>
+
+            <form [formGroup]="accessForm" (ngSubmit)="accessPortal()">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Email</mat-label>
+                <input matInput 
+                       formControlName="email" 
+                       type="email" 
+                       placeholder="tu@email.com">
+                <mat-icon matSuffix>email</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Código de Acceso</mat-label>
+                <input matInput 
+                       formControlName="token" 
+                       placeholder="Código recibido por email">
+                <mat-icon matSuffix>vpn_key</mat-icon>
+                <mat-error *ngIf="accessForm.get('token')?.hasError('required')">
+                  El código de acceso es requerido
+                </mat-error>
+              </mat-form-field>
+
+              <div class="actions">
+                <button mat-button 
+                        type="button" 
+                        (click)="goBack()"
+                        [disabled]="loading">
+                  Volver
+                </button>
+                <button mat-raised-button 
+                        color="primary" 
+                        type="submit" 
+                        [disabled]="accessForm.invalid || loading">
+                  <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+                  <span *ngIf="!loading">Acceder</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Información adicional -->
+    <div class="info-section">
+      <mat-card>
+        <mat-card-content>
+          <h4>¿Qué puedes hacer en tu portal?</h4>
+          <ul class="feature-list">
+            <li>
+              <mat-icon>receipt</mat-icon>
+              <span>Ver todas tus facturas pendientes y pagadas</span>
+            </li>
+            <li>
+              <mat-icon>payment</mat-icon>
+              <span>Realizar pagos de forma segura</span>
+            </li>
+            <li>
+              <mat-icon>history</mat-icon>
+              <span>Consultar el historial de pagos</span>
+            </li>
+            <li>
+              <mat-icon>download</mat-icon>
+              <span>Descargar comprobantes de pago</span>
+            </li>
+          </ul>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>

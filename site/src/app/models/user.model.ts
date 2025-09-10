@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   role: string;
+  company_id?: number;
   company_name?: string;
   email_verified_at?: Date | string;
   created_at: Date | string;

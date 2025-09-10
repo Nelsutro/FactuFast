@@ -15,20 +15,15 @@ class Invoice extends Model
         'invoice_number',
         'issue_date',
         'due_date',
-        'subtotal',
-        'tax_amount',
-        'total',
+        'amount',
         'status',
-        'notes',
-        'payment_terms'
+        'notes'
     ];
 
     protected $casts = [
         'issue_date' => 'date',
         'due_date' => 'date',
-        'subtotal' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'total' => 'decimal:2'
+        'amount' => 'decimal:2'
     ];
 
     // Relaciones
@@ -47,7 +42,7 @@ class Invoice extends Model
         return $this->hasMany(Payment::class);
     }
 
-    public function invoiceItems()
+    public function items()
     {
         return $this->hasMany(InvoiceItem::class);
     }
