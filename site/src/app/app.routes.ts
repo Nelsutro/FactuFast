@@ -54,13 +54,43 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'invoices/create',
+    loadComponent: () => import('./components/invoices/invoice-create.component').then(m => m.InvoiceCreateComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'quotes',
     loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
     canActivate: [AuthGuard]
   },
   {
+    path: 'invoices/create',
+    loadComponent: () => import('./components/invoices/invoice-create.component').then(m => m.InvoiceCreateComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'quotes/create',
+    loadComponent: () => import('./components/quotes/quote-create.component').then(m => m.QuoteCreateComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'quotes/create',
+    loadComponent: () => import('./components/quotes/quote-create.component').then(m => m.QuoteCreateComponent),
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'clients',
     loadComponent: () => import('./components/clients/clients.component').then(m => m.ClientsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'clients/create',
+    loadComponent: () => import('./components/clients/client-create.component').then(m => m.ClientCreateComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'clients/create',
+    loadComponent: () => import('./components/clients/client-create.component').then(m => m.ClientCreateComponent),
     canActivate: [AuthGuard]
   },
   {

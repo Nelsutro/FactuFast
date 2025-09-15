@@ -195,25 +195,39 @@ export class AuthService {
       }
       
       // Si hay token válido, obtener datos del usuario
-      this.getCurrentUser().subscribe({
-        next: (response) => {
-          console.log('Respuesta getCurrentUser:', response);
-          if (response.success && response.data) {
-            console.log('Usuario cargado desde token:', response.data.name);
-            this.currentUserSubject.next(response.data);
-          } else {
-            console.log('Respuesta inválida del servidor, eliminando token...');
-            this.removeToken();
-            this.currentUserSubject.next(null);
+      let attemptedRetry = false;
+      const attemptLoad = () => {
+        console.log('[Auth] Intentando cargar usuario con token...');
+        this.getCurrentUser().subscribe({
+          next: (response) => {
+            console.log('Respuesta getCurrentUser:', response);
+            if (response.success && response.data) {
+              console.log('Usuario cargado desde token:', response.data.name);
+              this.currentUserSubject.next(response.data);
+            } else {
+              console.warn('Respuesta sin success/data. Manteniendo token pero usuario null.');
+              this.currentUserSubject.next(null);
+            }
+          },
+          error: (error) => {
+            const status = error?.status;
+            console.error('[Auth] Error al validar token. Status:', status);
+            if (status === 401 || status === 403) {
+              console.warn('[Auth] Token inválido o no autorizado. Eliminando token.');
+              this.removeToken();
+              this.currentUserSubject.next(null);
+            } else if (!attemptedRetry && (status === 0 || status >= 500)) {
+              attemptedRetry = true;
+              console.warn('[Auth] Error transitorio (status ' + status + '). Reintentando una vez en 800ms...');
+              setTimeout(() => attemptLoad(), 800);
+            } else {
+              console.warn('[Auth] Error no crítico. Manteniendo token para reintento futuro.');
+              this.currentUserSubject.next(null);
+            }
           }
-        },
-        error: (error) => {
-          console.error('Error al cargar usuario (token inválido):', error.status);
-          // No mostrar error completo, solo limpiar
-          this.removeToken();
-          this.currentUserSubject.next(null);
-        }
-      });
+        });
+      };
+      attemptLoad();
     } else {
       console.log('No hay token en localStorage');
       this.currentUserSubject.next(null);

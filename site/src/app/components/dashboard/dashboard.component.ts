@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Chart, ChartConfiguration, ChartType, registerables } from 'chart.js';
+import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardStats, Invoice, User } from '../../models';
@@ -91,18 +92,57 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loading = true;
       this.error = null;
 
-      // Simulate API call (replace with real API call)
-      const response = await this.simulateApiCall();
-      this.dashboardStats = response;
-      
-      // Set alerts
-      this.alerts = {
-        overdue: 3, // Calculate from real data
-        pending: 5,
-        quotes: 2
+      // Cargar datos reales desde el API
+      const period = this.mapChartPeriod(this.chartPeriod);
+      const [stats, revenueData, invoicesResp] = await Promise.all([
+        firstValueFrom(this.apiService.getDashboardStats()),
+        firstValueFrom(this.apiService.getRevenueChart(period)),
+        firstValueFrom(this.apiService.getInvoices({ per_page: 5, sort: 'desc' }))
+      ]);
+
+      // Extraer facturas recientes (manejo defensivo de distintas formas de respuesta)
+      let recent: any[] = [];
+      // Si stats ya trae recent_invoices, úsalo directamente
+      if (Array.isArray((stats as any)?.recent_invoices)) {
+        recent = (stats as any).recent_invoices;
+      } else {
+        const raw: any = invoicesResp;
+        if (Array.isArray(raw?.data)) {
+          recent = raw.data;
+        } else if (Array.isArray(raw?.data?.data)) {
+          recent = raw.data.data;
+        } else if (Array.isArray(raw?.items)) {
+          recent = raw.items;
+        }
+      }
+
+      // Mapear datos del gráfico de ingresos
+      const revenue_chart = this.mapRevenueResponseToChartData(revenueData);
+
+      // Construir gráfico de estados a partir de stats disponibles
+      const invoice_status_chart = [
+        { status: 'Pagadas', count: stats?.paid_invoices ?? 0, color: '#22c55e' },
+        { status: 'Pendientes', count: stats?.pending_invoices ?? 0, color: '#eab308' }
+      ];
+
+      this.dashboardStats = {
+        pending_invoices: stats?.pending_invoices ?? 0,
+        paid_invoices: stats?.paid_invoices ?? 0,
+        total_revenue: stats?.total_revenue ?? 0,
+        active_quotes: stats?.active_quotes ?? 0,
+        recent_invoices: recent as Invoice[],
+        revenue_chart,
+        invoice_status_chart
       };
 
-      // Create charts after data is loaded
+      // Setear alertas desde datos reales disponibles
+      this.alerts = {
+        overdue: (stats as any)?.overdue_invoices ?? 0,
+        pending: this.dashboardStats.pending_invoices ?? 0,
+        quotes: (stats as any)?.pending_quotes ?? (this.dashboardStats.active_quotes ?? 0)
+      };
+
+      // Crear gráficos después de cargar datos
       setTimeout(() => {
         this.createRevenueChart();
         this.createStatusChart();
@@ -116,71 +156,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Simulate API call - Replace this with real apiService.getDashboardStats()
-  private simulateApiCall(): Promise<DashboardStats> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          pending_invoices: 24,
-          paid_invoices: 156,
-          total_revenue: 48530.75,
-          active_quotes: 12,
-          recent_invoices: [
-            {
-              id: 1,
-              company_id: 1,
-              client_id: 1,
-              invoice_number: '001234',
-              amount: 1250.00,
-              status: 'pending',
-              issue_date: new Date(),
-              due_date: new Date(),
-              created_at: new Date(),
-              updated_at: new Date(),
-              client: { 
-                id: 1, 
-                company_id: 1, 
-                name: 'ABC Corp', 
-                created_at: new Date(), 
-                updated_at: new Date() 
-              }
-            },
-            {
-              id: 2,
-              company_id: 1,
-              client_id: 2,
-              invoice_number: '001235',
-              amount: 2850.00,
-              status: 'paid',
-              issue_date: new Date(),
-              due_date: new Date(),
-              created_at: new Date(),
-              updated_at: new Date(),
-              client: { 
-                id: 2, 
-                company_id: 1, 
-                name: 'XYZ Ltd', 
-                created_at: new Date(), 
-                updated_at: new Date() 
-              }
-            }
-          ],
-          revenue_chart: [
-            { month: 'Ene', revenue: 12000 },
-            { month: 'Feb', revenue: 19000 },
-            { month: 'Mar', revenue: 15000 },
-            { month: 'Abr', revenue: 25000 },
-            { month: 'May', revenue: 22000 },
-            { month: 'Jun', revenue: 30000 }
-          ],
-          invoice_status_chart: [
-            { status: 'Pagadas', count: 156, color: '#22c55e' },
-            { status: 'Pendientes', count: 24, color: '#eab308' },
-            { status: 'Vencidas', count: 8, color: '#ef4444' }
-          ]
-        });
-      }, 1000);
-    });
+  // Mapear respuesta de /dashboard/revenue al formato usado por el componente
+  private mapRevenueResponseToChartData(revenueResponse: any) {
+    if (!revenueResponse) return [];
+    const labels: string[] = revenueResponse.labels || [];
+    const datasets = revenueResponse.datasets || [];
+    const data: number[] = (datasets[0]?.data) || [];
+    return labels.map((label, idx) => ({ month: label, revenue: Number(data[idx] ?? 0) }));
+  }
+
+  // Mapear el periodo del selector al esperado por el backend
+  private mapChartPeriod(period: string): string | undefined {
+    // El backend usa 'period' (p.ej. 'monthly'). Ajustar si hay otros valores válidos.
+    if (period === '6m') return 'monthly';
+    if (period === '1y') return 'yearly';
+    return undefined;
   }
 
   createRevenueChart() {
@@ -272,9 +262,36 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Event handlers
   onChartPeriodChange() {
-    console.log('Chart period changed to:', this.chartPeriod);
-    // Here you would reload chart data based on the selected period
-    // this.loadChartData(this.chartPeriod);
+    // Recargar solo el gráfico de ingresos según el periodo seleccionado
+    const period = this.mapChartPeriod(this.chartPeriod);
+    firstValueFrom(this.apiService.getRevenueChart(period)).then((revenueData) => {
+      const chartData = this.mapRevenueResponseToChartData(revenueData);
+      if (!this.dashboardStats) {
+        this.dashboardStats = {
+          pending_invoices: 0,
+          paid_invoices: 0,
+          total_revenue: 0,
+          active_quotes: 0,
+          recent_invoices: [],
+          revenue_chart: chartData,
+          invoice_status_chart: []
+        };
+      } else {
+        this.dashboardStats.revenue_chart = chartData;
+      }
+
+      // Actualizar el gráfico si ya existe
+      if (this.revenueChart) {
+        this.revenueChart.data.labels = chartData.map(i => i.month);
+        // @ts-ignore
+        this.revenueChart.data.datasets[0].data = chartData.map(i => i.revenue);
+        this.revenueChart.update();
+      } else {
+        setTimeout(() => this.createRevenueChart(), 50);
+      }
+    }).catch(err => {
+      console.error('Error recargando gráfico de ingresos:', err);
+    });
   }
 
   // Navigation methods
@@ -296,6 +313,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   goToInvoices() {
     this.router.navigate(['/invoices']);
+  }
+
+  goToClients() {
+    this.router.navigate(['/clients']);
+  }
+
+  goToQuotes() {
+    this.router.navigate(['/quotes']);
   }
 
   viewInvoice(id: number) {

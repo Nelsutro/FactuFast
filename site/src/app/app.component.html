@@ -1,17 +1,17 @@
-<mat-sidenav-container class="app-container">
-  <!-- Sidebar -->
-  <mat-sidenav #sidenav mode="over" [opened]="sidebarOpen" (closed)="sidebarOpen = false" class="app-sidenav">
-    <app-sidebar (closeSidenav)="sidenav.close()"></app-sidebar>
-  </mat-sidenav>
+<div class="layout single-overlay" [class.open-sidebar]="sidebarOpen">
+  <!-- Overlay global -->
+  <div class="global-overlay" *ngIf="sidebarOpen" (click)="toggleSidebar()"></div>
 
-  <!-- Main Content -->
-  <mat-sidenav-content class="app-content">
-    <!-- Header -->
-    <app-header (toggleSidenav)="sidenav.toggle()"></app-header>
-    
-    <!-- Page Content -->
+  <!-- Sidebar overlay (siempre misma estrategia) -->
+  <div class="overlay-sidebar" [class.open]="sidebarOpen">
+    <app-sidebar (closeSidenav)="toggleSidebar()" (collapsedChange)="onSidebarCollapsedChange($event)"></app-sidebar>
+  </div>
+
+  <!-- Contenido principal -->
+  <div class="main-panel">
+    <app-header (toggleSidenav)="toggleSidebar()"></app-header>
     <main class="main-content">
       <router-outlet></router-outlet>
     </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+  </div>
+</div>

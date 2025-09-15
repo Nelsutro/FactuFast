@@ -1,8 +1,13 @@
-<div class="sidebar-container">
+<div class="sidebar-container" [class.collapsed]="collapsed" aria-label="Barra lateral de navegación">
   <!-- Logo/Header -->
   <div class="sidebar-header">
-    <mat-icon class="logo-icon">bolt</mat-icon>
-    <h2 class="logo-text">FactuFast</h2>
+    <div class="header-left" (click)="$event.stopPropagation()">
+      <mat-icon class="logo-icon" aria-hidden="true">bolt</mat-icon>
+      <h2 class="logo-text">FactuFast</h2>
+    </div>
+    <button mat-icon-button class="collapse-btn" (click)="toggleCollapse()" [attr.aria-expanded]="!collapsed" [matTooltip]="collapsed ? 'Expandir' : 'Colapsar'" matTooltipPosition="right">
+      <mat-icon>{{ collapsed ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+    </button>
   </div>
 
   <!-- Navigation Menu -->
@@ -10,7 +15,7 @@
     <a mat-list-item 
        routerLink="/dashboard" 
        routerLinkActive="active"
-       matTooltip="Panel de control"
+       [matTooltip]="collapsed ? 'Panel de control' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon 
@@ -23,10 +28,10 @@
       <span matLine>Dashboard</span>
     </a>
 
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/invoices" 
        routerLinkActive="active"
-       matTooltip="Gestión de facturas"
+     [matTooltip]="collapsed ? 'Gestión de facturas' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon 
@@ -39,10 +44,10 @@
       <span matLine>Facturas</span>
     </a>
 
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/quotes" 
        routerLinkActive="active"
-       matTooltip="Cotizaciones y presupuestos"
+     [matTooltip]="collapsed ? 'Cotizaciones y presupuestos' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon 
@@ -55,10 +60,10 @@
       <span matLine>Cotizaciones</span>
     </a>
 
-    <a mat-list-item 
+  <a mat-list-item 
        routerLink="/clients" 
        routerLinkActive="active"
-       matTooltip="Base de datos de clientes"
+    [matTooltip]="collapsed ? 'Base de datos de clientes' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon matListIcon>people</mat-icon>
@@ -67,21 +72,21 @@
     </a>
 
     <!-- Companies option - Only visible for admins -->
-    <a mat-list-item 
+   <a mat-list-item 
        *ngIf="isAdmin()"
        routerLink="/companies" 
        routerLinkActive="active"
-       matTooltip="Gestión de empresas"
+     [matTooltip]="collapsed ? 'Gestión de empresas' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon matListIcon>business</mat-icon>
       <span matLine>Empresas</span>
     </a>
 
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/payments" 
        routerLinkActive="active"
-       matTooltip="Seguimiento de pagos"
+     [matTooltip]="collapsed ? 'Seguimiento de pagos' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon 
@@ -94,10 +99,10 @@
       <span matLine>Pagos</span>
     </a>
 
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/automation" 
        routerLinkActive="active"
-       matTooltip="Automatización y programación"
+     [matTooltip]="collapsed ? 'Automatización y programación' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon matListIcon>schedule</mat-icon>
@@ -128,20 +133,20 @@
     <mat-divider class="nav-divider"></mat-divider>
 
     <!-- Settings and Support -->
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/settings" 
        routerLinkActive="active"
-       matTooltip="Configuración del sistema"
+     [matTooltip]="collapsed ? 'Configuración del sistema' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon matListIcon>settings</mat-icon>
       <span matLine>Configuración</span>
     </a>
 
-    <a mat-list-item 
+   <a mat-list-item 
        routerLink="/help" 
        routerLinkActive="active"
-       matTooltip="Ayuda y soporte"
+     [matTooltip]="collapsed ? 'Ayuda y soporte' : ''"
        matTooltipPosition="right"
        (click)="onItemClick()">
       <mat-icon matListIcon>help</mat-icon>
@@ -153,7 +158,7 @@
   <div class="sidebar-footer">
     <mat-divider></mat-divider>
     <div class="version-info">
-      <small>FactuFast v{{ appVersion }}</small>
+      <small *ngIf="!collapsed">FactuFast v{{ appVersion }}</small>
     </div>
   </div>
 </div>

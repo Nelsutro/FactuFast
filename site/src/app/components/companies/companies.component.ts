@@ -11,6 +11,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { CompanyService, Company } from '../../core/services/company.service';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -29,7 +31,9 @@ import { AuthService } from '../../core/services/auth.service';
     MatInputModule,
     MatCardModule,
     MatProgressSpinnerModule,
-    MatMenuModule
+    MatMenuModule,
+    MatDialogModule,
+    MatSnackBarModule
   ]
 })
 export class CompaniesComponent implements OnInit {
@@ -96,17 +100,20 @@ export class CompaniesComponent implements OnInit {
     );
   }
 
-  openCompanyDialog(company?: Company) {
-    // TODO: Implementar dialog para crear/editar empresa
-    if (company) {
-      console.log('Editando empresa:', company);
-      // Navegar a página de edición o abrir modal
-      this.router.navigate(['/companies', company.id, 'edit']);
-    } else {
-      console.log('Creando nueva empresa');
-      // Navegar a página de creación o abrir modal
-      this.router.navigate(['/companies/new']);
-    }
+  async openCompanyDialog(company?: Company) {
+    const { CompanyDialogComponent } = await import('./company-dialog.component');
+    const dialogRef = this.dialog.open(CompanyDialogComponent, {
+      width: '560px',
+      data: { company: company || null },
+      disableClose: true
+    });
+
+    dialogRef.afterClosed().subscribe((saved: boolean) => {
+      if (saved) {
+        this.snackBar.open(company ? 'Empresa actualizada' : 'Empresa creada', 'Cerrar', { duration: 2500 });
+        this.loadCompanies();
+      }
+    });
   }
 
   viewCompanyClients(company: Company) {

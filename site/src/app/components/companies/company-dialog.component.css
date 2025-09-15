@@ -1,0 +1,13 @@
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
+[mat-dialog-actions] {
+  padding-top: 8px;
+}

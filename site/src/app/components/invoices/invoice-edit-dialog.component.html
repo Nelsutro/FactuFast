@@ -1,0 +1,35 @@
+<h2 mat-dialog-title>Editar Factura #{{ data.invoice?.invoice_number }}</h2>
+
+<div mat-dialog-content>
+  <form [formGroup]="form" class="form-grid">
+    <mat-form-field appearance="outline">
+      <mat-label>Estado</mat-label>
+      <mat-select formControlName="status">
+        <mat-option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha Emisión</mat-label>
+      <input matInput type="date" formControlName="issue_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Fecha Vencimiento</mat-label>
+      <input matInput type="date" formControlName="due_date">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Notas</mat-label>
+      <textarea matInput formControlName="notes" rows="3"></textarea>
+    </mat-form-field>
+  </form>
+</div>
+
+<div mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="loading">Cancelar</button>
+  <button mat-flat-button color="primary" (click)="save()" [disabled]="loading">
+    <mat-icon>save</mat-icon>
+    Guardar Cambios
+  </button>
+</div>

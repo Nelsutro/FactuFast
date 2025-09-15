@@ -1,6 +1,6 @@
 import { Component, OnInit, Output, EventEmitter, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenuTrigger, MatMenuModule } from '@angular/material/menu';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -15,18 +15,10 @@ import { CommonModule } from '@angular/common';
 import { formatDistance } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LogoutConfirmDialogComponent } from '../dialogs/logout-confirm-dialog/logout-confirm-dialog.component';
+import { NotificationService, AppNotification } from '../../core/services/notification.service';
 import { AuthService } from '../../core/services/auth.service';
 
-interface Notification {
-  id: number;
-  type: string;
-  icon: string;
-  title: string;
-  message: string;
-  timestamp: Date;
-  read?: boolean;
-  actionRoute?: string;
-}
+type Notification = AppNotification;
 
 @Component({
   selector: 'app-header',
@@ -43,55 +35,44 @@ interface Notification {
     MatFormFieldModule,
     MatInputModule,
     MatDividerModule,
-    MatChipsModule
+    MatChipsModule,
+    MatDialogModule
   ]
 })
 export class HeaderComponent implements OnInit {
   @Output() toggleSidenav = new EventEmitter<void>();
   @ViewChild('notificationMenu') notificationsTrigger!: MatMenuTrigger;
   @ViewChild('userMenuTrigger') userMenuTrigger!: MatMenuTrigger;
+  @ViewChild('quickCreateMenuTrigger') quickCreateMenuTrigger!: MatMenuTrigger;
   
   notificationCount: number = 0;
 
-  // User information
-  userName: string = 'Usuario Demo';
-  userEmail: string = 'usuario@demo.com';
-  userAvatar: string = 'assets/images/avatar.png';
-  userRole: string = 'client';
+  // User information (solo se llena si está autenticado)
+  userName: string = '';
+  userEmail: string = '';
+  userAvatar: string = 'assets/images/default-avatar.png';
+  userRole: string = '';
+  isAuthenticated: boolean = false;
 
   // UI state
   isDarkTheme: boolean = false;
   isSearching: boolean = false;
   searchTerm: string = '';
   updateCount: number = 0;
+  showMobileSearch: boolean = false;
+
+  // Quick actions
+  isQuickCreating: boolean = false;
 
   // Notifications
-  notifications: Notification[] = [
-    {
-      id: 1,
-      type: 'warning',
-      icon: 'warning',
-      title: 'Factura Pendiente',
-      message: 'Tienes facturas pendientes por pagar',
-      timestamp: new Date(),
-      actionRoute: '/facturas'
-    },
-    {
-      id: 2,
-      type: 'success',
-      icon: 'check_circle',
-      title: 'Pago Recibido',
-      message: 'Se ha registrado un nuevo pago',
-      timestamp: new Date(),
-      actionRoute: '/pagos'
-    }
-  ];
+  notifications: Notification[] = [];
 
   constructor(
     private router: Router,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private authService: AuthService
+    private authService: AuthService,
+    private notificationService: NotificationService
   ) {
     this.loadThemePreference();
   }
@@ -99,7 +80,16 @@ export class HeaderComponent implements OnInit {
   ngOnInit(): void {
     this.loadUserInfo();
     this.checkForUpdates();
-    this.updateNotificationCount();
+    this.observeNotifications();
+  }
+
+  private observeNotifications(): void {
+    this.notificationService.notifications$.subscribe(list => {
+      this.notifications = list;
+      this.updateNotificationCount();
+    });
+    // Cargar al iniciar
+    this.notificationService.load();
   }
 
   private updateNotificationCount(): void {
@@ -124,20 +114,29 @@ export class HeaderComponent implements OnInit {
     this.showMessage(`Cambiado a modo ${this.isDarkTheme ? 'oscuro' : 'claro'}`);
   }
 
+  // Search Management
+  toggleMobileSearch(): void {
+    this.showMobileSearch = !this.showMobileSearch;
+    if (!this.showMobileSearch) {
+      this.searchTerm = '';
+    }
+  }
+
   // User Management
   private loadUserInfo(): void {
     this.authService.currentUser$.subscribe((user: any) => {
       if (user) {
+        this.isAuthenticated = true;
         this.userName = user.name;
         this.userEmail = user.email;
         this.userRole = user.role;
         this.userAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.userName)}&background=1976d2&color=fff`;
       } else {
-        // Usuario no autenticado - valores por defecto
-        this.userName = 'Usuario Demo';
-        this.userEmail = 'usuario@demo.com';
-        this.userRole = 'guest';
-        this.userAvatar = 'https://ui-avatars.com/api/?name=Usuario%20Demo&background=1976d2&color=fff';
+        this.isAuthenticated = false;
+        this.userName = '';
+        this.userEmail = '';
+        this.userRole = '';
+        this.userAvatar = 'assets/images/default-avatar.png';
       }
     });
   }
@@ -177,6 +176,10 @@ export class HeaderComponent implements OnInit {
     // Implement search logic here
   }
 
+  clearSearch(): void {
+    this.searchTerm = '';
+  }
+
   // Notification Management
   getNotificationColor(type: string): string {
     const colors: { [key: string]: string } = {
@@ -213,10 +216,19 @@ export class HeaderComponent implements OnInit {
     this.notificationsTrigger.closeMenu();
   }
 
+  markAllNotificationsAsRead(): void {
+    this.notificationService.markAllAsRead();
+  }
+
+  clearAllNotifications(): void {
+    this.notificationService.clear();
+    this.showMessage('Notificaciones borradas');
+  }
+
   dismissNotification(notification: Notification, event: Event): void {
     event.stopPropagation();
-    this.notifications = this.notifications.filter(n => n.id !== notification.id);
-    this.showMessage('Notificación eliminada');
+    this.notificationService.markAsRead(notification.id);
+    this.showMessage('Notificación descartada');
   }
 
   viewAllNotifications(): void {
@@ -267,6 +279,51 @@ export class HeaderComponent implements OnInit {
         this.router.navigate(['/login']);
         this.showMessage('Sesión cerrada');
       }
+    });
+  }
+
+  goToLogin(): void {
+    this.router.navigate(['/login']);
+  }
+
+  // Quick create actions (placeholder - navegación simple)
+  quickCreate(type: 'invoice' | 'client' | 'quote'): void {
+    this.isQuickCreating = true;
+    // Cargar de forma perezosa los componentes standalone
+    const dialogCfg = {
+      width: type === 'client' ? '520px' : '920px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      backdropClass: 'ff-dialog-backdrop',
+      panelClass: 'ff-dialog-panel',
+      autoFocus: true,
+      restoreFocus: true,
+      disableClose: false
+    } as const;
+
+    const openDialog = async () => {
+      if (type === 'invoice') {
+        const { InvoiceCreateComponent } = await import('../invoices/invoice-create.component');
+        return this.dialog.open(InvoiceCreateComponent, dialogCfg);
+      }
+      if (type === 'client') {
+        const { ClientCreateComponent } = await import('../clients/client-create.component');
+        return this.dialog.open(ClientCreateComponent, dialogCfg);
+      }
+      // quote
+      const { QuoteCreateComponent } = await import('../quotes/quote-create.component');
+      return this.dialog.open(QuoteCreateComponent, dialogCfg);
+    };
+
+    openDialog().then(ref => {
+      ref.afterClosed().subscribe(() => {
+        this.isQuickCreating = false;
+        this.quickCreateMenuTrigger?.closeMenu();
+      });
+    }).catch(err => {
+      console.error('Error abriendo diálogo:', err);
+      this.isQuickCreating = false;
+      this.quickCreateMenuTrigger?.closeMenu();
     });
   }
 

@@ -302,7 +302,19 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
   }
 
   editInvoice(invoice: Invoice) {
-    this.router.navigate(['/invoices', invoice.id, 'edit']);
+    import('./invoice-edit-dialog.component').then(({ InvoiceEditDialogComponent }) => {
+      const dialogRef = this.dialog.open(InvoiceEditDialogComponent, {
+        width: '600px',
+        data: { invoice },
+        disableClose: true
+      });
+      dialogRef.afterClosed().subscribe((saved: boolean) => {
+        if (saved) {
+          this.snackBar.open('Factura actualizada', 'Cerrar', { duration: 2500 });
+          this.loadInvoices();
+        }
+      });
+    });
   }
 
   duplicateInvoice(invoice: Invoice) {

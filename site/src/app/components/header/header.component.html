@@ -11,14 +11,39 @@
       <span class="brand-name">FactuFast</span>
     </div>
 
-    <!-- Buscador -->
-    <mat-form-field appearance="outline" class="search-field">
+    <!-- Buscador Desktop -->
+    <mat-form-field appearance="outline" class="search-field hide-mobile" *ngIf="!showMobileSearch">
       <mat-label>Buscar...</mat-label>
-      <input matInput type="text" (input)="onSearch($event)">
+      <input matInput type="text" [value]="searchTerm" (input)="onSearch($event)">
+      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="clearSearch()" type="button">
+        <mat-icon>close</mat-icon>
+      </button>
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
 
+    <!-- Icono para abrir buscador en mobile -->
+    <button mat-icon-button class="show-mobile-search-btn show-mobile" (click)="toggleMobileSearch()" *ngIf="!showMobileSearch">
+      <mat-icon>search</mat-icon>
+    </button>
+    <div class="mobile-search-container show-mobile" *ngIf="showMobileSearch">
+      <mat-form-field appearance="outline" class="mobile-search-field">
+        <mat-label>Buscar...</mat-label>
+        <input matInput type="text" [value]="searchTerm" (input)="onSearch($event)">
+        <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="clearSearch()" type="button">
+          <mat-icon>close</mat-icon>
+        </button>
+        <button mat-icon-button matSuffix (click)="toggleMobileSearch()" type="button">
+          <mat-icon>keyboard_hide</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
     <span class="spacer"></span>
+
+    <!-- Acciones rápidas -->
+    <button mat-icon-button [matMenuTriggerFor]="quickCreateMenu" class="quick-create-button" #quickCreateMenuTrigger="matMenuTrigger" [disabled]="isQuickCreating">
+      <mat-icon>add_circle</mat-icon>
+    </button>
 
     <!-- Notificaciones -->
     <button mat-icon-button class="notification-button" [matMenuTriggerFor]="notificationMenu">
@@ -27,20 +52,28 @@
       </mat-icon>
     </button>
 
-    <!-- Menú de usuario -->
-    <button mat-button [matMenuTriggerFor]="userMenu" class="user-profile-btn">
-      <div class="user-info">
-        <img [src]="userAvatar"
-             [alt]="userName"
-             class="user-avatar"
-             (error)="onAvatarError($event)">
-        <div class="user-details hide-mobile">
-          <div class="user-name">{{ userName }}</div>
-          <div class="user-role">{{ getRoleLabel(userRole) }}</div>
+    <!-- Menú de usuario o login -->
+    <ng-container *ngIf="isAuthenticated; else loginButton">
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-profile-btn">
+        <div class="user-info">
+          <img [src]="userAvatar"
+               [alt]="userName || 'Usuario'"
+               class="user-avatar"
+               (error)="onAvatarError($event)">
+          <div class="user-details hide-mobile" *ngIf="userName">
+            <div class="user-name">{{ userName }}</div>
+            <div class="user-role" *ngIf="userRole">{{ getRoleLabel(userRole) }}</div>
+          </div>
+          <mat-icon class="dropdown-icon">expand_more</mat-icon>
         </div>
-        <mat-icon class="dropdown-icon">expand_more</mat-icon>
-      </div>
-    </button>
+      </button>
+    </ng-container>
+    <ng-template #loginButton>
+      <button mat-stroked-button color="primary" (click)="goToLogin()" class="login-btn">
+        <mat-icon>login</mat-icon>
+        <span>Iniciar sesión</span>
+      </button>
+    </ng-template>
   </div>
 </mat-toolbar>
 
@@ -48,6 +81,14 @@
 <mat-menu #notificationMenu="matMenu" class="notification-menu">
   <div class="notification-header">
     <h3>Notificaciones</h3>
+    <div class="notification-actions" *ngIf="notifications.length > 0">
+      <button mat-icon-button matTooltip="Marcar todas como leídas" (click)="markAllNotificationsAsRead()">
+        <mat-icon>done_all</mat-icon>
+      </button>
+      <button mat-icon-button matTooltip="Limpiar" (click)="clearAllNotifications()">
+        <mat-icon>delete_sweep</mat-icon>
+      </button>
+    </div>
   </div>
   <mat-divider></mat-divider>
 
@@ -93,6 +134,22 @@
       Ver todas las notificaciones
     </button>
   </div>
+</mat-menu>
+
+<!-- Menú de creación rápida -->
+<mat-menu #quickCreateMenu="matMenu" class="quick-create-menu">
+  <button mat-menu-item (click)="quickCreate('invoice')">
+    <mat-icon color="primary">receipt_long</mat-icon>
+    <span>Nueva Factura</span>
+  </button>
+  <button mat-menu-item (click)="quickCreate('client')">
+    <mat-icon color="accent">person_add</mat-icon>
+    <span>Nuevo Cliente</span>
+  </button>
+  <button mat-menu-item (click)="quickCreate('quote')">
+    <mat-icon color="warn">format_quote</mat-icon>
+    <span>Nueva Cotización</span>
+  </button>
 </mat-menu>
 
 <!-- Menú de usuario -->

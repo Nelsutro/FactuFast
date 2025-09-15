@@ -3,6 +3,7 @@ import { Router, RouterModule } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
@@ -24,11 +25,13 @@ import { PaymentService } from '../../services/payment.service';
     MatListModule,
     MatIconModule,
     MatBadgeModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatButtonModule
   ]
 })
 export class SidebarComponent implements OnInit, OnDestroy {
   @Output() closeSidenav = new EventEmitter<void>();
+  @Output() collapsedChange = new EventEmitter<boolean>();
 
   // Navigation counters and badges
   dashboardNotifications: number = 0;
@@ -39,6 +42,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
   
   // App info
   appVersion: string = '1.0.0';
+  collapsed: boolean = false;
 
   // Cleanup
   private destroy$ = new Subject<void>();
@@ -54,6 +58,8 @@ export class SidebarComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    // Estado persistente de colapso
+    this.collapsed = localStorage.getItem('sidebar_collapsed') === '1';
     this.loadNavigationData();
     this.setupDataRefresh();
   }
@@ -67,6 +73,12 @@ export class SidebarComponent implements OnInit, OnDestroy {
   onItemClick() {
     // Close sidenav on mobile after navigation
     this.closeSidenav.emit();
+  }
+
+  toggleCollapse() {
+    this.collapsed = !this.collapsed;
+    localStorage.setItem('sidebar_collapsed', this.collapsed ? '1' : '0');
+    this.collapsedChange.emit(this.collapsed);
   }
 
   // Quick Actions

@@ -88,16 +88,20 @@ export class ClientsComponent implements OnInit {
   }
 
   openClientDialog(client?: Client) {
-    // TODO: Implementar dialog para crear/editar cliente
-    if (client) {
-      console.log('Editando cliente:', client);
-      // Navegar a página de edición o abrir modal
-      this.router.navigate(['/clients', client.id, 'edit']);
-    } else {
-      console.log('Creando nuevo cliente');
-      // Navegar a página de creación o abrir modal
-      this.router.navigate(['/clients/new']);
-    }
+    import('./client-dialog.component').then(({ ClientDialogComponent }) => {
+      const dialogRef = this.dialog.open(ClientDialogComponent, {
+        width: '560px',
+        data: { client: client || null },
+        disableClose: true
+      });
+
+      dialogRef.afterClosed().subscribe((saved: boolean) => {
+        if (saved) {
+          this.snackBar.open(client ? 'Cliente actualizado' : 'Cliente creado', 'Cerrar', { duration: 2500 });
+          this.loadClients();
+        }
+      });
+    });
   }
 
   viewClientInvoices(client: Client) {

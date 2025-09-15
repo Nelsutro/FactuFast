@@ -1,27 +1,30 @@
-.app-container {
-  height: 100vh;
+/* Nuevo layout overlay */
+.layout { position:relative; min-height:100vh; width:100%; background:#f5f7fa; display:flex; flex-direction:column; }
+
+/* Sidebar overlay */
+.overlay-sidebar { position:fixed; top:0; left:-270px; width:250px; height:100%; background:#1976d2; z-index:1002; transition:left .25s ease; box-shadow:2px 0 8px rgba(0,0,0,.35); display:flex; flex-direction:column; }
+.overlay-sidebar.open { left:0; }
+
+/* Overlay de fondo */
+.global-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1001; backdrop-filter:blur(2px); animation:fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+/* Contenedor principal */
+.main-panel { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; min-width:0; }
+
+/* Contenido */
+.main-content { flex:1; padding:80px 24px 24px 24px; background:#fafafa; }
+@media (max-width: 767px){
+  .main-content { padding:80px 16px 16px 16px; }
 }
 
-.app-sidenav {
-  width: 280px;
-  background: #1976d2;
-}
+/* Scrollbar */
+.main-content::-webkit-scrollbar { width:8px; }
+.main-content::-webkit-scrollbar-thumb { background:rgba(0,0,0,.15); border-radius:4px; }
+.main-content::-webkit-scrollbar-thumb:hover { background:rgba(0,0,0,.28); }
 
-.app-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.main-content {
-  flex: 1;
-  padding: 0;
-  background: #fafafa;
-  overflow-x: auto;
-}
-
-@media (min-width: 768px) {
-  .app-sidenav {
-    mode: side;
-    opened: true;
-  }
-}
+/* Dialog custom look & feel */
+.ff-dialog-backdrop { background: rgba(0,0,0,.45); backdrop-filter: blur(2px); }
+.ff-dialog-panel .mat-mdc-dialog-surface { border-radius: 12px; overflow: hidden; }
+.ff-dialog-panel .mat-mdc-dialog-content { padding: 0; }
+.ff-dialog-panel .mat-mdc-dialog-content mat-card { box-shadow: none; margin: 0; }

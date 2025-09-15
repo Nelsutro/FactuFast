@@ -1,0 +1,2 @@
+.form-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:16px; }
+.actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }

@@ -11,6 +11,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { AuthService } from '../../../core/services/auth.service';
+import { finalize } from 'rxjs/operators';
 
 @Component({
   selector: 'app-login',
@@ -88,7 +89,14 @@ export class LoginComponent implements OnInit {
     this.authService.login({
       email: formValue.email,
       password: formValue.password
-    }).subscribe({
+    })
+    .pipe(
+      finalize(() => {
+        // Asegura que loading vuelva a false en éxito o error
+        this.loading = false;
+      })
+    )
+    .subscribe({
       next: (response) => {
         console.log('Response received:', response);
         
@@ -111,15 +119,12 @@ export class LoginComponent implements OnInit {
             });
           }, 100);
         } else {
-          this.error = response.message || 'Error al iniciar sesión';
+          this.error = response.message || 'Credenciales inválidas';
         }
       },
       error: (error) => {
         console.error('Error en login:', error);
-        this.error = error.error?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
-      },
-      complete: () => {
-        this.loading = false;
+        this.error = error?.error?.message || 'Error al iniciar sesión. Verifica tus credenciales.';
       }
     });
   }
