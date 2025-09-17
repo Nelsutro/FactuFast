@@ -49,16 +49,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('revenue', [DashboardController::class, 'revenue']);
     });
 
-    // Facturas
+    // Facturas (CSV primero para evitar colisión con invoices/{invoice})
+    Route::get('invoices/export', [InvoiceController::class, 'export']);
+    Route::post('invoices/import', [InvoiceController::class, 'import']);
     Route::apiResource('invoices', InvoiceController::class);
     Route::get('invoices-stats', [InvoiceController::class, 'stats']);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send']);
     Route::post('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);
+    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
+    Route::post('invoices/{invoice}/email', [InvoiceController::class, 'sendEmail']);
 
     // Clientes
     Route::apiResource('clients', ClientController::class);
+    Route::get('clients/export', [ClientController::class, 'export']);
+    Route::post('clients/import', [ClientController::class, 'import']);
 
-    // Cotizaciones
+    // Cotizaciones (CSV primero para evitar colisión con quotes/{quote})
+    Route::get('quotes/export', [QuoteController::class, 'export']);
+    Route::post('quotes/import', [QuoteController::class, 'import']);
     Route::apiResource('quotes', QuoteController::class);
     Route::get('quotes-stats', [QuoteController::class, 'stats']);
     Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertToInvoice']);

@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\Client;
 
 class QuoteController extends Controller
 {
@@ -423,5 +425,142 @@ class QuoteController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export quotes to CSV
+     */
+    public function export(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+        }
+        if (!in_array($user->role, ['admin','client'])) {
+            return response()->json(['success' => false, 'message' => 'No tienes permisos para exportar cotizaciones'], 403);
+        }
+
+        $query = Quote::with(['client:id,email'])
+            ->select(['id','company_id','client_id','quote_number','amount','status','valid_until','notes'])
+            ->orderBy('company_id')->orderBy('created_at','desc');
+        if ($user->role !== 'admin') {
+            $query->where('company_id', $user->company_id);
+        }
+        $quotes = $query->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="quotes_export_'.now()->format('Ymd_His').'.csv"',
+        ];
+    $columns = ['quote_number','client_email','amount','status','valid_until','notes'];
+
+        $callback = function() use ($quotes, $columns) {
+            $output = fopen('php://output', 'w');
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($output, $columns);
+            foreach ($quotes as $q) {
+                fputcsv($output, [
+                    $q->quote_number,
+                    optional($q->client)->email,
+                    (string)$q->amount,
+                    $q->status,
+                    $q->valid_until?->format('Y-m-d'),
+                    $q->notes,
+                ]);
+            }
+            fclose($output);
+        };
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /**
+     * Import quotes from CSV
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user || $user->role !== 'client' || !$user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo las empresas pueden importar cotizaciones'
+            ], 403);
+        }
+        if (!$request->hasFile('file')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se adjuntó archivo CSV (campo "file")'
+            ], 422);
+        }
+        $file = $request->file('file');
+        if (!$file->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo inválido'
+            ], 422);
+        }
+
+        $created = 0; $skipped = 0; $errors = [];
+        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+            $row = 0; $header = null;
+            while (($data = fgetcsv($handle, 0, ',')) !== false) {
+                $row++;
+                if ($row === 1) {
+                    $maybeHeader = array_map(fn($h) => strtolower(trim($h)), $data);
+                    if (in_array('quote_number', $maybeHeader)) { $header = $maybeHeader; continue; }
+                }
+                if ($header) {
+                    $map = array_combine($header, $data + array_fill(0, max(0, count($header)-count($data)), ''));
+                    $quoteNumber = trim($map['quote_number'] ?? '');
+                    $clientEmail = trim($map['client_email'] ?? '');
+                    $amount = trim($map['amount'] ?? '');
+                    $status = strtolower(trim($map['status'] ?? 'draft'));
+                    $validUntil = trim($map['valid_until'] ?? '');
+                    $notes = trim($map['notes'] ?? '');
+                } else {
+                    // Posicional: quote_number,client_email,amount,status,valid_until,notes
+                    $quoteNumber = trim($data[0] ?? '');
+                    $clientEmail = trim($data[1] ?? '');
+                    $amount = trim($data[2] ?? '');
+                    $status = strtolower(trim($data[3] ?? 'draft'));
+                    $validUntil = trim($data[4] ?? '');
+                    $notes = trim($data[5] ?? '');
+                }
+
+                if ($quoteNumber === '') { $skipped++; $errors[] = "Fila $row: quote_number vacío"; continue; }
+                if ($clientEmail === '') { $skipped++; $errors[] = "Fila $row: client_email vacío"; continue; }
+                if (!filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) { $skipped++; $errors[] = "Fila $row: email inválido ($clientEmail)"; continue; }
+                if ($amount === '' || !is_numeric($amount)) { $skipped++; $errors[] = "Fila $row: amount inválido"; continue; }
+                if (!in_array($status, ['draft','sent','accepted','rejected','expired'])) { $skipped++; $errors[] = "Fila $row: status inválido ($status)"; continue; }
+                $valid_until_parsed = $validUntil ? date_create($validUntil) : null;
+
+                $client = Client::where('company_id', $user->company_id)->where('email', $clientEmail)->first();
+                if (!$client) { $skipped++; $errors[] = "Fila $row: cliente no encontrado ($clientEmail)"; continue; }
+                if (Quote::where('quote_number', $quoteNumber)->exists()) { $skipped++; $errors[] = "Fila $row: quote_number duplicado ($quoteNumber)"; continue; }
+
+                Quote::create([
+                    'company_id' => $user->company_id,
+                    'client_id' => $client->id,
+                    'quote_number' => $quoteNumber,
+                    'amount' => (float)$amount,
+                    'status' => $status,
+                    'valid_until' => $valid_until_parsed?->format('Y-m-d'),
+                    'notes' => $notes ?: null,
+                ]);
+                $created++;
+            }
+            fclose($handle);
+        } else {
+            return response()->json(['success' => false, 'message' => 'No se pudo leer el archivo CSV'], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Importación de cotizaciones finalizada',
+            'data' => [
+                'created' => $created,
+                'skipped' => $skipped,
+                'errors' => array_slice($errors, 0, 50)
+            ]
+        ]);
     }
 }

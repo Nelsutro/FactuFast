@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -33,6 +33,7 @@ import { AuthService } from '../../core/services/auth.service';
   ]
 })
 export class ClientsComponent implements OnInit {
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   
   // Component state
   loading = true;
@@ -51,6 +52,59 @@ export class ClientsComponent implements OnInit {
 
   ngOnInit() {
     this.loadClients();
+  }
+
+  // CSV Export/Import
+  exportCsv() {
+    // Llamar al endpoint /clients/export que devuelve un CSV
+    // Usaremos fetch para manejar blob con headers auth ya presentes via cookies/token si es necesario.
+    const token = localStorage.getItem('auth_token');
+    fetch(`${(window as any).ENV_API_URL || ''}/clients/export`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    }).then(async res => {
+      if (!res.ok) throw new Error('No se pudo exportar');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clientes_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    }).catch(() => {
+      this.snackBar.open('Error al exportar CSV', 'Cerrar', { duration: 2500 });
+    });
+  }
+
+  triggerImport() {
+    this.fileInput.nativeElement.value = '';
+    this.fileInput.nativeElement.click();
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = localStorage.getItem('auth_token');
+    fetch(`${(window as any).ENV_API_URL || ''}/clients/import`, {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } as any : undefined,
+      body: formData
+    }).then(async res => {
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.message || 'Error');
+      const created = json?.data?.created ?? 0;
+      const skipped = json?.data?.skipped ?? 0;
+      this.snackBar.open(`Importación completa: creados ${created}, omitidos ${skipped}`, 'Cerrar', { duration: 3500 });
+      this.loadClients();
+    }).catch((e) => {
+      this.snackBar.open(`Error al importar CSV: ${e?.message || ''}`.trim(), 'Cerrar', { duration: 3500 });
+    });
   }
 
   loadClients() {

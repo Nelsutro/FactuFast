@@ -141,12 +141,35 @@ export class ApiService {
       .pipe(catchError(this.handleError));
   }
 
+  downloadInvoicePdf(id: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/invoices/${id}/pdf`, { headers: this.getHeaders(), responseType: 'blob' as 'json' }) as unknown as Observable<Blob>;
+  }
+
+  sendInvoiceEmail(id: number, payload: { to: string; cc?: string[]; subject: string; message: string; attach_pdf?: boolean; }): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/invoices/${id}/email`, payload, { headers: this.getHeaders() })
+      .pipe(catchError(this.handleError));
+  }
+
   getInvoiceStats(): Observable<any> {
     return this.http.get<ApiResponse<any>>(`${this.apiUrl}/invoices-stats`, { headers: this.getHeaders() })
       .pipe(
         map(response => response.data),
         catchError(this.handleError)
       );
+  }
+
+  exportInvoicesCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/invoices/export`, { headers: this.getHeaders(), responseType: 'blob' as 'json' }) as unknown as Observable<Blob>;
+  }
+
+  importInvoicesCsv(file: File): Observable<any> {
+    const form = new FormData();
+    form.append('file', file);
+    const token = localStorage.getItem('auth_token');
+    let headers = new HttpHeaders({ 'Accept': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/invoices/import`, form, { headers })
+      .pipe(catchError(this.handleError));
   }
 
   // Métodos para Clientes
@@ -192,6 +215,21 @@ export class ApiService {
       .pipe(catchError(this.handleError));
   }
 
+  exportClientsCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/clients/export`, { headers: this.getHeaders(), responseType: 'blob' as 'json' }) as unknown as Observable<Blob>;
+  }
+
+  importClientsCsv(file: File): Observable<any> {
+    const form = new FormData();
+    form.append('file', file);
+    // No seteamos Content-Type manualmente para que el navegador aplique boundary
+    const token = localStorage.getItem('auth_token');
+    let headers = new HttpHeaders({ 'Accept': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/clients/import`, form, { headers })
+      .pipe(catchError(this.handleError));
+  }
+
   // Métodos para Cotizaciones
   getQuotes(params?: any): Observable<any> {
     let url = `${this.apiUrl}/quotes`;
@@ -219,6 +257,20 @@ export class ApiService {
         map(response => response.data),
         catchError(this.handleError)
       );
+  }
+
+  exportQuotesCsv(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/quotes/export`, { headers: this.getHeaders(), responseType: 'blob' as 'json' }) as unknown as Observable<Blob>;
+  }
+
+  importQuotesCsv(file: File): Observable<any> {
+    const form = new FormData();
+    form.append('file', file);
+    const token = localStorage.getItem('auth_token');
+    let headers = new HttpHeaders({ 'Accept': 'application/json' });
+    if (token) headers = headers.set('Authorization', `Bearer ${token}`);
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/quotes/import`, form, { headers })
+      .pipe(catchError(this.handleError));
   }
 
   // Métodos para Pagos

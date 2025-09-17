@@ -7,6 +7,7 @@ use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClientController extends Controller
 {
@@ -197,6 +198,168 @@ class ClientController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Cliente eliminado exitosamente'
+        ]);
+    }
+
+    /**
+     * Export clients to CSV
+     */
+    public function export(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->isAdmin() && !$user->isClient()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para exportar clientes'
+            ], 403);
+        }
+
+        // Obtener dataset según rol
+        if ($user->isAdmin()) {
+            $clients = Client::orderBy('company_id')->orderBy('name')->get(['company_id', 'name', 'email', 'phone', 'address']);
+        } else {
+            $clients = Client::where('company_id', $user->company_id)
+                ->orderBy('name')
+                ->get(['company_id', 'name', 'email', 'phone', 'address']);
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="clients_export_'.now()->format('Ymd_His').'.csv"',
+        ];
+
+        $columns = ['name', 'email', 'phone', 'address'];
+
+        $callback = function() use ($clients, $columns) {
+            $output = fopen('php://output', 'w');
+            // BOM UTF-8 para Excel
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            // Encabezados
+            fputcsv($output, $columns);
+            // Filas
+            foreach ($clients as $c) {
+                fputcsv($output, [
+                    $c->name,
+                    $c->email,
+                    $c->phone,
+                    $c->address,
+                ]);
+            }
+            fclose($output);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /**
+     * Import clients from CSV
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Solo empresas pueden importar (siguiendo la misma regla que store)
+        if (!$user->isClient() || !$user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo las empresas pueden importar clientes'
+            ], 403);
+        }
+
+        if (!$request->hasFile('file')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se adjuntó archivo CSV (campo "file")'
+            ], 422);
+        }
+
+        $file = $request->file('file');
+        if (!$file->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo inválido'
+            ], 422);
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+
+        // Abrir y parsear CSV
+        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+            $row = 0;
+            $header = null;
+            while (($data = fgetcsv($handle, 0, ',')) !== false) {
+                $row++;
+                // Detectar encabezado
+                if ($row === 1) {
+                    $maybeHeader = array_map(fn($h) => strtolower(trim($h)), $data);
+                    if (in_array('name', $maybeHeader)) {
+                        $header = $maybeHeader; // usar nombres de columna
+                        continue; // saltar encabezado
+                    }
+                }
+
+                // Mapear columnas
+                if ($header) {
+                    $map = array_combine($header, $data + array_fill(0, max(0, count($header) - count($data)), ''));
+                    $name = trim($map['name'] ?? '');
+                    $email = trim($map['email'] ?? '');
+                    $phone = trim($map['phone'] ?? '');
+                    $address = trim($map['address'] ?? '');
+                } else {
+                    // Posicional: name,email,phone,address
+                    $name = trim($data[0] ?? '');
+                    $email = trim($data[1] ?? '');
+                    $phone = trim($data[2] ?? '');
+                    $address = trim($data[3] ?? '');
+                }
+
+                // Validaciones mínimas
+                if ($name === '') {
+                    $skipped++;
+                    $errors[] = "Fila $row: nombre vacío";
+                    continue;
+                }
+                if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $skipped++;
+                    $errors[] = "Fila $row: email inválido ($email)";
+                    continue;
+                }
+                // Unicidad global por email (siguiendo validación del modelo)
+                if ($email !== '' && Client::where('email', $email)->exists()) {
+                    $skipped++;
+                    $errors[] = "Fila $row: email duplicado ($email)";
+                    continue;
+                }
+
+                // Crear
+                Client::create([
+                    'company_id' => $user->company_id,
+                    'name' => $name,
+                    'email' => $email ?: null,
+                    'phone' => $phone ?: null,
+                    'address' => $address ?: null,
+                ]);
+                $created++;
+            }
+            fclose($handle);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo leer el archivo CSV'
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Importación finalizada',
+            'data' => [
+                'created' => $created,
+                'skipped' => $skipped,
+                'errors' => array_slice($errors, 0, 50), // limitar respuesta
+            ]
         ]);
     }
 }

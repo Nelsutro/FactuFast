@@ -17,6 +17,7 @@ import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Quote, Client, User } from '../../models';
@@ -89,7 +90,8 @@ export class QuotesComponent implements OnInit {
     private apiService: ApiService,
     private authService: AuthService,
     private router: Router,
-    private http: HttpClient
+    private http: HttpClient,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit() {
@@ -350,6 +352,46 @@ export class QuotesComponent implements OnInit {
   cancelDelete() {
     this.showDeleteModal = false;
     this.quoteToDelete = null;
+  }
+
+  // CSV Export/Import
+  exportQuotes() {
+    this.apiService.exportQuotesCsv().subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quotes_export_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.snackBar.open(err.message || 'Error al exportar CSV', 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  importQuotes() {
+    const input = document.getElementById('quotesCsvInput') as HTMLInputElement | null;
+    if (input) input.click();
+  }
+
+  onQuotesFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.snackBar.open('Importando cotizaciones...', undefined, { duration: 1500 });
+    this.apiService.importQuotesCsv(file).subscribe({
+      next: (res) => {
+        this.snackBar.open(`Importación completa: ${res.data?.created ?? 0} creadas, ${res.data?.skipped ?? 0} omitidas`, 'Cerrar', { duration: 3500 });
+        this.loadQuotes();
+        input.value = '';
+      },
+      error: (err) => {
+        this.snackBar.open(err.message || 'Error al importar CSV', 'Cerrar', { duration: 3500 });
+        input.value = '';
+      }
+    });
   }
 
   // Utility methods

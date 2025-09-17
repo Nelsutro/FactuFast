@@ -7,10 +7,15 @@
   <mat-card-content>
     <!-- Actions -->
     <div class="button-row">
+      <button mat-raised-button (click)="exportInvoices()">
+        <mat-icon>download</mat-icon>
+        Exportar CSV
+      </button>
       <button mat-raised-button (click)="importInvoices()">
         <mat-icon>upload</mat-icon>
-        Importar
+        Importar CSV
       </button>
+      <input id="invoicesCsvInput" type="file" accept=".csv,text/csv" hidden (change)="onInvoicesFileSelected($event)">
       <button mat-raised-button color="primary" (click)="createInvoice()">
         <mat-icon>add</mat-icon>
         Nueva Factura
@@ -171,16 +176,21 @@
                 <mat-icon>edit</mat-icon>
                 <span>Editar</span>
               </button>
-              <button mat-menu-item (click)="duplicateInvoice(invoice)">
+              <!-- Acción secundaria: Duplicar (oculta por ahora) -->
+              <!-- <button mat-menu-item (click)="duplicateInvoice(invoice)">
                 <mat-icon>content_copy</mat-icon>
                 <span>Duplicar</span>
-              </button>
+              </button> -->
               <button mat-menu-item (click)="downloadInvoice(invoice)">
                 <mat-icon>download</mat-icon>
                 <span>Descargar PDF</span>
               </button>
+              <button mat-menu-item (click)="sendInvoiceEmail(invoice)">
+                <mat-icon>mail</mat-icon>
+                <span>Enviar por correo</span>
+              </button>
               <mat-divider></mat-divider>
-              <button mat-menu-item (click)="deleteInvoice(invoice)" class="delete-action">
+              <button mat-menu-item *ngIf="invoice.status !== 'paid' && invoice.status !== 'cancelled'" (click)="deleteInvoice(invoice)" class="delete-action">
                 <mat-icon>delete</mat-icon>
                 <span>Eliminar</span>
               </button>

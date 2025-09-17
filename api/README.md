@@ -59,3 +59,71 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Configuración de SMTP (envío de correos)
+
+Para habilitar el envío de correos (por ejemplo, enviar facturas por email), configura las variables en tu archivo `.env` dentro de la carpeta `api/`:
+
+```
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.tu-proveedor.com
+MAIL_PORT=587
+MAIL_USERNAME=tu_usuario
+MAIL_PASSWORD=tu_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=no-reply@tudominio.com
+MAIL_FROM_NAME="FactuFast"
+```
+
+Notas:
+- Usa los datos reales de tu proveedor (Gmail, Outlook, tu hosting, etc.).
+- Para Gmail, puede requerirse crear una contraseña de aplicación y usar `MAIL_ENCRYPTION=tls` con puerto 587.
+- En desarrollo, puedes utilizar [Mailhog](https://github.com/mailhog/MailHog) o servicios como Mailtrap. Cambia `MAIL_HOST`, `MAIL_PORT` y credenciales acorde.
+- Tras modificar `.env`, limpia cachés si es necesario:
+	- `php artisan config:clear`
+	- `php artisan cache:clear`
+
+Una vez configurado, el endpoint `POST /api/invoices/{invoice}/email` podrá enviar correos usando estas credenciales.
+
+## Scheduler (Tareas programadas)
+
+Este proyecto usa el scheduler de Laravel para automatizaciones periódicas.
+
+Tareas incluidas en el MVP:
+- Marcar facturas como vencidas: cambia `status` de `pending` a `overdue` cuando `due_date` < hoy.
+- Marcar cotizaciones como expiradas: cambia `status` de `draft`/`sent` a `expired` cuando `expiry_date` < hoy.
+
+Cómo ejecutarlo en desarrollo:
+
+```bat
+# Desde la carpeta api/
+php artisan schedule:work
+```
+
+Esto dejará un worker en primer plano que ejecuta las tareas según el cron interno (en este caso, cada 5 minutos).
+
+Ejecución manual (útil para probar):
+
+```bat
+php artisan automation:run --dry-run  # Muestra qué haría, sin aplicar cambios
+php artisan automation:run           # Ejecuta y aplica cambios
+```
+
+Configuración en producción (Windows Task Scheduler o cron en Linux):
+- Cron (Linux): agregar una entrada que ejecute cada minuto el scheduler de Laravel:
+
+```bash
+* * * * * cd /ruta/a/api && php artisan schedule:run >> /dev/null 2>&1
+```
+
+- Windows (Task Scheduler): crear una tarea programada que ejecute cada 1 minuto:
+	- Programa: `php`
+	- Argumentos: `artisan schedule:run`
+	- Directorio de inicio: ruta a la carpeta `api` del proyecto
+
+Ver logs:
+- Los mensajes se escriben en consola al ejecutar los comandos.
+- Para ver cambios aplicados en datos, revisa la BD o endpoints de facturas/cotizaciones.
+
+Personalización futura:
+- Se puede ampliar con nuevas tareas (p. ej. generación de borradores recurrentes) y administrar `schedules` por empresa.

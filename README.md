@@ -161,5 +161,3 @@ XAMPP (Apache):
 - Editar `hosts` y `httpd-vhosts.conf`, habilitar `mod_rewrite`, reiniciar Apache.
 
 ---
-
-¿Quieres que prepare también un archivo `.env` de ejemplo adaptado para SQLite y endpoints locales, y que deje `environment.ts` apuntando a tu VirtualHost? Puedo hacerlo en un siguiente paso.

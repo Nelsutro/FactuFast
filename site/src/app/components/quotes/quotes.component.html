@@ -7,6 +7,15 @@
   <mat-card-content>
     <!-- Actions -->
     <div class="button-row">
+      <button mat-raised-button (click)="exportQuotes()">
+        <mat-icon>download</mat-icon>
+        Exportar CSV
+      </button>
+      <button mat-raised-button (click)="importQuotes()">
+        <mat-icon>upload</mat-icon>
+        Importar CSV
+      </button>
+      <input id="quotesCsvInput" type="file" accept=".csv,text/csv" hidden (change)="onQuotesFileSelected($event)">
       <button mat-raised-button color="primary" (click)="createQuote()">
         <mat-icon>add</mat-icon>
         Nueva Cotización

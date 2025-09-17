@@ -9,6 +9,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\Client;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\InvoicePdfMail;
 
 class InvoiceController extends Controller
 {
@@ -371,5 +376,267 @@ class InvoiceController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Export invoices to CSV
+     */
+    public function export(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        if (!in_array($user->role, ['admin', 'client'])) {
+            return response()->json(['success' => false, 'message' => 'No tienes permisos para exportar facturas'], 403);
+        }
+
+        $query = Invoice::with(['client:id,email'])
+            ->select(['id','company_id','client_id','invoice_number','amount','status','issue_date','due_date','notes'])
+            ->orderBy('company_id')->orderBy('issue_date','desc');
+
+        if ($user->role !== 'admin') {
+            $query->where('company_id', $user->company_id);
+        }
+
+        $invoices = $query->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="invoices_export_'.now()->format('Ymd_His').'.csv"',
+        ];
+
+        $columns = ['invoice_number','client_email','amount','status','issue_date','due_date','notes'];
+
+        $callback = function() use ($invoices, $columns) {
+            $output = fopen('php://output', 'w');
+            // BOM para Excel
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($output, $columns);
+            foreach ($invoices as $inv) {
+                fputcsv($output, [
+                    $inv->invoice_number,
+                    optional($inv->client)->email,
+                    (string)$inv->amount,
+                    $inv->status,
+                    $inv->issue_date?->format('Y-m-d'),
+                    $inv->due_date?->format('Y-m-d'),
+                    $inv->notes,
+                ]);
+            }
+            fclose($output);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
+    }
+
+    /**
+     * Import invoices from CSV
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+
+        // Solo empresas (clientes) pueden importar para su propia compañía
+        if (!$user || $user->role !== 'client' || !$user->company_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo las empresas pueden importar facturas'
+            ], 403);
+        }
+
+        if (!$request->hasFile('file')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se adjuntó archivo CSV (campo "file")'
+            ], 422);
+        }
+
+        $file = $request->file('file');
+        if (!$file->isValid()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Archivo inválido'
+            ], 422);
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+
+        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
+            $row = 0;
+            $header = null;
+            while (($data = fgetcsv($handle, 0, ',')) !== false) {
+                $row++;
+
+                // Detectar encabezado
+                if ($row === 1) {
+                    $maybeHeader = array_map(fn($h) => strtolower(trim($h)), $data);
+                    if (in_array('invoice_number', $maybeHeader)) {
+                        $header = $maybeHeader;
+                        continue;
+                    }
+                }
+
+                // Mapear columnas esperadas
+                if ($header) {
+                    $map = array_combine($header, $data + array_fill(0, max(0, count($header) - count($data)), ''));
+                    $invoiceNumber = trim($map['invoice_number'] ?? '');
+                    $clientEmail = trim($map['client_email'] ?? '');
+                    $amount = trim($map['amount'] ?? '');
+                    $status = strtolower(trim($map['status'] ?? 'pending'));
+                    $issueDate = trim($map['issue_date'] ?? '');
+                    $dueDate = trim($map['due_date'] ?? '');
+                    $notes = trim($map['notes'] ?? '');
+                } else {
+                    // Posicional: invoice_number,client_email,amount,status,issue_date,due_date,notes
+                    $invoiceNumber = trim($data[0] ?? '');
+                    $clientEmail = trim($data[1] ?? '');
+                    $amount = trim($data[2] ?? '');
+                    $status = strtolower(trim($data[3] ?? 'pending'));
+                    $issueDate = trim($data[4] ?? '');
+                    $dueDate = trim($data[5] ?? '');
+                    $notes = trim($data[6] ?? '');
+                }
+
+                // Validaciones básicas
+                if ($invoiceNumber === '') { $skipped++; $errors[] = "Fila $row: invoice_number vacío"; continue; }
+                if ($clientEmail === '') { $skipped++; $errors[] = "Fila $row: client_email vacío"; continue; }
+                if (!filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) { $skipped++; $errors[] = "Fila $row: email inválido ($clientEmail)"; continue; }
+                if ($amount === '' || !is_numeric($amount)) { $skipped++; $errors[] = "Fila $row: amount inválido"; continue; }
+                if (!in_array($status, ['draft','pending','paid','overdue','cancelled'])) { $skipped++; $errors[] = "Fila $row: status inválido ($status)"; continue; }
+                // Fechas
+                $issue_date_parsed = date_create($issueDate) ?: null;
+                $due_date_parsed = date_create($dueDate) ?: null;
+                if (!$issue_date_parsed || !$due_date_parsed) { $skipped++; $errors[] = "Fila $row: fechas inválidas"; continue; }
+                if ($due_date_parsed < $issue_date_parsed) { $skipped++; $errors[] = "Fila $row: due_date anterior a issue_date"; continue; }
+
+                // Cliente por email y compañía
+                $client = Client::where('company_id', $user->company_id)->where('email', $clientEmail)->first();
+                if (!$client) { $skipped++; $errors[] = "Fila $row: cliente no encontrado ($clientEmail)"; continue; }
+
+                // Unicidad de invoice_number
+                if (Invoice::where('invoice_number', $invoiceNumber)->exists()) { $skipped++; $errors[] = "Fila $row: invoice_number duplicado ($invoiceNumber)"; continue; }
+
+                // Crear factura
+                Invoice::create([
+                    'company_id' => $user->company_id,
+                    'client_id' => $client->id,
+                    'invoice_number' => $invoiceNumber,
+                    'amount' => (float)$amount,
+                    'status' => $status,
+                    'issue_date' => $issue_date_parsed->format('Y-m-d'),
+                    'due_date' => $due_date_parsed->format('Y-m-d'),
+                    'notes' => $notes ?: null,
+                ]);
+                $created++;
+            }
+            fclose($handle);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo leer el archivo CSV'
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Importación de facturas finalizada',
+            'data' => [
+                'created' => $created,
+                'skipped' => $skipped,
+                'errors' => array_slice($errors, 0, 50)
+            ]
+        ]);
+    }
+
+    /**
+     * Download invoice as PDF
+     */
+    public function downloadPdf(string $id)
+    {
+        try {
+            $user = Auth::user();
+            $query = Invoice::with(['company', 'client', 'items']);
+
+            if ($user->role !== 'admin') {
+                $query->where('company_id', $user->company_id);
+            }
+
+            $invoice = $query->findOrFail($id);
+
+            // Verificar disponibilidad de Dompdf
+            if (!class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Generación de PDF no disponible. Instala barryvdh/laravel-dompdf y habilita la extensión zip/unzip.'
+                ], 501);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', [
+                'invoice' => $invoice,
+            ])->setPaper('A4', 'portrait');
+
+            $filename = 'invoice_' . ($invoice->invoice_number ?? $invoice->id) . '.pdf';
+            return $pdf->download($filename);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Factura no encontrada'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar el PDF',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send invoice by email with optional PDF attachment
+     */
+    public function sendEmail(Request $request, string $id)
+    {
+        $user = Auth::user();
+        $query = Invoice::with(['company','client','items']);
+        if ($user->role !== 'admin') {
+            $query->where('company_id', $user->company_id);
+        }
+        $invoice = $query->findOrFail($id);
+
+        $validated = $request->validate([
+            'to' => 'required|email',
+            'cc' => 'nullable|array',
+            'cc.*' => 'email',
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string',
+            'attach_pdf' => 'sometimes|boolean'
+        ]);
+
+        $mailable = new InvoicePdfMail($invoice, $validated['subject'], $validated['message']);
+
+        // Adjuntar PDF si se solicita y Dompdf está disponible
+        if (!empty($validated['attach_pdf']) && class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', [ 'invoice' => $invoice ])->setPaper('A4','portrait');
+            $mailable->attachData($pdf->output(), 'invoice_' . ($invoice->invoice_number ?? $invoice->id) . '.pdf', [
+                'mime' => 'application/pdf'
+            ]);
+        }
+
+        $email = Mail::to($validated['to']);
+        if (!empty($validated['cc'])) {
+            $email->cc($validated['cc']);
+        }
+        $email->send($mailable);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Correo enviado correctamente'
+        ]);
     }
 }

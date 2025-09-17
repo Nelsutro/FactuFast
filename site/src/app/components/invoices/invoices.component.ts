@@ -335,14 +335,71 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
   }
 
   downloadInvoice(invoice: Invoice) {
-    // Implement PDF download
-    console.log('Downloading invoice:', invoice.invoice_number);
-    // This would typically call a service to generate and download the PDF
-    // this.apiService.downloadInvoicePDF(invoice.id).subscribe(...)
+    this.apiService.downloadInvoicePdf(invoice.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoice_${invoice.invoice_number || invoice.id}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.snackBar.open(err.message || 'No fue posible generar el PDF', 'Cerrar', { duration: 3000 });
+      }
+    });
   }
 
   importInvoices() {
-    this.router.navigate(['/invoices/import']);
+    // Dispara input file oculto
+    const input = document.getElementById('invoicesCsvInput') as HTMLInputElement | null;
+    if (input) input.click();
+  }
+
+  onInvoicesFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.snackBar.open('Importando facturas...', undefined, { duration: 1500 });
+    this.apiService.importInvoicesCsv(file).subscribe({
+      next: (res) => {
+        this.snackBar.open(`Importación completa: ${res.data?.created ?? 0} creadas, ${res.data?.skipped ?? 0} omitidas`, 'Cerrar', { duration: 3500 });
+        this.loadInvoices();
+        input.value = '';
+      },
+      error: (err) => {
+        this.snackBar.open(err.message || 'Error al importar CSV', 'Cerrar', { duration: 3500 });
+        input.value = '';
+      }
+    });
+  }
+
+  exportInvoices() {
+    this.apiService.exportInvoicesCsv().subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `invoices_export_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.snackBar.open(err.message || 'Error al exportar CSV', 'Cerrar', { duration: 3000 });
+      }
+    });
+  }
+
+  sendInvoiceEmail(invoice: Invoice) {
+    const to = prompt('Enviar a (email):', invoice.client?.email || '');
+    if (!to) return;
+    const subject = prompt('Asunto:', `Factura #${invoice.invoice_number}`) || `Factura #${invoice.invoice_number}`;
+    const message = prompt('Mensaje:', 'Adjuntamos su factura. Gracias por su preferencia.') || 'Adjuntamos su factura. Gracias por su preferencia.';
+    const attach = confirm('¿Adjuntar PDF?');
+    this.apiService.sendInvoiceEmail(invoice.id, { to, subject, message, attach_pdf: attach }).subscribe({
+      next: () => this.snackBar.open('Correo enviado', 'Cerrar', { duration: 2500 }),
+      error: (err) => this.snackBar.open(err.message || 'No se pudo enviar el correo', 'Cerrar', { duration: 3000 })
+    });
   }
 
   deleteInvoice(invoice: Invoice) {
@@ -352,35 +409,28 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
 
   confirmDelete() {
     if (this.invoiceToDelete) {
-      // Remove from data source
-      const currentData = this.dataSource.data;
-      this.dataSource.data = currentData.filter(i => i.id !== this.invoiceToDelete!.id);
-      
-      // Update stats and close modal
-      this.calculateStats();
-      this.showDeleteModal = false;
-      this.invoiceToDelete = null;
-
-      // Show success message
-      this.snackBar.open('Factura eliminada', 'Cerrar', {
-        duration: 3000,
-        horizontalPosition: 'end',
-        verticalPosition: 'top'
+      const id = this.invoiceToDelete.id;
+      this.apiService.deleteInvoice(id).subscribe({
+        next: () => {
+          this.snackBar.open('Factura eliminada', 'Cerrar', {
+            duration: 2500,
+            horizontalPosition: 'end',
+            verticalPosition: 'top'
+          });
+          this.loadInvoices();
+          this.showDeleteModal = false;
+          this.invoiceToDelete = null;
+        },
+        error: (error) => {
+          this.snackBar.open(error.message || 'Error al eliminar la factura', 'Cerrar', {
+            duration: 3000,
+            horizontalPosition: 'end',
+            verticalPosition: 'top'
+          });
+          this.showDeleteModal = false;
+          this.invoiceToDelete = null;
+        }
       });
-
-      // In real implementation:
-      // this.apiService.deleteInvoice(this.invoiceToDelete.id).subscribe({
-      //   next: () => {
-      //     this.loadInvoices();
-      //   },
-      //   error: (error) => {
-      //     this.snackBar.open('Error al eliminar la factura', 'Cerrar', {
-      //       duration: 3000,
-      //       horizontalPosition: 'end',
-      //       verticalPosition: 'top'
-      //     });
-      //   }
-      // });
     }
   }
 

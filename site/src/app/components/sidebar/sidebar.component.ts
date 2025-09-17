@@ -81,18 +81,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.collapsedChange.emit(this.collapsed);
   }
 
-  // Quick Actions
-  quickCreateInvoice() {
-    this.router.navigate(['/invoices/create']);
-    this.onItemClick();
-    this.showSuccessMessage('Creando nueva factura...');
-  }
-
-  quickCreateClient() {
-    this.router.navigate(['/clients/create']);
-    this.onItemClick();
-    this.showSuccessMessage('Creando nuevo cliente...');
-  }
+  // (Acciones rápidas removidas; usamos CTAs del header y páginas específicas)
 
   // Data Loading Methods
   private loadNavigationData() {
