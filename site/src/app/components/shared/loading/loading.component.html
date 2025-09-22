@@ -1,1 +1,4 @@
-<p>loading works!</p>
+<div class="loading-wrapper">
+	<mat-spinner [diameter]="diameter"></mat-spinner>
+	<div class="loading-text" *ngIf="message as msg">{{ msg }}</div>
+</div>

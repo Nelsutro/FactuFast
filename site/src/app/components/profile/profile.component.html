@@ -1,0 +1,50 @@
+<div class="page-header">
+  <h1>Mi Perfil</h1>
+  <p class="muted">Actualiza tus datos personales y cambia tu contraseña</p>
+  <div class="divider"></div>
+</div>
+
+<div class="profile-grid">
+  <section class="card">
+    <h2>Datos personales</h2>
+    <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="form-grid">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Nombre</mat-label>
+        <input matInput formControlName="name" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Email</mat-label>
+        <input matInput formControlName="email" />
+      </mat-form-field>
+
+      <div class="button-row full">
+        <button mat-flat-button color="primary" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Cambiar contraseña</h2>
+    <form [formGroup]="passwordForm" (ngSubmit)="changePassword()" class="form-grid">
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Contraseña actual</mat-label>
+        <input matInput type="password" formControlName="current_password" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Nueva contraseña</mat-label>
+        <input matInput type="password" formControlName="password" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="full">
+        <mat-label>Confirmar nueva contraseña</mat-label>
+        <input matInput type="password" formControlName="password_confirmation" />
+      </mat-form-field>
+
+      <div class="button-row full">
+        <button mat-stroked-button color="primary" type="submit">Actualizar contraseña</button>
+      </div>
+    </form>
+  </section>
+</div>

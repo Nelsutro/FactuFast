@@ -1,6 +1,4 @@
-.payments-container {
-  padding: 24px;
-}
+.payments-container { padding: 24px; }
 
 /* Header Card */
 .header-card {
@@ -23,9 +21,7 @@
 }
 
 /* Stats Grid */
-.stats-grid {
-  margin-bottom: 24px;
-}
+.stats-grid { margin-bottom: 24px; }
 
 .stat-card {
   width: 100%;
@@ -98,9 +94,7 @@
 }
 
 /* Filters Card */
-.filters-card {
-  margin-bottom: 24px;
-}
+.filters-card { margin-bottom: 24px; }
 
 .filters-grid {
   display: grid;
@@ -109,35 +103,21 @@
   align-items: center;
 }
 
-.search-field {
-  width: 100%;
-}
+.search-field { width: 100%; }
 
-/* Loading State */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 48px 0;
-}
+/* Loading State: usa componente compartido */
 
 /* Table Styles */
-.payments-table-card {
-  margin-bottom: 24px;
-}
+.payments-table-card { margin-bottom: 24px; }
 
-.payments-table {
-  width: 100%;
-}
+.payments-table { width: 100%; }
 
 .cell-content {
   display: flex;
   flex-direction: column;
 }
 
-.primary-text {
-  font-weight: 500;
-}
+.primary-text { font-weight: 500; }
 
 .secondary-text {
   color: rgba(0, 0, 0, 0.6);
@@ -155,62 +135,14 @@
 .text-warning { color: #ed6c02; }
 .text-gray { color: rgba(0, 0, 0, 0.6); }
 
-/* Status Chips */
-.status-completed {
-  background-color: #dcfce7 !important;
-  color: #166534 !important;
-}
+/* Chips: definidos globalmente en styles.css */
 
-.status-pending {
-  background-color: #fef3c7 !important;
-  color: #92400e !important;
-}
-
-.status-failed {
-  background-color: #fee2e2 !important;
-  color: #991b1b !important;
-}
-
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 48px 0;
-}
-
-.empty-icon {
-  font-size: 48px;
-  height: 48px;
-  width: 48px;
-  color: rgba(0, 0, 0, 0.2);
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 18px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-
-.empty-description {
-  color: rgba(0, 0, 0, 0.6);
-  max-width: 400px;
-  margin: 0 auto;
-}
+/* Empty state: usa estilos globales */
 
 /* Actions Column */
-.actions-header {
-  text-align: right;
-}
-
-.actions-cell {
-  text-align: right;
-}
+.actions-header { text-align: right; }
+.actions-cell { text-align: right; }
 
 /* Material Form Field customization */
-::ng-deep .mat-mdc-form-field-subscript-wrapper {
-  display: none;
-}
-
-::ng-deep .mat-mdc-text-field-wrapper {
-  background-color: white !important;
-}
+::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+::ng-deep .mat-mdc-text-field-wrapper { background-color: white !important; }

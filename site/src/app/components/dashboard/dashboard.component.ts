@@ -17,6 +17,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { InvoiceCreateComponent } from '../invoices/invoice-create.component';
+import { QuoteCreateComponent } from '../quotes/quote-create.component';
+import { ClientCreateComponent } from '../clients/client-create.component';
+import { LoadingComponent } from '../shared/loading/loading.component';
 
 Chart.register(...registerables);
 
@@ -35,7 +41,13 @@ Chart.register(...registerables);
     MatButtonModule,
     MatCardModule,
     MatListModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatSnackBarModule,
+    MatDialogModule,
+    InvoiceCreateComponent,
+    QuoteCreateComponent,
+    ClientCreateComponent,
+    LoadingComponent
   ]
 })
 export class DashboardComponent implements OnInit, OnDestroy {
@@ -63,7 +75,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   constructor(
     private apiService: ApiService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit() {
@@ -296,19 +310,60 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Navigation methods
   createInvoice() {
-    this.router.navigate(['/invoices/create']);
+    const ref = this.dialog.open(InvoiceCreateComponent, {
+      width: '800px',
+      disableClose: true
+    });
+    ref.afterClosed().subscribe((created: boolean) => {
+      if (created) {
+        this.snackBar.open('Factura creada', 'Cerrar', { duration: 2500 });
+        this.loadDashboardData();
+      }
+    });
   }
 
   createQuote() {
-    this.router.navigate(['/quotes/create']);
+    const ref = this.dialog.open(QuoteCreateComponent, {
+      width: '800px',
+      disableClose: true
+    });
+    ref.afterClosed().subscribe((created: boolean) => {
+      if (created) {
+        this.snackBar.open('Cotización creada', 'Cerrar', { duration: 2500 });
+        this.loadDashboardData();
+      }
+    });
   }
 
   createClient() {
-    this.router.navigate(['/clients/create']);
+    const ref = this.dialog.open(ClientCreateComponent, {
+      width: '600px',
+      disableClose: true
+    });
+    ref.afterClosed().subscribe((created: boolean) => {
+      if (created) {
+        this.snackBar.open('Cliente creado', 'Cerrar', { duration: 2500 });
+        this.loadDashboardData();
+      }
+    });
   }
 
   importInvoices() {
-    this.router.navigate(['/invoices/import']);
+    // Intenta disparar el input de Invoices si está en el DOM (por ejemplo en el listado)
+    const input = document.getElementById('invoicesCsvInput') as HTMLInputElement | null;
+    if (input) {
+      input.click();
+      this.snackBar.open('Selecciona un archivo CSV para importar', 'Cerrar', { duration: 2500 });
+    } else {
+      // Si no existe el input (p.ej. desde Dashboard), informa al usuario y navega al listado
+      this.snackBar.open('Abriremos Facturas para importar el CSV...', undefined, { duration: 1800 });
+      this.router.navigate(['/invoices']).then(() => {
+        setTimeout(() => {
+          const afterNavInput = document.getElementById('invoicesCsvInput') as HTMLInputElement | null;
+          if (afterNavInput) afterNavInput.click();
+        }, 300);
+      });
+    }
   }
 
   goToInvoices() {

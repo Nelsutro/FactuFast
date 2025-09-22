@@ -58,24 +58,31 @@ export const routes: Routes = [
     loadComponent: () => import('./components/invoices/invoice-create.component').then(m => m.InvoiceCreateComponent),
     canActivate: [AuthGuard]
   },
+  // Placeholder para detalle de factura (carga el listado por ahora)
+  {
+    path: 'invoices/:id',
+    loadComponent: () => import('./components/invoices/invoices.component').then(m => m.InvoicesComponent),
+    canActivate: [AuthGuard]
+  },
   {
     path: 'quotes',
     loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
     canActivate: [AuthGuard]
   },
   {
-    path: 'invoices/create',
-    loadComponent: () => import('./components/invoices/invoice-create.component').then(m => m.InvoiceCreateComponent),
-    canActivate: [AuthGuard]
-  },
-  {
     path: 'quotes/create',
     loadComponent: () => import('./components/quotes/quote-create.component').then(m => m.QuoteCreateComponent),
     canActivate: [AuthGuard]
   },
+  // Placeholders para detalle/edición de cotización (cargan el listado por ahora)
   {
-    path: 'quotes/create',
-    loadComponent: () => import('./components/quotes/quote-create.component').then(m => m.QuoteCreateComponent),
+    path: 'quotes/:id',
+    loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'quotes/:id/edit',
+    loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
     canActivate: [AuthGuard]
   },
   {
@@ -89,12 +96,18 @@ export const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
-    path: 'clients/create',
-    loadComponent: () => import('./components/clients/client-create.component').then(m => m.ClientCreateComponent),
+    path: 'payments',
+    loadComponent: () => import('./components/payments/payments.component').then(m => m.PaymentsComponent),
+    canActivate: [AuthGuard]
+  },
+  // Placeholders de pagos (cargan el listado por ahora)
+  {
+    path: 'payments/new',
+    loadComponent: () => import('./components/payments/payments.component').then(m => m.PaymentsComponent),
     canActivate: [AuthGuard]
   },
   {
-    path: 'payments',
+    path: 'payments/:id',
     loadComponent: () => import('./components/payments/payments.component').then(m => m.PaymentsComponent),
     canActivate: [AuthGuard]
   },
@@ -111,7 +124,12 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
-    loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent), // Temporalmente
+    loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent),
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'perfil',
+    loadComponent: () => import('./components/profile/profile.component').then(m => m.ProfileComponent),
     canActivate: [AuthGuard]
   },
   {

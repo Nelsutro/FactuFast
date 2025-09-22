@@ -54,7 +54,7 @@
 
     <!-- Menú de usuario o login -->
     <ng-container *ngIf="isAuthenticated; else loginButton">
-      <button mat-button [matMenuTriggerFor]="userMenu" class="user-profile-btn">
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-button">
         <div class="user-info">
           <img [src]="userAvatar"
                [alt]="userName || 'Usuario'"

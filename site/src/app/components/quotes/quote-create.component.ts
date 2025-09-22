@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -37,8 +37,8 @@ export class QuoteCreateComponent {
     private api: ApiService,
     private router: Router,
     private snack: MatSnackBar,
-    private dialogRef: MatDialogRef<QuoteCreateComponent>,
-    private auth: AuthService
+    private auth: AuthService,
+    @Optional() private dialogRef?: MatDialogRef<QuoteCreateComponent>
   ) {
     this.form = this.fb.group({
   client_id: [null, [Validators.required, Validators.min(1)]],
@@ -70,7 +70,11 @@ export class QuoteCreateComponent {
     this.api.createQuote(payload).subscribe({
       next: () => {
         this.snack.open('Cotización creada', 'Cerrar', { duration: 2500 });
-        this.dialogRef.close(true);
+        if (this.dialogRef) {
+          this.dialogRef.close(true);
+        } else {
+          this.router.navigate(['/quotes']);
+        }
       },
       error: (e) => {
         this.snack.open(e?.message || 'Error al crear cotización', 'Cerrar', { duration: 3000 });
@@ -78,5 +82,14 @@ export class QuoteCreateComponent {
       },
       complete: () => this.loading = false
     });
+  }
+
+  onCancel() {
+    if (this.loading) return;
+    if (this.dialogRef) {
+      this.dialogRef.close(false);
+    } else {
+      this.router.navigate(['/quotes']);
+    }
   }
 }

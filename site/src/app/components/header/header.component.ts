@@ -158,7 +158,7 @@ export class HeaderComponent implements OnInit {
   }
 
   goToSettings(): void {
-    this.router.navigate(['/configuracion']);
+    this.router.navigate(['/settings']);
   }
 
   viewHelp(): void {

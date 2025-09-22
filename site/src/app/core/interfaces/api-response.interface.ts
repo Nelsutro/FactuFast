@@ -42,6 +42,7 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+  tax_id?: string; // RUT de empresa opcional
 }
 
 export interface RegisterRequest {

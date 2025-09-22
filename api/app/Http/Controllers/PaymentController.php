@@ -9,6 +9,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use App\Mail\PaymentReceivedClientMail;
+use App\Mail\PaymentReceivedCompanyMail;
 
 class PaymentController extends Controller
 {
@@ -164,7 +168,23 @@ class PaymentController extends Controller
             DB::commit();
 
             // Cargar el pago con sus relaciones
-            $payment->load(['invoice', 'invoice.client']);
+            $payment->load(['invoice', 'invoice.client', 'invoice.company']);
+
+            // Notificaciones por correo (suaves: respetan configuración de la empresa)
+            try {
+                $invoice = $payment->invoice;
+                $sendEnabled = $invoice->company?->send_email_on_payment ?? true;
+                if ($sendEnabled) {
+                    if (!empty($invoice->client?->email)) {
+                        Mail::to($invoice->client->email)->send(new PaymentReceivedClientMail($payment));
+                    }
+                    if (!empty($invoice->company?->email)) {
+                        Mail::to($invoice->company->email)->send(new PaymentReceivedCompanyMail($payment));
+                    }
+                }
+            } catch (\Throwable $mailEx) {
+                Log::warning('No se pudo enviar notificación de pago recibido: '.$mailEx->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

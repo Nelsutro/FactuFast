@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -37,8 +37,8 @@ export class InvoiceCreateComponent {
     private api: ApiService,
     private router: Router,
     private snack: MatSnackBar,
-    private dialogRef: MatDialogRef<InvoiceCreateComponent>,
-    private auth: AuthService
+    private auth: AuthService,
+    @Optional() private dialogRef?: MatDialogRef<InvoiceCreateComponent>
   ) {
     this.form = this.fb.group({
   client_id: [null, [Validators.required, Validators.min(1)]],
@@ -71,7 +71,11 @@ export class InvoiceCreateComponent {
     this.api.createInvoice(payload).subscribe({
       next: () => {
         this.snack.open('Factura creada', 'Cerrar', { duration: 2500 });
-        this.dialogRef.close(true);
+        if (this.dialogRef) {
+          this.dialogRef.close(true);
+        } else {
+          this.router.navigate(['/invoices']);
+        }
       },
       error: (e) => {
         this.snack.open(e?.message || 'Error al crear factura', 'Cerrar', { duration: 3000 });
@@ -79,5 +83,14 @@ export class InvoiceCreateComponent {
       },
       complete: () => this.loading = false
     });
+  }
+
+  onCancel() {
+    if (this.loading) return;
+    if (this.dialogRef) {
+      this.dialogRef.close(false);
+    } else {
+      this.router.navigate(['/invoices']);
+    }
   }
 }

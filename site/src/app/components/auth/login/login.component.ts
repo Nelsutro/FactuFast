@@ -51,6 +51,7 @@ export class LoginComponent implements OnInit {
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
+      tax_id: [''], // RUT opcional
       rememberMe: [false]
     });
 
@@ -88,7 +89,8 @@ export class LoginComponent implements OnInit {
 
     this.authService.login({
       email: formValue.email,
-      password: formValue.password
+      password: formValue.password,
+      tax_id: formValue.tax_id || undefined
     })
     .pipe(
       finalize(() => {

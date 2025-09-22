@@ -19,6 +19,139 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Design tokens */
+:root {
+  /* Palette aligned with indigo-pink theme */
+  --ff-color-primary: #3f51b5;
+  --ff-color-accent: #e91e63;
+  --ff-color-warn: #f44336;
+  --ff-color-success: #10b981;
+  --ff-color-info: #0ea5e9;
+
+  --ff-color-surface: #ffffff;
+  --ff-color-bg: #f9fafb;
+  --ff-color-text: #1f2937;
+  --ff-color-muted: #6b7280;
+  --ff-color-border: #e5e7eb;
+
+  /* Spacing scale */
+  --ff-space-1: 4px;
+  --ff-space-2: 8px;
+  --ff-space-3: 12px;
+  --ff-space-4: 16px;
+  --ff-space-5: 24px;
+  --ff-space-6: 32px;
+
+  /* Radius */
+  --ff-radius-sm: 8px;
+  --ff-radius-md: 12px;
+  --ff-radius-lg: 16px;
+
+  /* Shadows */
+  --ff-shadow-sm: 0 1px 2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.1);
+  --ff-shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+}
+
+/* Layout utilities */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-2);
+  margin: var(--ff-space-4) 0;
+  align-items: center;
+}
+
+.filters-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ff-space-3);
+  align-items: flex-end;
+  margin: var(--ff-space-4) 0 var(--ff-space-3);
+}
+.filters-container mat-form-field {
+  min-width: 220px;
+}
+.filters-container mat-form-field:first-child {
+  flex: 1 1 280px;
+}
+
+.stats-container {
+  margin: var(--ff-space-4) 0;
+}
+
+.table-container {
+  border: 1px solid var(--ff-color-border);
+  border-radius: var(--ff-radius-md);
+  overflow: auto;
+}
+
+/* Cards in stats */
+.stats-card {
+  border-radius: var(--ff-radius-md);
+  box-shadow: var(--ff-shadow-sm);
+}
+.stats-card.primary { background: rgba(63, 81, 181, 0.08); }
+.stats-card.accent { background: rgba(233, 30, 99, 0.08); }
+.stats-card.warn { background: rgba(244, 67, 54, 0.08); }
+.stats-card.success { background: rgba(16, 185, 129, 0.1); }
+
+/* Empty state */
+.empty-state {
+  padding: var(--ff-space-6);
+  text-align: center;
+  color: var(--ff-color-muted);
+}
+.empty-state mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--ff-space-3);
+  color: var(--ff-color-border);
+}
+.empty-state h3 {
+  color: var(--ff-color-text);
+  margin-bottom: var(--ff-space-2);
+}
+.empty-state p {
+  margin-bottom: var(--ff-space-4);
+}
+
+/* Error message */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: var(--ff-space-2);
+  background: #fee2e2; /* red-100 */
+  color: #991b1b; /* red-800 */
+  border-left: 4px solid var(--ff-color-warn);
+  border-radius: var(--ff-radius-sm);
+  padding: var(--ff-space-3) var(--ff-space-4);
+  margin: var(--ff-space-3) 0;
+}
+.error-message mat-icon { color: var(--ff-color-warn); }
+
+/* Loading state */
+.loading-container {
+  display: grid;
+  place-items: center;
+  padding: var(--ff-space-6);
+  color: var(--ff-color-muted);
+}
+
+/* Status chips (Material v15+ uses MDC classes) */
+.mat-mdc-standard-chip.status-pending { background: #fff7ed; color: #9a3412; }
+.mat-mdc-standard-chip.status-paid { background: #ecfdf5; color: #065f46; }
+.mat-mdc-standard-chip.status-cancelled { background: #fee2e2; color: #7f1d1d; }
+
+/* Payments specific statuses */
+.mat-mdc-standard-chip.status-completed { background: #ecfdf5; color: #065f46; }
+.mat-mdc-standard-chip.status-failed { background: #fee2e2; color: #991b1b; }
+
+.mat-mdc-standard-chip.status-draft { background: #f3f4f6; color: #374151; }
+.mat-mdc-standard-chip.status-sent { background: #eff6ff; color: #1e40af; }
+.mat-mdc-standard-chip.status-accepted { background: #ecfdf5; color: #065f46; }
+.mat-mdc-standard-chip.status-rejected { background: #fef2f2; color: #991b1b; }
+
 /* Animation Keyframes */
 @keyframes fadeIn {
   from {

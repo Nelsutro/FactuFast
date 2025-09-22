@@ -9,6 +9,8 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ClientPortalController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('user', [AuthController::class, 'user']);
         Route::get('me', [AuthController::class, 'me']);
     });
+
+    // Perfil (alias + update)
+    Route::get('user', [UserController::class, 'show']);
+    Route::put('user', [UserController::class, 'update']);
 
     // Dashboard
     Route::prefix('dashboard')->group(function () {
@@ -79,6 +85,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Empresas
     Route::apiResource('companies', CompanyController::class);
     Route::get('companies/{company}/invoices', [CompanyController::class, 'invoices']);
+
+    // Configuración (por empresa del usuario)
+    Route::get('settings', [SettingsController::class, 'index']);
+    Route::put('settings', [SettingsController::class, 'update']);
+    Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
 });
 
 // Rutas de prueba

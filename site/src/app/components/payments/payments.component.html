@@ -137,13 +137,19 @@
   </mat-card>
 
   <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
-    <mat-spinner diameter="48"></mat-spinner>
+  <app-loading *ngIf="loading" message="Cargando pagos..." [diameter]="48"></app-loading>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    <mat-icon>error</mat-icon>
+    <span>{{ error }}</span>
+    <button mat-button color="primary" (click)="loadPayments()">Reintentar</button>
   </div>
 
   <!-- Payments List -->
   <mat-card *ngIf="!loading && !error" class="payments-table-card">
-    <table mat-table [dataSource]="dataSource" class="payments-table">
+    <div class="mat-elevation-z8 table-container">
+    <table mat-table [dataSource]="dataSource" class="payments-table" matSort>
       <!-- Invoice Column -->
       <ng-container matColumnDef="invoice">
         <th mat-header-cell *matHeaderCellDef>Factura</th>
@@ -251,25 +257,31 @@
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-    </table>
 
       <!-- Empty State -->
-      <div *ngIf="filteredPayments.length === 0" class="empty-state">
-        <mat-icon class="empty-icon">credit_card</mat-icon>
-        <h3 class="empty-title">No hay pagos</h3>
-        <p class="empty-description">
-          {{ searchTerm || statusFilter || methodFilter || dateRange ? 
-             'No se encontraron pagos con los filtros aplicados.' : 
-             'Los pagos aparecerán aquí una vez que se registren.' }}
-        </p>
-      </div>
+      <tr class="mat-row" *matNoDataRow>
+        <td class="mat-cell" [attr.colspan]="displayedColumns.length">
+          <div class="empty-state">
+            <mat-icon>credit_card</mat-icon>
+            <h3>No hay pagos</h3>
+            <p>
+              {{ searchTerm || statusFilter || methodFilter || dateRange ? 
+                 'No se encontraron pagos con los filtros aplicados.' : 
+                 'Los pagos aparecerán aquí una vez que se registren.' }}
+            </p>
+          </div>
+        </td>
+      </tr>
+    </table>
+    </div>
     </mat-card>
 
     <!-- Pagination -->
-    <mat-paginator *ngIf="filteredPayments.length > 0"
-                  [length]="filteredPayments.length"
-                  [pageSize]="pageSize"
-                  [pageSizeOptions]="[9, 18, 27]"
-                  (page)="onPageChange($event)"
-                  aria-label="Seleccionar página de pagos">
-    </mat-paginator>
+  <mat-paginator *ngIf="filteredPayments.length > 0"
+          [length]="filteredPayments.length"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="[5, 10, 25, 100]"
+          showFirstLastButtons
+          (page)="onPageChange($event)"
+          aria-label="Seleccionar página de pagos">
+  </mat-paginator>

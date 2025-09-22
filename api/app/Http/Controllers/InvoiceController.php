@@ -14,6 +14,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use App\Models\Client;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\InvoicePdfMail;
+use App\Mail\InvoiceCreatedClientMail;
+use App\Mail\InvoiceCreatedCompanyMail;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceController extends Controller
 {
@@ -141,6 +144,23 @@ class InvoiceController extends Controller
 
             // Cargar la factura con sus relaciones
             $invoice->load(['client', 'items']);
+
+            // Notificaciones por correo (suaves: respetan configuración de la empresa y sólo si hay emails disponibles)
+            try {
+                $invoice->loadMissing('company');
+                $sendEnabled = $invoice->company?->send_email_on_invoice ?? true;
+                if ($sendEnabled) {
+                    if (!empty($invoice->client?->email)) {
+                        Mail::to($invoice->client->email)->send(new InvoiceCreatedClientMail($invoice));
+                    }
+                    if (!empty($invoice->company?->email)) {
+                        Mail::to($invoice->company->email)->send(new InvoiceCreatedCompanyMail($invoice));
+                    }
+                }
+            } catch (\Throwable $mailEx) {
+                // No interrumpir el flujo por errores de correo
+                Log::warning('No se pudo enviar notificación de factura creada: '.$mailEx->getMessage());
+            }
 
             return response()->json([
                 'success' => true,

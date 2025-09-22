@@ -1,6 +1,9 @@
 <mat-card>
   <mat-card-header>
     <mat-card-title>Nuevo Cliente</mat-card-title>
+    <button mat-icon-button aria-label="Cerrar" (click)="onCancel()" style="margin-left:auto">
+      <mat-icon>close</mat-icon>
+    </button>
   </mat-card-header>
   <mat-card-content>
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
@@ -20,7 +23,7 @@
       </mat-form-field>
 
       <div class="actions">
-        <button mat-stroked-button type="button" [disabled]="loading" routerLink="/clients">Cancelar</button>
+        <button mat-stroked-button type="button" [disabled]="loading" (click)="onCancel()">Cancelar</button>
         <button mat-flat-button color="primary" type="submit" [disabled]="loading || form.invalid">
           Crear
         </button>

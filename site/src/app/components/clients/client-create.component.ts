@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
 import { MatDialogRef } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
@@ -23,7 +24,8 @@ import { AuthService } from '../../core/services/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
-    MatSnackBarModule
+    MatSnackBarModule,
+    MatIconModule
   ]
 })
 export class ClientCreateComponent {
@@ -35,8 +37,8 @@ export class ClientCreateComponent {
     private api: ApiService,
     private router: Router,
     private snack: MatSnackBar,
-    private dialogRef: MatDialogRef<ClientCreateComponent>,
-    private auth: AuthService
+    private auth: AuthService,
+    @Optional() private dialogRef?: MatDialogRef<ClientCreateComponent>
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(2)]],
@@ -53,7 +55,11 @@ export class ClientCreateComponent {
   this.api.createClient(payload).subscribe({
       next: () => {
         this.snack.open('Cliente creado', 'Cerrar', { duration: 2500 });
-        this.dialogRef.close(true);
+        if (this.dialogRef) {
+          this.dialogRef.close(true);
+        } else {
+          this.router.navigate(['/clients']);
+        }
       },
       error: (e) => {
         this.snack.open(e?.message || 'Error al crear cliente', 'Cerrar', { duration: 3000 });
@@ -61,5 +67,14 @@ export class ClientCreateComponent {
       },
       complete: () => this.loading = false
     });
+  }
+
+  onCancel() {
+    if (this.loading) return;
+    if (this.dialogRef) {
+      this.dialogRef.close(false);
+    } else {
+      this.router.navigate(['/clients']);
+    }
   }
 }

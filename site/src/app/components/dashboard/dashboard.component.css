@@ -25,6 +25,12 @@
   transition: margin 0.3s ease;
 }
 
+/* Contenedor centrado con ancho máximo */
+.dashboard-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
 /* Welcome Section */
 .header-section {
   margin-bottom: calc(var(--spacing-unit) * 3);

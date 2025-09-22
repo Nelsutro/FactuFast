@@ -127,3 +127,29 @@ Ver logs:
 
 Personalización futura:
 - Se puede ampliar con nuevas tareas (p. ej. generación de borradores recurrentes) y administrar `schedules` por empresa.
+
+## Acceso por RUT (empresas y portal de clientes)
+
+Empresas (usuarios):
+- Registro: enviar `company_tax_id` junto con `company_name`, `name`, `email`, `password`. El backend crea o asocia la `Company` por `tax_id` y guarda `company_id` en el usuario.
+- Login: el endpoint acepta opcionalmente `tax_id`; si se envía, se valida que coincida con `companies.tax_id` del usuario.
+
+Portal de clientes:
+- Solicitud de acceso: `POST /api/client-portal/request-access` con `email` y opcional `company_tax_id`. Se valida que el cliente pertenezca a esa empresa si se envía.
+- Acceso con token: `POST /api/client-portal/access` con `email`, `token` y opcional `company_tax_id`.
+
+Notas:
+- El campo `companies.tax_id` es único (RUT). En `clients` también existe `tax_id` (opcional) para identificar clientes por RUT si se requiere en integraciones futuras.
+
+## Notificaciones por correo (facturas y pagos)
+
+Eventos notificados (si hay correos disponibles):
+- Factura creada: se envía email al cliente y a la empresa.
+- Pago recibido: se envía comprobante al cliente y notificación a la empresa.
+
+Puntos de enganche:
+- Facturas: `InvoiceController@store` (después de crear y cargar relaciones) envía `InvoiceCreatedClientMail` y `InvoiceCreatedCompanyMail`.
+- Pagos: `PaymentController@store` envía `PaymentReceivedClientMail` y `PaymentReceivedCompanyMail`.
+
+Requisitos:
+- Configurar SMTP en `.env` (ver sección anterior). Si hay errores al enviar, se registran en logs y no interrumpen la operación principal.

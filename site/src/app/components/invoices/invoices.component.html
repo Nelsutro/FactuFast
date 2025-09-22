@@ -61,7 +61,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="filters-container">
+  <div class="filters-container">
       <mat-form-field appearance="outline">
         <mat-label>Buscar</mat-label>
         <input matInput (keyup)="applyFilter($event)" placeholder="Buscar facturas...">
@@ -94,14 +94,14 @@
     <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
 
     <!-- Error Message -->
-    <div *ngIf="error" class="error-message">
+  <div *ngIf="error" class="error-message">
       <mat-icon>error</mat-icon>
       <span>{{error}}</span>
       <button mat-button color="primary" (click)="loadInvoices()">Reintentar</button>
     </div>
 
     <!-- Table -->
-    <div class="mat-elevation-z8 table-container" *ngIf="!loading && !error">
+  <div class="mat-elevation-z8 table-container" *ngIf="!loading && !error">
 
       <table mat-table [dataSource]="dataSource" matSort>
         <!-- Invoice Number Column -->

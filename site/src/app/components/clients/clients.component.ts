@@ -13,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
 import { ClientService, Client } from '../../core/services/client.service';
 import { AuthService } from '../../core/services/auth.service';
+import { LoadingComponent } from '../shared/loading/loading.component';
 
 @Component({
   selector: 'app-clients',
@@ -29,7 +30,8 @@ import { AuthService } from '../../core/services/auth.service';
     MatInputModule,
     MatCardModule,
     MatProgressSpinnerModule,
-    MatMenuModule
+    MatMenuModule,
+    LoadingComponent
   ]
 })
 export class ClientsComponent implements OnInit {

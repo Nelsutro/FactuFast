@@ -19,19 +19,16 @@
   </div>
 
   <!-- Filtros y búsqueda -->
-  <div class="filters-section">
-    <mat-form-field appearance="outline" class="search-field">
+  <div class="filters-container">
+    <mat-form-field appearance="outline">
       <mat-label>Buscar cliente</mat-label>
       <input matInput [(ngModel)]="searchTerm" (input)="filterClients()" placeholder="Nombre, email o teléfono">
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
   </div>
 
-  <!-- Loading spinner -->
-  <div *ngIf="loading" class="loading-container">
-    <mat-spinner></mat-spinner>
-    <p>Cargando clientes...</p>
-  </div>
+  <!-- Loading -->
+  <app-loading *ngIf="loading" message="Cargando clientes..." [diameter]="48"></app-loading>
 
   <!-- Lista de clientes -->
   <div *ngIf="!loading" class="clients-grid">
@@ -107,12 +104,12 @@
 </div>
 
 <!-- Error state -->
-<div *ngIf="error" class="error-container">
-  <mat-icon class="error-icon">error_outline</mat-icon>
-  <h3>Error al cargar clientes</h3>
-  <p>{{ error }}</p>
-  <button mat-raised-button color="primary" (click)="loadClients()">
+<div *ngIf="error" class="error-message">
+  <mat-icon>error</mat-icon>
+  <span>{{ error }}</span>
+  <button mat-button color="primary" (click)="loadClients()">
     <mat-icon>refresh</mat-icon>
     Reintentar
   </button>
+  
 </div>

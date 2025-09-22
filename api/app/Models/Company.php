@@ -15,6 +15,21 @@ class Company extends Model
         'email',
         'phone',
         'address',
+        // Settings
+        'currency_code',
+        'tax_rate',
+        'default_payment_terms',
+        'logo_path',
+        'send_email_on_invoice',
+        'send_email_on_payment',
+        'portal_enabled',
+    ];
+
+    protected $casts = [
+        'tax_rate' => 'decimal:2',
+        'send_email_on_invoice' => 'boolean',
+        'send_email_on_payment' => 'boolean',
+        'portal_enabled' => 'boolean',
     ];
 
     /**

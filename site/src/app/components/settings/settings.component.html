@@ -1,0 +1,91 @@
+<div class="page-header">
+  <h1>Configuración</h1>
+</div>
+
+<mat-tab-group>
+  <mat-tab label="Empresa">
+    <div class="section">
+      <div class="logo-row">
+        <img *ngIf="logoPreview; else noLogo" [src]="logoPreview" alt="Logo" class="logo" />
+        <ng-template #noLogo>
+          <div class="logo placeholder">Sin logo</div>
+        </ng-template>
+        <button mat-stroked-button color="primary" (click)="logoInput.click()">
+          <mat-icon>upload</mat-icon>
+          Subir logo
+        </button>
+        <input #logoInput id="logoInput" type="file" accept="image/*" (change)="onLogoSelected($event)" hidden />
+      </div>
+
+      <form [formGroup]="companyForm" (ngSubmit)="saveCompany()" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Nombre</mat-label>
+          <input matInput formControlName="name" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>RUT / NIF</mat-label>
+          <input matInput formControlName="tax_id" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput formControlName="email" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Teléfono</mat-label>
+          <input matInput formControlName="phone" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Dirección</mat-label>
+          <textarea matInput formControlName="address" rows="3"></textarea>
+        </mat-form-field>
+
+        <div class="button-row full">
+          <button mat-flat-button color="primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </mat-tab>
+
+  <mat-tab label="Facturación">
+    <div class="section">
+      <form [formGroup]="billingForm" (ngSubmit)="saveBilling()" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Moneda (ISO 4217)</mat-label>
+          <input matInput formControlName="currency_code" maxlength="3" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Impuesto (%)</mat-label>
+          <input matInput type="number" min="0" max="100" step="0.01" formControlName="tax_rate" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full">
+          <mat-label>Términos de pago por defecto</mat-label>
+          <input matInput formControlName="default_payment_terms" />
+        </mat-form-field>
+
+        <div class="button-row full">
+          <button mat-flat-button color="primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </mat-tab>
+
+  <mat-tab label="Notificaciones y portal">
+    <div class="section">
+      <form [formGroup]="notificationsForm" (ngSubmit)="saveNotifications()" class="toggles">
+        <mat-slide-toggle formControlName="send_email_on_invoice">Enviar correo al crear factura</mat-slide-toggle>
+        <mat-slide-toggle formControlName="send_email_on_payment">Enviar correo al registrar pago</mat-slide-toggle>
+        <mat-slide-toggle formControlName="portal_enabled">Habilitar portal de clientes</mat-slide-toggle>
+
+        <div class="button-row">
+          <button mat-flat-button color="primary" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </mat-tab>
+</mat-tab-group>

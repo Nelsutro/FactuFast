@@ -21,6 +21,7 @@ import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Payment, User } from '../../models';
 import { environment } from '../../../environments/environment';
+import { LoadingComponent } from '../shared/loading/loading.component';
 
 @Component({
   selector: 'app-payments',
@@ -44,7 +45,8 @@ import { environment } from '../../../environments/environment';
     MatChipsModule,
     MatTooltipModule,
     MatGridListModule,
-    MatMenuModule
+    MatMenuModule,
+    LoadingComponent
   ]
 })
 export class PaymentsComponent implements OnInit {
@@ -300,11 +302,10 @@ export class PaymentsComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0
-    }).format(amount);
+    return amount.toLocaleString('es-CL', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    });
   }
 
   formatDate(date: Date | string): string {

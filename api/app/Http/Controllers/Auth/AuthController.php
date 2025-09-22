@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Company;
 
 class AuthController extends Controller
 {
@@ -22,7 +23,8 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
-            'company_name' => 'required|string|max:255', // Empresas deben registrar nombre de compañía
+            'company_name' => 'required|string|max:255',
+            'company_tax_id' => 'required|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -33,13 +35,20 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Solo se permite registro de clientes (empresas)
+        // Asociar/crear la empresa por RUT (tax_id)
+        $company = Company::firstOrCreate(
+            ['tax_id' => $request->company_tax_id],
+            ['name' => $request->company_name, 'email' => $request->email]
+        );
+
+        // Registro de cliente (empresa) vinculado a Company
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'client', // Forzar rol de cliente
             'company_name' => $request->company_name,
+            'company_id' => $company->id,
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -64,6 +73,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string',
+            'tax_id' => 'sometimes|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -85,6 +95,17 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // Si se envía tax_id (RUT), validar que corresponda a la empresa del usuario
+        if ($request->filled('tax_id')) {
+            $company = $user->company; // relación opcional
+            if (!$company || $company->tax_id !== $request->tax_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'RUT de empresa no coincide con el usuario'
+                ], 403);
+            }
+        }
+
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -92,7 +113,7 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Login exitoso',
             'data' => [
-                'user' => $user,
+                'user' => $user->load('company'),
                 'token' => $token,
                 'token_type' => 'Bearer',
                 'expires_at' => null, // Sanctum tokens don't expire by default

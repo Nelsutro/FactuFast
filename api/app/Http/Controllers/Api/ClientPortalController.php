@@ -19,7 +19,8 @@ class ClientPortalController extends Controller
     public function requestAccess(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email'
+            'email' => 'required|email',
+            'company_tax_id' => 'sometimes|string|max:50'
         ]);
 
         if ($validator->fails()) {
@@ -30,7 +31,13 @@ class ClientPortalController extends Controller
             ], 400);
         }
 
-        $client = Client::where('email', $request->email)->first();
+        $clientQuery = Client::where('email', $request->email);
+        if ($request->filled('company_tax_id')) {
+            $clientQuery->whereHas('company', function($q) use ($request) {
+                $q->where('tax_id', $request->company_tax_id);
+            });
+        }
+        $client = $clientQuery->first();
         
         if (!$client) {
             return response()->json([
@@ -59,7 +66,8 @@ class ClientPortalController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'token' => 'required|string'
+            'token' => 'required|string',
+            'company_tax_id' => 'sometimes|string|max:50'
         ]);
 
         if ($validator->fails()) {
@@ -70,7 +78,13 @@ class ClientPortalController extends Controller
             ], 400);
         }
 
-        $client = Client::where('email', $request->email)->first();
+        $clientQuery = Client::where('email', $request->email);
+        if ($request->filled('company_tax_id')) {
+            $clientQuery->whereHas('company', function($q) use ($request) {
+                $q->where('tax_id', $request->company_tax_id);
+            });
+        }
+        $client = $clientQuery->first();
         
         if (!$client || !$client->isTokenValid($request->token)) {
             return response()->json([

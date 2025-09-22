@@ -1,0 +1,7 @@
+.section { padding: var(--ff-space-4); }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ff-space-4); }
+.form-grid .full { grid-column: 1 / -1; }
+.logo-row { display: flex; align-items: center; gap: var(--ff-space-3); margin-bottom: var(--ff-space-4); }
+.logo { width: 80px; height: 80px; border-radius: var(--ff-radius-md); object-fit: cover; background: var(--ff-color-bg-elevated); display: inline-flex; align-items: center; justify-content: center; color: var(--ff-color-text-muted); font-size: 12px; }
+.toggles { display: flex; flex-direction: column; gap: var(--ff-space-3); }
+@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }

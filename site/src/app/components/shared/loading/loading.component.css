@@ -1,0 +1,15 @@
+:host {
+	display: block;
+}
+
+.loading-wrapper {
+	display: grid;
+	place-items: center;
+	gap: 12px;
+	padding: 32px 0;
+	color: var(--ff-color-muted);
+}
+
+.loading-text {
+	font-size: 14px;
+}
