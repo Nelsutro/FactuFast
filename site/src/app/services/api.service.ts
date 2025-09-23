@@ -251,6 +251,14 @@ export class ApiService {
       );
   }
 
+  updateQuote(id: number, payload: any): Observable<any> {
+    return this.http.put<ApiResponse<any>>(`${this.apiUrl}/quotes/${id}`, payload, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
   getQuoteStats(): Observable<any> {
     return this.http.get<ApiResponse<any>>(`${this.apiUrl}/quotes-stats`, { headers: this.getHeaders() })
       .pipe(
@@ -271,6 +279,14 @@ export class ApiService {
     if (token) headers = headers.set('Authorization', `Bearer ${token}`);
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/quotes/import`, form, { headers })
       .pipe(catchError(this.handleError));
+  }
+
+  convertQuoteToInvoice(id: number): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/quotes/${id}/convert`, {}, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response),
+        catchError(this.handleError)
+      );
   }
 
   // Métodos para Pagos

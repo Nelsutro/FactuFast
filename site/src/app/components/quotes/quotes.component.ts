@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -21,7 +20,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Quote, Client, User } from '../../models';
-import { environment } from '../../../environments/environment';
+import { LoadingComponent } from '../shared/loading/loading.component';
 
 @Component({
   selector: 'app-quotes',
@@ -39,13 +38,13 @@ import { environment } from '../../../environments/environment';
     MatSelectModule,
     MatCardModule,
     MatProgressSpinnerModule,
-    MatProgressBarModule,
     MatChipsModule,
     MatTooltipModule,
     MatPaginatorModule,
     MatGridListModule,
     MatMenuModule,
-    MatDividerModule
+    MatDividerModule,
+    LoadingComponent
   ]
 })
 export class QuotesComponent implements OnInit {
@@ -90,7 +89,6 @@ export class QuotesComponent implements OnInit {
     private apiService: ApiService,
     private authService: AuthService,
     private router: Router,
-    private http: HttpClient,
     private snackBar: MatSnackBar
   ) {}
 
@@ -121,13 +119,18 @@ export class QuotesComponent implements OnInit {
             this.quotes = response.data.map((quote: any) => ({
               id: quote.id,
               quote_number: quote.quote_number,
-              client: { name: quote.client?.name || 'Cliente desconocido' },
-              amount: parseFloat(quote.amount),
+              client: {
+                name: quote.client?.name || 'Cliente desconocido',
+                email: quote.client?.email || ''
+              },
+              amount: isNaN(parseFloat(quote.amount)) ? 0 : parseFloat(quote.amount),
               status: quote.status,
               quote_date: quote.quote_date,
               valid_until: quote.valid_until,
               notes: quote.notes,
-              items: quote.items || []
+              items: quote.items || [],
+              created_at: quote.created_at || quote.quote_date,
+              updated_at: quote.updated_at || quote.quote_date
             }));
             this.calculateStats();
             this.applyFilters();
@@ -268,16 +271,19 @@ export class QuotesComponent implements OnInit {
   }
 
   sendQuote(quote: Quote) {
-    // Update quote status to 'sent'
-    console.log('Sending quote:', quote.quote_number);
-    
-    // In real implementation, call API
-    quote.status = 'sent';
-    quote.updated_at = new Date();
-    this.calculateStats();
-    
-    // Show success message (you can implement a toast service)
-    alert(`Cotización #${quote.quote_number} enviada exitosamente`);
+    // Actualizar estado real via API
+    this.apiService.updateQuote(quote.id, { status: 'sent' }).subscribe({
+      next: (updated) => {
+        quote.status = updated?.status || 'sent';
+        quote.updated_at = new Date();
+        this.calculateStats();
+        this.applyFilters();
+        this.snackBar.open(`Cotización #${quote.quote_number} enviada`, 'Cerrar', { duration: 3000 });
+      },
+      error: (err) => {
+        this.snackBar.open(err?.message || 'No se pudo enviar la cotización', 'Cerrar', { duration: 3500 });
+      }
+    });
   }
 
   duplicateQuote(quote: Quote) {
@@ -300,27 +306,30 @@ export class QuotesComponent implements OnInit {
   confirmConvert() {
     if (this.quoteToConvert) {
       console.log('Converting quote to invoice:', this.quoteToConvert.quote_number);
-      
-      // In real implementation, call API to create invoice from quote
-      // this.apiService.convertQuoteToInvoice(this.quoteToConvert.id).subscribe({
-      //   next: (newInvoice) => {
-      //     this.router.navigate(['/invoices', newInvoice.id]);
-      //   },
-      //   error: (error) => {
-      //     this.error = 'Error al convertir la cotización';
-      //   }
-      // });
-
-      // For now, simulate the conversion
-      this.quoteToConvert.status = 'accepted';
-      this.quoteToConvert.updated_at = new Date();
-      this.calculateStats();
-      
-      alert(`Cotización #${this.quoteToConvert.quote_number} convertida a factura exitosamente`);
-      
-      // Close modal
-      this.showConvertModal = false;
-      this.quoteToConvert = null;
+      // Llamar API para preparar conversión
+      this.apiService.convertQuoteToInvoice(this.quoteToConvert.id).subscribe({
+        next: (res) => {
+          // Si el backend solo prepara datos, navegamos a crear factura con query params o estado
+          const invoiceTemplate = res?.data?.invoice_template;
+          if (invoiceTemplate) {
+            // Redirigir al creador de facturas (si hay ruta standalone, podemos pasar estado o query)
+            this.router.navigate(['/invoices/new'], { queryParams: { fromQuote: this.quoteToConvert!.id } });
+          }
+          // Opcional: actualizar estado local si backend lo cambia
+          this.quoteToConvert!.status = 'accepted';
+          this.quoteToConvert!.updated_at = new Date();
+          this.calculateStats();
+          this.applyFilters();
+          this.snackBar.open(`Cotización #${this.quoteToConvert!.quote_number} lista para facturar`, 'Cerrar', { duration: 3000 });
+        },
+        error: (err) => {
+          this.snackBar.open(err?.message || 'Error al convertir la cotización', 'Cerrar', { duration: 3500 });
+        },
+        complete: () => {
+          this.showConvertModal = false;
+          this.quoteToConvert = null;
+        }
+      });
     }
   }
 

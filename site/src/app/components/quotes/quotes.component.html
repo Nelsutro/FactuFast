@@ -7,16 +7,16 @@
   <mat-card-content>
     <!-- Actions -->
     <div class="button-row">
-      <button mat-raised-button (click)="exportQuotes()">
+      <button mat-raised-button (click)="exportQuotes()" aria-label="Exportar cotizaciones a CSV" matTooltip="Exportar CSV">
         <mat-icon>download</mat-icon>
         Exportar CSV
       </button>
-      <button mat-raised-button (click)="importQuotes()">
+      <button mat-raised-button (click)="importQuotes()" aria-label="Importar cotizaciones desde CSV" matTooltip="Importar CSV">
         <mat-icon>upload</mat-icon>
         Importar CSV
       </button>
       <input id="quotesCsvInput" type="file" accept=".csv,text/csv" hidden (change)="onQuotesFileSelected($event)">
-      <button mat-raised-button color="primary" (click)="createQuote()">
+      <button mat-raised-button color="primary" (click)="createQuote()" aria-label="Crear nueva cotización" matTooltip="Nueva Cotización">
         <mat-icon>add</mat-icon>
         Nueva Cotización
       </button>
@@ -26,7 +26,7 @@
     <div class="filters-container">
       <mat-form-field appearance="outline">
         <mat-label>Buscar</mat-label>
-        <input matInput (keyup)="applyFilter($event)" placeholder="Buscar cotizaciones...">
+        <input matInput (keyup)="applyFilter($event)" placeholder="Buscar cotizaciones..." aria-label="Buscar cotizaciones"/>
         <mat-icon matPrefix>search</mat-icon>
       </mat-form-field>
 
@@ -98,8 +98,8 @@
       </mat-grid-list>
     </div>
 
-    <!-- Loading Progress -->
-    <mat-progress-bar *ngIf="loading" mode="indeterminate"></mat-progress-bar>
+  <!-- Loading -->
+  <app-loading *ngIf="loading"></app-loading>
 
     <!-- Error Message -->
     <div *ngIf="error" class="error-message">
@@ -190,28 +190,28 @@
               </ng-container>
 
               <!-- Secondary Actions -->
-              <button mat-icon-button [matMenuTriggerFor]="menu">
+              <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Abrir menú de acciones" matTooltip="Más acciones">
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
-                <button mat-menu-item (click)="viewQuote(quote)">
+                <button mat-menu-item (click)="viewQuote(quote)" aria-label="Ver detalles de la cotización">
                   <mat-icon>visibility</mat-icon>
                   <span>Ver detalles</span>
                 </button>
-                <button mat-menu-item (click)="editQuote(quote)">
+                <button mat-menu-item (click)="editQuote(quote)" aria-label="Editar cotización">
                   <mat-icon>edit</mat-icon>
                   <span>Editar</span>
                 </button>
-                <button mat-menu-item (click)="duplicateQuote(quote)">
+                <button mat-menu-item (click)="duplicateQuote(quote)" aria-label="Duplicar cotización">
                   <mat-icon>content_copy</mat-icon>
                   <span>Duplicar</span>
                 </button>
-                <button mat-menu-item (click)="downloadQuote(quote)">
+                <button mat-menu-item (click)="downloadQuote(quote)" aria-label="Descargar PDF de la cotización">
                   <mat-icon>download</mat-icon>
                   <span>Descargar PDF</span>
                 </button>
                 <mat-divider></mat-divider>
-                <button mat-menu-item (click)="deleteQuote(quote)" class="delete-action">
+                <button mat-menu-item (click)="deleteQuote(quote)" class="delete-action" aria-label="Eliminar cotización">
                   <mat-icon>delete</mat-icon>
                   <span>Eliminar</span>
                 </button>

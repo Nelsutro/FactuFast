@@ -37,6 +37,15 @@
   color: white;
 }
 
+.page-title {
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.95);
+  font-size: 16px;
+  font-weight: 500;
+}
+
 /* Campo de búsqueda (desktop) */
 .search-field { width: 360px; margin-bottom: -1.25em; transition: width .25s ease; }
 .search-field:focus-within { width: 420px; }
@@ -250,6 +259,7 @@
   .search-field{ width:300px; }
   .search-field:focus-within { width:340px; }
   .brand-name{ display:none; }
+  .page-title{ display:none; }
 }
 
 @media (max-width:600px){

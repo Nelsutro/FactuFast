@@ -37,12 +37,13 @@ class QuoteController extends Controller
                 $query->where('client_id', $request->client_id);
             }
 
+            // Filtrado por fechas usando la fecha de validez (valid_until)
             if ($request->has('date_from')) {
-                $query->whereDate('quote_date', '>=', $request->date_from);
+                $query->whereDate('valid_until', '>=', $request->date_from);
             }
 
             if ($request->has('date_to')) {
-                $query->whereDate('quote_date', '<=', $request->date_to);
+                $query->whereDate('valid_until', '<=', $request->date_to);
             }
 
             // Búsqueda por número de cotización o nombre de cliente
@@ -98,9 +99,8 @@ class QuoteController extends Controller
                 'client_id' => 'required|exists:clients,id',
                 'quote_number' => 'required|string|unique:quotes,quote_number',
                 'amount' => 'required|numeric|min:0',
-                'status' => ['required', Rule::in(['draft', 'pending', 'approved', 'rejected', 'expired'])],
-                'quote_date' => 'required|date',
-                'expiry_date' => 'required|date|after:quote_date',
+                'status' => ['required', Rule::in(['draft', 'sent', 'accepted', 'rejected', 'expired'])],
+                'valid_until' => 'required|date',
                 'notes' => 'nullable|string',
                 'items' => 'required|array|min:1',
                 'items.*.description' => 'required|string',
@@ -118,8 +118,7 @@ class QuoteController extends Controller
                 'quote_number' => $validated['quote_number'],
                 'amount' => $validated['amount'],
                 'status' => $validated['status'],
-                'quote_date' => $validated['quote_date'],
-                'expiry_date' => $validated['expiry_date'],
+                'valid_until' => $validated['valid_until'],
                 'notes' => $validated['notes'] ?? null
             ]);
 
@@ -216,9 +215,8 @@ class QuoteController extends Controller
             $validated = $request->validate([
                 'client_id' => 'sometimes|exists:clients,id',
                 'amount' => 'sometimes|numeric|min:0',
-                'status' => ['sometimes', Rule::in(['draft', 'pending', 'approved', 'rejected', 'expired'])],
-                'quote_date' => 'sometimes|date',
-                'expiry_date' => 'sometimes|date|after:quote_date',
+                'status' => ['sometimes', Rule::in(['draft', 'sent', 'accepted', 'rejected', 'expired'])],
+                'valid_until' => 'sometimes|date',
                 'notes' => 'nullable|string',
                 'items' => 'sometimes|array|min:1',
                 'items.*.description' => 'required_with:items|string',
@@ -393,10 +391,10 @@ class QuoteController extends Controller
             $quote = $query->findOrFail($id);
 
             // Verificar que la cotización esté aprobada
-            if ($quote->status !== 'approved') {
+            if ($quote->status !== 'accepted') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo se pueden convertir cotizaciones aprobadas'
+                    'message' => 'Solo se pueden convertir cotizaciones aceptadas'
                 ], 422);
             }
 
@@ -459,12 +457,21 @@ class QuoteController extends Controller
             fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
             fputcsv($output, $columns);
             foreach ($quotes as $q) {
+                // Asegurar que valid_until sea string en formato Y-m-d sin llamar format() sobre string
+                $vu = $q->valid_until ?? null;
+                if ($vu instanceof \Carbon\CarbonInterface) {
+                    $vuStr = $vu->format('Y-m-d');
+                } elseif ($vu instanceof \DateTimeInterface) {
+                    $vuStr = $vu->format('Y-m-d');
+                } else {
+                    $vuStr = $vu ? (new \DateTime($vu))->format('Y-m-d') : null;
+                }
                 fputcsv($output, [
                     $q->quote_number,
                     optional($q->client)->email,
                     (string)$q->amount,
                     $q->status,
-                    $q->valid_until?->format('Y-m-d'),
+                    $vuStr,
                     $q->notes,
                 ]);
             }

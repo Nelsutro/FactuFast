@@ -11,6 +11,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ClientService, Client } from '../../core/services/client.service';
 import { AuthService } from '../../core/services/auth.service';
 import { LoadingComponent } from '../shared/loading/loading.component';
@@ -31,6 +33,8 @@ import { LoadingComponent } from '../shared/loading/loading.component';
     MatCardModule,
     MatProgressSpinnerModule,
     MatMenuModule,
+    MatChipsModule,
+    MatTooltipModule,
     LoadingComponent
   ]
 })
@@ -43,6 +47,7 @@ export class ClientsComponent implements OnInit {
   filteredClients: Client[] = [];
   searchTerm = '';
   error: string | null = null;
+  filterSegment: 'all' | 'withEmail' | 'withoutEmail' = 'all';
 
   constructor(
     private clientService: ClientService,
@@ -130,17 +135,33 @@ export class ClientsComponent implements OnInit {
   }
 
   filterClients() {
-    if (!this.searchTerm.trim()) {
-      this.filteredClients = [...this.clients];
-      return;
+    const term = this.searchTerm.toLowerCase().trim();
+    let list = [...this.clients];
+
+    // Segment filter
+    if (this.filterSegment === 'withEmail') {
+      list = list.filter(c => !!c.email);
+    } else if (this.filterSegment === 'withoutEmail') {
+      list = list.filter(c => !c.email);
     }
 
-    const term = this.searchTerm.toLowerCase().trim();
-    this.filteredClients = this.clients.filter(client => 
-      client.name.toLowerCase().includes(term) ||
-      (client.email && client.email.toLowerCase().includes(term)) ||
-      (client.phone && client.phone.toLowerCase().includes(term))
-    );
+    // Text search
+    if (term) {
+      list = list.filter(client => 
+        client.name.toLowerCase().includes(term) ||
+        (client.email && client.email.toLowerCase().includes(term)) ||
+        (client.phone && client.phone.toLowerCase().includes(term))
+      );
+    }
+
+    this.filteredClients = list;
+  }
+
+  setSegment(seg: 'all' | 'withEmail' | 'withoutEmail') {
+    if (this.filterSegment !== seg) {
+      this.filterSegment = seg;
+      this.filterClients();
+    }
   }
 
   openClientDialog(client?: Client) {

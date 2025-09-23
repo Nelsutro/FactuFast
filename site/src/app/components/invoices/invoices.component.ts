@@ -22,6 +22,7 @@ import { MatGridListModule } from '@angular/material/grid-list';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialogModule } from '@angular/material/dialog';
+import { LoadingComponent } from '../shared/loading/loading.component';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
 import { Invoice, User } from '../../models';
@@ -51,7 +52,8 @@ import { environment } from '../../../environments/environment';
     MatGridListModule,
     MatMenuModule,
     MatDividerModule,
-    MatDialogModule
+    MatDialogModule,
+    LoadingComponent
   ]
 })
 export class InvoicesComponent implements OnInit, AfterViewInit {
@@ -110,12 +112,14 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
     this.loadUserData();
     this.loadInvoices();
 
-    // Configurar la función de filtrado
+    // Configurar la función de filtrado (no usada tras unificar filtros, pero dejamos por compatibilidad)
     this.dataSource.filterPredicate = (data: Invoice, filter: string): boolean => {
       const searchStr = filter.toLowerCase();
-      return data.invoice_number.toLowerCase().includes(searchStr) ||
-             (data.client?.name?.toLowerCase().includes(searchStr) || false) ||
-             (data.client?.email?.toLowerCase().includes(searchStr) || false);
+      return (
+        data.invoice_number.toLowerCase().includes(searchStr) ||
+        (data.client?.name?.toLowerCase().includes(searchStr) || false) ||
+        (data.client?.email?.toLowerCase().includes(searchStr) || false)
+      );
     };
   }
 
@@ -165,7 +169,7 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
               items: invoice.items || []
             }));
             this.dataSource.data = this.originalData;
-            this.calculateStats();
+            this.applyAllFilters();
             console.log('Facturas cargadas exitosamente:', this.originalData.length);
           } else {
             console.log('Respuesta sin datos válidos:', response);
@@ -206,30 +210,40 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
   }
 
   applyFilter(event: Event) {
-    const filterValue = (event.target as HTMLInputElement).value;
-    this.dataSource.filter = filterValue.trim().toLowerCase();
-
-    if (this.dataSource.paginator) {
-      this.dataSource.paginator.firstPage();
-    }
+    const filterValue = (event.target as HTMLInputElement).value || '';
+    this.searchTerm = filterValue;
+    this.applyAllFilters();
   }
 
   applyStatusFilter(status: string) {
-    this.statusFilter = status;
-    this.dataSource.data = this.filteredData;
+    this.statusFilter = status || '';
+    this.applyAllFilters();
   }
 
   applyDateFilter(range: string) {
-    this.dateRange = range;
-    this.dataSource.data = this.filteredData;
+    this.dateRange = range || '';
+    this.applyAllFilters();
   }
 
   private get filteredData(): Invoice[] {
+    const term = this.searchTerm.trim().toLowerCase();
     return this.originalData.filter(invoice => {
       const matchesStatus = !this.statusFilter || invoice.status === this.statusFilter;
       const matchesDate = !this.dateRange || this.isInDateRange(invoice.issue_date, this.dateRange);
-      return matchesStatus && matchesDate;
+      const matchesText = !term ||
+        invoice.invoice_number.toLowerCase().includes(term) ||
+        (invoice.client?.name?.toLowerCase().includes(term) || false) ||
+        (invoice.client?.email?.toLowerCase().includes(term) || false);
+      return matchesStatus && matchesDate && matchesText;
     });
+  }
+
+  private applyAllFilters() {
+    this.dataSource.data = this.filteredData;
+    this.calculateStats();
+    if (this.dataSource.paginator) {
+      this.dataSource.paginator.firstPage();
+    }
   }
 
   private isInDateRange(date: Date | string, range: string): boolean {

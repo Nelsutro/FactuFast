@@ -1,5 +1,7 @@
 .quotes-container {
   padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .quotes-grid {
@@ -118,4 +120,60 @@ mat-card-actions {
 
 .delete-action {
   color: #dc2626;
+}
+
+/* Filtros y acciones, consistente con otras vistas */
+.filters-container {
+  display: grid;
+  grid-template-columns: 1fr 200px 200px;
+  gap: 16px;
+  align-items: end;
+  margin: 16px 0 8px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  color: rgba(0,0,0,0.6);
+}
+
+.empty-state mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+  color: rgba(0,0,0,0.38);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  margin: 8px 0 16px;
+}
+
+@media (max-width: 1024px) {
+  .filters-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .filters-container {
+    grid-template-columns: 1fr;
+  }
 }

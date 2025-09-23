@@ -1,15 +1,18 @@
-<mat-toolbar class="header-toolbar">
+<mat-toolbar class="header-toolbar" role="banner" aria-label="Barra superior">
   <div class="header-content">
     <!-- Botón de menú -->
-    <button mat-icon-button class="menu-button" (click)="toggleSidebar()">
-      <mat-icon>menu</mat-icon>
+    <button mat-icon-button class="menu-button" (click)="toggleSidebar()" aria-label="Abrir menú lateral" matTooltip="Menú">
+      <mat-icon aria-hidden="true">menu</mat-icon>
     </button>
 
     <!-- Logo y título -->
-    <div class="brand">
-      <mat-icon class="brand-icon">receipt</mat-icon>
+    <div class="brand" (click)="goHome()" role="button" tabindex="0" aria-label="Ir al inicio">
+      <mat-icon class="brand-icon" aria-hidden="true">receipt</mat-icon>
       <span class="brand-name">FactuFast</span>
     </div>
+
+    <!-- Título dinámico -->
+    <div class="page-title hide-mobile" *ngIf="pageTitle">{{ pageTitle }}</div>
 
     <!-- Buscador Desktop -->
     <mat-form-field appearance="outline" class="search-field hide-mobile" *ngIf="!showMobileSearch">
@@ -22,8 +25,8 @@
     </mat-form-field>
 
     <!-- Icono para abrir buscador en mobile -->
-    <button mat-icon-button class="show-mobile-search-btn show-mobile" (click)="toggleMobileSearch()" *ngIf="!showMobileSearch">
-      <mat-icon>search</mat-icon>
+    <button mat-icon-button class="show-mobile-search-btn show-mobile" (click)="toggleMobileSearch()" *ngIf="!showMobileSearch" aria-label="Buscar" matTooltip="Buscar">
+      <mat-icon aria-hidden="true">search</mat-icon>
     </button>
     <div class="mobile-search-container show-mobile" *ngIf="showMobileSearch">
       <mat-form-field appearance="outline" class="mobile-search-field">
@@ -41,20 +44,20 @@
     <span class="spacer"></span>
 
     <!-- Acciones rápidas -->
-    <button mat-icon-button [matMenuTriggerFor]="quickCreateMenu" class="quick-create-button" #quickCreateMenuTrigger="matMenuTrigger" [disabled]="isQuickCreating">
-      <mat-icon>add_circle</mat-icon>
+    <button mat-icon-button [matMenuTriggerFor]="quickCreateMenu" class="quick-create-button" #quickCreateMenuTrigger="matMenuTrigger" [disabled]="isQuickCreating" aria-label="Crear" matTooltip="Crear">
+      <mat-icon aria-hidden="true">add_circle</mat-icon>
     </button>
 
     <!-- Notificaciones -->
-    <button mat-icon-button class="notification-button" [matMenuTriggerFor]="notificationMenu">
-      <mat-icon [matBadge]="notificationCount" matBadgeColor="warn" matBadgeSize="small">
+    <button mat-icon-button class="notification-button" [matMenuTriggerFor]="notificationMenu" #notificationMenuTrigger="matMenuTrigger" aria-label="Notificaciones" matTooltip="Notificaciones">
+      <mat-icon [matBadge]="notificationCount" matBadgeColor="warn" matBadgeSize="small" aria-hidden="true">
         notifications
       </mat-icon>
     </button>
 
     <!-- Menú de usuario o login -->
     <ng-container *ngIf="isAuthenticated; else loginButton">
-      <button mat-button [matMenuTriggerFor]="userMenu" class="user-button">
+      <button mat-button [matMenuTriggerFor]="userMenu" class="user-button" #userMenuTrigger="matMenuTrigger" aria-label="Menú de usuario" matTooltip="Cuenta">
         <div class="user-info">
           <img [src]="userAvatar"
                [alt]="userName || 'Usuario'"
@@ -64,7 +67,7 @@
             <div class="user-name">{{ userName }}</div>
             <div class="user-role" *ngIf="userRole">{{ getRoleLabel(userRole) }}</div>
           </div>
-          <mat-icon class="dropdown-icon">expand_more</mat-icon>
+          <mat-icon class="dropdown-icon" aria-hidden="true">expand_more</mat-icon>
         </div>
       </button>
     </ng-container>
@@ -78,15 +81,15 @@
 </mat-toolbar>
 
 <!-- Menú de notificaciones -->
-<mat-menu #notificationMenu="matMenu" class="notification-menu">
+<mat-menu #notificationMenu="matMenu" class="notification-menu" xPosition="before" yPosition="below">
   <div class="notification-header">
     <h3>Notificaciones</h3>
     <div class="notification-actions" *ngIf="notifications.length > 0">
       <button mat-icon-button matTooltip="Marcar todas como leídas" (click)="markAllNotificationsAsRead()">
-        <mat-icon>done_all</mat-icon>
+  <mat-icon aria-hidden="true">done_all</mat-icon>
       </button>
       <button mat-icon-button matTooltip="Limpiar" (click)="clearAllNotifications()">
-        <mat-icon>delete_sweep</mat-icon>
+  <mat-icon aria-hidden="true">delete_sweep</mat-icon>
       </button>
     </div>
   </div>
@@ -99,7 +102,7 @@
          (click)="handleNotificationClick(notification)">
       
       <div class="notification-icon">
-        <mat-icon [style.color]="getNotificationColor(notification.type)">
+        <mat-icon [style.color]="getNotificationColor(notification.type)" aria-hidden="true">
           {{ getNotificationIcon(notification.type) }}
         </mat-icon>
       </div>
@@ -113,14 +116,14 @@
       <button mat-icon-button 
               (click)="dismissNotification(notification, $event)"
               class="notification-dismiss">
-        <mat-icon>close</mat-icon>
+        <mat-icon aria-hidden="true">close</mat-icon>
       </button>
     </div>
   </div>
 
   <ng-template #noNotifications>
     <div class="no-notifications">
-      <mat-icon class="no-notifications-icon">notifications_none</mat-icon>
+  <mat-icon class="no-notifications-icon" aria-hidden="true">notifications_none</mat-icon>
       <p>No hay notificaciones nuevas</p>
     </div>
   </ng-template>
@@ -137,26 +140,26 @@
 </mat-menu>
 
 <!-- Menú de creación rápida -->
-<mat-menu #quickCreateMenu="matMenu" class="quick-create-menu">
+<mat-menu #quickCreateMenu="matMenu" class="quick-create-menu" xPosition="before" yPosition="below">
   <button mat-menu-item (click)="quickCreate('invoice')">
-    <mat-icon color="primary">receipt_long</mat-icon>
+  <mat-icon color="primary" aria-hidden="true">receipt_long</mat-icon>
     <span>Nueva Factura</span>
   </button>
   <button mat-menu-item (click)="quickCreate('client')">
-    <mat-icon color="accent">person_add</mat-icon>
+  <mat-icon color="accent" aria-hidden="true">person_add</mat-icon>
     <span>Nuevo Cliente</span>
   </button>
   <button mat-menu-item (click)="quickCreate('quote')">
-    <mat-icon color="warn">format_quote</mat-icon>
+  <mat-icon color="warn" aria-hidden="true">format_quote</mat-icon>
     <span>Nueva Cotización</span>
   </button>
 </mat-menu>
 
 <!-- Menú de usuario -->
-<mat-menu #userMenu="matMenu" class="user-menu">
+<mat-menu #userMenu="matMenu" class="user-menu" xPosition="before" yPosition="below">
   <!-- Header -->
   <div class="user-menu-header" (click)="$event.stopPropagation()">
-    <img [src]="userAvatar" [alt]="userName" class="user-menu-avatar">
+  <img [src]="userAvatar" [alt]="userName || 'Usuario'" class="user-menu-avatar">
     <div class="user-menu-info">
       <div class="user-menu-name">{{ userName }}</div>
       <div class="user-menu-email">{{ userEmail }}</div>
@@ -171,32 +174,32 @@
   <mat-divider></mat-divider>
 
   <!-- Items -->
-  <button mat-menu-item (click)="goToProfile()" class="menu-item">
-    <mat-icon>person</mat-icon>
+  <button mat-menu-item (click)="goToProfile()" class="menu-item" aria-label="Ir a mi perfil">
+    <mat-icon aria-hidden="true">person</mat-icon>
     <span>Mi Perfil</span>
   </button>
 
-  <button mat-menu-item (click)="goToSettings()" class="menu-item">
-    <mat-icon>settings</mat-icon>
+  <button mat-menu-item (click)="goToSettings()" class="menu-item" aria-label="Abrir configuración">
+    <mat-icon aria-hidden="true">settings</mat-icon>
     <span>Configuración</span>
   </button>
 
-  <button mat-menu-item (click)="toggleTheme()" class="menu-item">
-    <mat-icon>{{ isDarkTheme ? 'light_mode' : 'dark_mode' }}</mat-icon>
+  <button mat-menu-item (click)="toggleTheme()" class="menu-item" aria-label="Cambiar tema">
+    <mat-icon aria-hidden="true">{{ isDarkTheme ? 'light_mode' : 'dark_mode' }}</mat-icon>
     <span>{{ isDarkTheme ? 'Modo Claro' : 'Modo Oscuro' }}</span>
   </button>
 
   <mat-divider></mat-divider>
 
-  <button mat-menu-item (click)="viewHelp()" class="menu-item">
-    <mat-icon>help</mat-icon>
+  <button mat-menu-item (click)="viewHelp()" class="menu-item" aria-label="Ayuda y soporte">
+    <mat-icon aria-hidden="true">help</mat-icon>
     <span>Ayuda y Soporte</span>
   </button>
 
-  <button mat-menu-item (click)="viewUpdates()" class="menu-item">
+  <button mat-menu-item (click)="viewUpdates()" class="menu-item" aria-label="Ver novedades y actualizaciones">
     <mat-icon [matBadge]="updateCount > 0 ? updateCount : null" 
               matBadgeColor="accent" 
-              matBadgeSize="small">
+              matBadgeSize="small" aria-hidden="true">
       system_update
     </mat-icon>
     <span>Novedades</span>
@@ -204,8 +207,8 @@
 
   <mat-divider></mat-divider>
 
-  <button mat-menu-item (click)="confirmLogout()" class="menu-item logout-item">
-    <mat-icon>logout</mat-icon>
+  <button mat-menu-item (click)="confirmLogout()" class="menu-item logout-item" aria-label="Cerrar sesión">
+    <mat-icon aria-hidden="true">logout</mat-icon>
     <span>Cerrar Sesión</span>
   </button>
 </mat-menu>

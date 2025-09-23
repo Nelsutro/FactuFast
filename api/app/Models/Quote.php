@@ -13,16 +13,14 @@ class Quote extends Model
         'company_id',
         'client_id',
         'quote_number',
-        'quote_date',
-        'expiry_date',
+        'valid_until',
         'amount',
         'status',
         'notes'
     ];
 
     protected $casts = [
-        'quote_date' => 'date',
-        'expiry_date' => 'date',
+        'valid_until' => 'date',
         'amount' => 'decimal:2'
     ];
 
@@ -71,13 +69,13 @@ class Quote extends Model
     public function scopeExpired($query)
     {
         return $query->where('status', '!=', 'accepted')
-                    ->where('expiry_date', '<', now());
+                    ->where('valid_until', '<', now());
     }
 
     // Accessors
     public function getIsExpiredAttribute()
     {
-        return $this->status !== 'accepted' && $this->expiry_date < now();
+        return $this->status !== 'accepted' && $this->valid_until < now();
     }
 
     public function getIsAcceptedAttribute()

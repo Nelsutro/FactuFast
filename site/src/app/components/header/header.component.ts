@@ -1,5 +1,5 @@
 import { Component, OnInit, Output, EventEmitter, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatMenuTrigger, MatMenuModule } from '@angular/material/menu';
@@ -11,6 +11,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 import { formatDistance } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -36,12 +37,13 @@ type Notification = AppNotification;
     MatInputModule,
     MatDividerModule,
     MatChipsModule,
-    MatDialogModule
+    MatDialogModule,
+    MatTooltipModule
   ]
 })
 export class HeaderComponent implements OnInit {
   @Output() toggleSidenav = new EventEmitter<void>();
-  @ViewChild('notificationMenu') notificationsTrigger!: MatMenuTrigger;
+  @ViewChild('notificationMenuTrigger') notificationMenuTrigger!: MatMenuTrigger;
   @ViewChild('userMenuTrigger') userMenuTrigger!: MatMenuTrigger;
   @ViewChild('quickCreateMenuTrigger') quickCreateMenuTrigger!: MatMenuTrigger;
   
@@ -60,12 +62,33 @@ export class HeaderComponent implements OnInit {
   searchTerm: string = '';
   updateCount: number = 0;
   showMobileSearch: boolean = false;
+  pageTitle: string = '';
 
   // Quick actions
   isQuickCreating: boolean = false;
 
   // Notifications
   notifications: Notification[] = [];
+
+  private routeTitleMap: { [key: string]: string } = {
+    '': 'Dashboard',
+    'dashboard': 'Dashboard',
+    'home': 'Dashboard',
+    'clientes': 'Clientes',
+    'clients': 'Clientes',
+    'invoices': 'Facturas',
+    'facturas': 'Facturas',
+    'payments': 'Pagos',
+    'pagos': 'Pagos',
+    'quotes': 'Cotizaciones',
+    'cotizaciones': 'Cotizaciones',
+    'settings': 'Configuración',
+    'configuracion': 'Configuración',
+    'perfil': 'Perfil',
+    'notificaciones': 'Notificaciones',
+    'novedades': 'Novedades',
+    'ayuda': 'Ayuda'
+  };
 
   constructor(
     private router: Router,
@@ -81,6 +104,12 @@ export class HeaderComponent implements OnInit {
     this.loadUserInfo();
     this.checkForUpdates();
     this.observeNotifications();
+    this.setPageTitle(this.router.url);
+    this.router.events.subscribe(evt => {
+      if (evt instanceof NavigationEnd) {
+        this.setPageTitle(evt.urlAfterRedirects || evt.url);
+      }
+    });
   }
 
   private observeNotifications(): void {
@@ -112,6 +141,21 @@ export class HeaderComponent implements OnInit {
     localStorage.setItem('theme', this.isDarkTheme ? 'dark' : 'light');
     this.applyTheme();
     this.showMessage(`Cambiado a modo ${this.isDarkTheme ? 'oscuro' : 'claro'}`);
+  }
+
+  private setPageTitle(url: string): void {
+    try {
+      const clean = (url || '').split('#')[0].split('?')[0];
+      const segment = clean.split('/').filter(Boolean)[0] ?? '';
+      this.pageTitle = this.routeTitleMap[segment] ?? this.toTitle(segment);
+    } catch {
+      this.pageTitle = '';
+    }
+  }
+
+  private toTitle(slug: string): string {
+    if (!slug) return '';
+    return slug.charAt(0).toUpperCase() + slug.slice(1);
   }
 
   // Search Management
@@ -151,6 +195,10 @@ export class HeaderComponent implements OnInit {
   // Navigation
   toggleSidebar(): void {
     this.toggleSidenav.emit();
+  }
+
+  goHome(): void {
+    this.router.navigate(['/']);
   }
 
   goToProfile(): void {
@@ -213,7 +261,7 @@ export class HeaderComponent implements OnInit {
     if (notification.actionRoute) {
       this.router.navigate([notification.actionRoute]);
     }
-    this.notificationsTrigger.closeMenu();
+    this.notificationMenuTrigger?.closeMenu();
   }
 
   markAllNotificationsAsRead(): void {

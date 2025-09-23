@@ -19,9 +19,6 @@ import { MatListModule } from '@angular/material/list';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { InvoiceCreateComponent } from '../invoices/invoice-create.component';
-import { QuoteCreateComponent } from '../quotes/quote-create.component';
-import { ClientCreateComponent } from '../clients/client-create.component';
 import { LoadingComponent } from '../shared/loading/loading.component';
 
 Chart.register(...registerables);
@@ -44,9 +41,6 @@ Chart.register(...registerables);
     MatProgressSpinnerModule,
     MatSnackBarModule,
     MatDialogModule,
-    InvoiceCreateComponent,
-    QuoteCreateComponent,
-    ClientCreateComponent,
     LoadingComponent
   ]
 })
@@ -309,7 +303,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   // Navigation methods
-  createInvoice() {
+  async createInvoice() {
+    const { InvoiceCreateComponent } = await import('../invoices/invoice-create.component');
     const ref = this.dialog.open(InvoiceCreateComponent, {
       width: '800px',
       disableClose: true
@@ -322,7 +317,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  createQuote() {
+  async createQuote() {
+    const { QuoteCreateComponent } = await import('../quotes/quote-create.component');
     const ref = this.dialog.open(QuoteCreateComponent, {
       width: '800px',
       disableClose: true
@@ -335,7 +331,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  createClient() {
+  async createClient() {
+    const { ClientCreateComponent } = await import('../clients/client-create.component');
     const ref = this.dialog.open(ClientCreateComponent, {
       width: '600px',
       disableClose: true

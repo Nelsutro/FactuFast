@@ -44,10 +44,10 @@ class RunAutomation extends Command
             $this->info("Facturas marcadas como vencidas: {$updatedInvoices}");
         }
 
-        // 2) Cotizaciones expiradas: draft|sent -> expired cuando expiry_date < hoy
+        // 2) Cotizaciones expiradas: draft|sent -> expired cuando valid_until < hoy
         $quotesQuery = Quote::query()
             ->whereIn('status', ['draft', 'sent'])
-            ->whereDate('expiry_date', '<', $today);
+            ->whereDate('valid_until', '<', $today);
 
         $quotesCount = (clone $quotesQuery)->count();
         if ($dryRun) {

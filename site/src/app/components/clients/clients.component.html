@@ -1,30 +1,40 @@
 <div class="clients-container">
   <div class="page-header">
     <h1>Clientes</h1>
-    <div class="header-actions">
-      <button mat-stroked-button color="primary" (click)="exportCsv()">
-        <mat-icon>download</mat-icon>
+    <div class="header-actions button-row">
+      <button mat-stroked-button color="primary" (click)="exportCsv()" aria-label="Exportar clientes en CSV" matTooltip="Exportar CSV">
+        <mat-icon aria-hidden="true">download</mat-icon>
         Exportar CSV
       </button>
-      <button mat-stroked-button color="primary" (click)="triggerImport()">
-        <mat-icon>upload</mat-icon>
+      <button mat-stroked-button color="primary" (click)="triggerImport()" aria-label="Importar clientes desde CSV" matTooltip="Importar CSV">
+        <mat-icon aria-hidden="true">upload</mat-icon>
         Importar CSV
       </button>
-      <button mat-raised-button color="primary" (click)="openClientDialog()" class="add-button">
-        <mat-icon>add</mat-icon>
+      <button mat-raised-button color="primary" (click)="openClientDialog()" class="add-button" aria-label="Crear nuevo cliente">
+        <mat-icon aria-hidden="true">add</mat-icon>
         Nuevo Cliente
       </button>
-      <input type="file" #fileInput accept=".csv" (change)="onFileSelected($event)" hidden />
+      <input id="clientsCsvInput" type="file" #fileInput accept=".csv" (change)="onFileSelected($event)" hidden />
     </div>
   </div>
 
   <!-- Filtros y búsqueda -->
   <div class="filters-container">
-    <mat-form-field appearance="outline">
-      <mat-label>Buscar cliente</mat-label>
-      <input matInput [(ngModel)]="searchTerm" (input)="filterClients()" placeholder="Nombre, email o teléfono">
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
+    <div class="filters-row">
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>Buscar cliente</mat-label>
+        <input matInput [(ngModel)]="searchTerm" (input)="filterClients()" placeholder="Nombre, email o teléfono" aria-label="Buscar cliente">
+        <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+      </mat-form-field>
+
+      <div class="segmented-filters">
+        <mat-chip-listbox aria-label="Segmentación" class="segment-chips">
+          <mat-chip-option [selected]="filterSegment==='all'" (click)="setSegment('all')">Todos</mat-chip-option>
+          <mat-chip-option [selected]="filterSegment==='withEmail'" (click)="setSegment('withEmail')">Con email</mat-chip-option>
+          <mat-chip-option [selected]="filterSegment==='withoutEmail'" (click)="setSegment('withoutEmail')">Sin email</mat-chip-option>
+        </mat-chip-listbox>
+      </div>
+    </div>
   </div>
 
   <!-- Loading -->
@@ -41,8 +51,8 @@
         <mat-card-subtitle>{{ client.email }}</mat-card-subtitle>
         
         <!-- Menú de acciones -->
-        <button mat-icon-button [matMenuTriggerFor]="menu" class="action-menu">
-          <mat-icon>more_vert</mat-icon>
+        <button mat-icon-button [matMenuTriggerFor]="menu" class="action-menu" aria-label="Más acciones" matTooltip="Más acciones">
+          <mat-icon aria-hidden="true">more_vert</mat-icon>
         </button>
         <mat-menu #menu="matMenu">
           <button mat-menu-item (click)="openClientDialog(client)">
@@ -78,12 +88,12 @@
       </mat-card-content>
 
       <mat-card-actions>
-        <button mat-button color="primary" (click)="openClientDialog(client)">
-          <mat-icon>edit</mat-icon>
+        <button mat-button color="primary" (click)="openClientDialog(client)" aria-label="Editar cliente">
+          <mat-icon aria-hidden="true">edit</mat-icon>
           Editar
         </button>
-        <button mat-button color="accent" (click)="viewClientInvoices(client)">
-          <mat-icon>receipt</mat-icon>
+        <button mat-button color="accent" (click)="viewClientInvoices(client)" aria-label="Ver facturas del cliente">
+          <mat-icon aria-hidden="true">receipt</mat-icon>
           Facturas
         </button>
       </mat-card-actions>

@@ -7,11 +7,11 @@
     </mat-card-header>
     
     <mat-card-actions align="end">
-      <button mat-stroked-button color="primary" (click)="reconcilePayments()">
+      <button mat-stroked-button color="primary" (click)="reconcilePayments()" aria-label="Conciliar pagos" matTooltip="Conciliar">
         <mat-icon>sync</mat-icon>
         Conciliar
       </button>
-      <button mat-raised-button color="primary" (click)="recordPayment()">
+      <button mat-raised-button color="primary" (click)="recordPayment()" aria-label="Registrar pago" matTooltip="Registrar Pago">
         <mat-icon>add</mat-icon>
         Registrar Pago
       </button>
@@ -92,10 +92,11 @@
         <!-- Search -->
         <mat-form-field appearance="outline" class="search-field">
           <mat-label>Buscar</mat-label>
-          <input matInput
+     <input matInput
                  [(ngModel)]="searchTerm"
                  (keyup)="applyFilter($event)"
-                 placeholder="Factura, cliente, método...">
+       placeholder="Factura, cliente, método..."
+       aria-label="Buscar pagos">
           <mat-icon matPrefix>search</mat-icon>
         </mat-form-field>
 
@@ -229,7 +230,7 @@
       <ng-container matColumnDef="actions">
         <th mat-header-cell *matHeaderCellDef class="actions-header">Acciones</th>
         <td mat-cell *matCellDef="let payment" class="actions-cell">
-          <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Acciones">
+          <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Abrir menú de acciones" matTooltip="Más acciones">
             <mat-icon>more_vert</mat-icon>
           </button>
           <mat-menu #menu="matMenu">
