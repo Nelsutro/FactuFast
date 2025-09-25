@@ -154,26 +154,28 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
       // Usar las rutas reales con autenticación
       this.apiService.getInvoices().subscribe({
         next: (response) => {
-          console.log('Respuesta de la API:', response);
-          if (response.success && response.data) {
-            console.log('Número de facturas recibidas:', response.data.length);
-            this.originalData = response.data.map((invoice: any) => ({
-              id: invoice.id,
-              invoice_number: invoice.invoice_number,
-              client: { name: invoice.client?.name || 'Cliente desconocido' },
-              amount: parseFloat(invoice.amount),
-              status: invoice.status,
-              issue_date: invoice.issue_date,
-              due_date: invoice.due_date,
-              notes: invoice.notes,
-              items: invoice.items || []
-            }));
-            this.dataSource.data = this.originalData;
-            this.applyAllFilters();
-            console.log('Facturas cargadas exitosamente:', this.originalData.length);
-          } else {
-            console.log('Respuesta sin datos válidos:', response);
-          }
+          console.log('Respuesta de la API (paginada):', response);
+          const rows = response.data || [];
+          console.log('Número de facturas recibidas:', rows.length);
+          this.originalData = rows.map((invoice: any) => ({
+            id: invoice.id,
+            company_id: invoice.company_id ?? invoice.company?.id ?? 0,
+            client_id: invoice.client_id ?? invoice.client?.id ?? 0,
+            invoice_number: invoice.invoice_number,
+            amount: parseFloat(invoice.amount ?? invoice.total ?? 0),
+            status: invoice.status,
+            issue_date: invoice.issue_date,
+            due_date: invoice.due_date,
+            notes: invoice.notes,
+            created_at: invoice.created_at ?? new Date(),
+            updated_at: invoice.updated_at ?? new Date(),
+            client: invoice.client ? { ...invoice.client } : { name: invoice.client?.name || 'Cliente desconocido' }
+          }));
+          this.dataSource.data = this.originalData;
+          // Actualizar info de paginación local si deseas usarla luego
+          this.totalPages = response.pagination?.last_page || 1;
+          this.applyAllFilters();
+          console.log('Facturas cargadas exitosamente:', this.originalData.length);
           this.loading = false;
         },
         error: (error) => {

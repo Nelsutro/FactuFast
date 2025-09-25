@@ -30,6 +30,11 @@ return [
 
     'slack' => [
         'notifications' => [
+    
+    'payment_webhooks' => [
+        // Clave usada para validar firma HMAC de webhooks entrantes
+        'secret' => env('PAYMENT_WEBHOOK_SECRET'),
+    ],
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],

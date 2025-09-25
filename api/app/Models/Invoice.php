@@ -68,7 +68,8 @@ class Invoice extends Model
     public function getRemainingAmountAttribute()
     {
         $paidAmount = $this->payments()->where('status', 'completed')->sum('amount');
-        return $this->total - $paidAmount;
+        // La tabla no posee columna 'total'; usamos 'amount' como monto total de la factura
+        return (float) $this->amount - (float) $paidAmount;
     }
 
     public function getIsPaidAttribute()

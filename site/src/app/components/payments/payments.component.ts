@@ -115,45 +115,46 @@ export class PaymentsComponent implements OnInit {
       // Usar las rutas reales con autenticación
       this.apiService.getPayments().subscribe({
         next: (response) => {
-          console.log('Respuesta de pagos API:', response);
-          if (response.success && response.data) {
-            this.payments = response.data.map((payment: any) => ({
-              id: payment.id,
-              invoice_id: payment.invoice_id,
-              amount: parseFloat(payment.amount),
-              payment_date: new Date(payment.payment_date),
-              method: payment.payment_method || 'other',
-              status: payment.status,
-              created_at: new Date(payment.created_at),
-              updated_at: new Date(payment.updated_at),
-              invoice: {
-                invoice_number: payment.invoice?.invoice_number || 'N/A',
-                client: { 
-                  name: payment.invoice?.client?.name || 'Cliente desconocido' 
-                }
+          console.log('Respuesta de pagos API (paginada):', response);
+          const rows = response.data || [];
+          this.payments = rows.map((payment: any) => ({
+            id: payment.id,
+            invoice_id: payment.invoice_id,
+            amount: parseFloat(payment.amount ?? 0),
+            payment_date: new Date(payment.payment_date),
+            method: payment.payment_method || payment.method || 'other',
+            status: payment.status,
+            created_at: new Date(payment.created_at ?? Date.now()),
+            updated_at: new Date(payment.updated_at ?? Date.now()),
+            invoice: {
+              invoice_number: payment.invoice?.invoice_number || 'N/A',
+              amount: payment.invoice?.amount,
+              client: {
+                name: payment.invoice?.client?.name || 'Cliente desconocido',
+                email: payment.invoice?.client?.email
               }
-            }));
-            
-            this.calculateStats();
-            this.filteredPayments = [...this.payments];
-            this.dataSource = new MatTableDataSource(this.filteredPayments);
-            
-            setTimeout(() => {
-              if (this.paginator) {
-                this.dataSource.paginator = this.paginator;
-              }
-              if (this.sort) {
-                this.dataSource.sort = this.sort;
-              }
-            });
+            } as any
+          }));
 
-            this.dataSource.filterPredicate = (data: Payment, filter: string) => {
-              const term = filter.toLowerCase();
-              return data.invoice?.invoice_number?.toLowerCase().includes(term) ||
-                     data.invoice?.client?.name?.toLowerCase().includes(term) ||
-                     data.method?.toLowerCase().includes(term);
-            };
-          }
+          this.calculateStats();
+          this.filteredPayments = [...this.payments];
+          this.dataSource = new MatTableDataSource(this.filteredPayments);
+
+          setTimeout(() => {
+            if (this.paginator) {
+              this.dataSource.paginator = this.paginator;
+            }
+            if (this.sort) {
+              this.dataSource.sort = this.sort;
+            }
+          });
+
+          this.dataSource.filterPredicate = (data: Payment, filter: string) => {
+            const term = filter.toLowerCase();
+            return data.invoice?.invoice_number?.toLowerCase().includes(term) ||
+                   data.invoice?.client?.name?.toLowerCase().includes(term) ||
+                   data.method?.toLowerCase().includes(term);
+          };
           this.loading = false;
         },
         error: (error) => {

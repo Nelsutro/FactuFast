@@ -43,26 +43,60 @@ class InvoiceController extends Controller
         
         $validated = $request->validate([
             'client_id' => 'required|exists:clients,id',
-            'invoice_number' => 'required|string|unique:invoices',
             'issue_date' => 'required|date',
-            'due_date' => 'required|date|after:issue_date',
-            'subtotal' => 'required|numeric|min:0',
-            'tax_amount' => 'required|numeric|min:0',
-            'total' => 'required|numeric|min:0',
-            'status' => 'required|in:draft,sent,paid,overdue,cancelled',
-            'notes' => 'nullable|string',
-            'payment_terms' => 'nullable|string'
+            'due_date' => 'required|date|after_or_equal:issue_date',
+            'items' => 'required|array|min:1',
+            'items.*.description' => 'required|string',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'status' => 'sometimes|in:draft,pending,paid,overdue,cancelled',
+            'notes' => 'nullable|string'
         ]);
 
-        // Establecer company_id según el usuario
-        if ($user->isClient()) {
-            $validated['company_id'] = $user->company_id;
-        } else {
-            $validated['company_id'] = $request->input('company_id');
+        // Generar número de factura si no viene
+        $invoiceNumber = $request->input('invoice_number');
+        if (!$invoiceNumber) {
+            $invoiceNumber = 'INV-' . now()->format('YmdHis') . '-' . rand(100, 999);
         }
 
-        $invoice = Invoice::create($validated);
-        $invoice->load(['client', 'company']);
+        // Calcular monto total desde items
+        $itemsPayload = collect($request->input('items'));
+        $amount = $itemsPayload->reduce(function($carry, $it) {
+            return $carry + ((float)$it['quantity'] * (float)$it['price']);
+        }, 0.0);
+
+        $data = [
+            'client_id' => $validated['client_id'],
+            'invoice_number' => $invoiceNumber,
+            'issue_date' => $validated['issue_date'],
+            'due_date' => $validated['due_date'],
+            'amount' => $amount,
+            'status' => $request->input('status', 'draft'),
+            'notes' => $request->input('notes')
+        ];
+
+        // company_id según usuario autenticado
+        if ($user->isClient()) {
+            $data['company_id'] = $user->company_id;
+        } else {
+            $data['company_id'] = $request->input('company_id');
+        }
+
+        $invoice = Invoice::create($data);
+
+        // Crear items si existen
+        if ($itemsPayload->count()) {
+            foreach ($itemsPayload as $row) {
+                $invoice->items()->create([
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $row['price'],
+                    'amount' => (float)$row['quantity'] * (float)$row['price']
+                ]);
+            }
+        }
+
+        $invoice->load(['client', 'company', 'items']);
 
         return response()->json([
             'success' => true,
@@ -113,17 +147,37 @@ class InvoiceController extends Controller
             'client_id' => 'sometimes|exists:clients,id',
             'invoice_number' => 'sometimes|string|unique:invoices,invoice_number,' . $invoice->id,
             'issue_date' => 'sometimes|date',
-            'due_date' => 'sometimes|date|after:issue_date',
-            'subtotal' => 'sometimes|numeric|min:0',
-            'tax_amount' => 'sometimes|numeric|min:0',
-            'total' => 'sometimes|numeric|min:0',
-            'status' => 'sometimes|in:draft,sent,paid,overdue,cancelled',
+            'due_date' => 'sometimes|date|after_or_equal:issue_date',
+            'status' => 'sometimes|in:draft,pending,paid,overdue,cancelled',
             'notes' => 'nullable|string',
-            'payment_terms' => 'nullable|string'
+            'items' => 'sometimes|array|min:1',
+            'items.*.description' => 'required_with:items|string',
+            'items.*.quantity' => 'required_with:items|numeric|min:1',
+            'items.*.price' => 'required_with:items|numeric|min:0'
         ]);
 
         $invoice->update($validated);
-        $invoice->load(['client', 'company']);
+
+        // Si se envían items, reemplazar los existentes
+        if ($request->has('items')) {
+            $invoice->items()->delete();
+            $itemsPayload = collect($request->input('items'));
+            $amount = 0;
+            foreach ($itemsPayload as $row) {
+                $lineAmount = (float)$row['quantity'] * (float)$row['price'];
+                $invoice->items()->create([
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $row['price'],
+                    'amount' => $lineAmount
+                ]);
+                $amount += $lineAmount;
+            }
+            $invoice->amount = $amount;
+            $invoice->save();
+        }
+
+        $invoice->load(['client', 'company', 'items']);
 
         return response()->json([
             'success' => true,

@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ClientPortalController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SettingsController;
+use App\Http\Controllers\Api\PublicPaymentLinkController;
+use App\Http\Controllers\Api\PaymentWebhookController;
+use App\Http\Controllers\Api\WebpayReturnController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,7 +35,21 @@ Route::prefix('client-portal')->group(function () {
     Route::get('invoices', [ClientPortalController::class, 'getInvoices']);
     Route::get('invoices/{invoice}', [ClientPortalController::class, 'getInvoice']);
     Route::post('invoices/{invoice}/pay', [ClientPortalController::class, 'payInvoice']);
+    Route::get('payments/{payment}/status', [ClientPortalController::class, 'paymentStatus']);
 });
+
+// Rutas públicas de pago por enlace seguro
+Route::prefix('public/pay')->group(function () {
+    Route::get('{hash}', [PublicPaymentLinkController::class, 'show']);
+    Route::post('{hash}/init', [PublicPaymentLinkController::class, 'initiate']);
+});
+
+// Webhooks de pagos (públicos, añadir verificación futura)
+// Webhooks de pagos (validados por firma HMAC)
+Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'handle']);
+
+// Return URL Webpay (commit)
+Route::match(['GET','POST'],'payments/webpay/return', WebpayReturnController::class);
 
 // Rutas protegidas (requieren autenticación)
 Route::middleware('auth:sanctum')->group(function () {
@@ -59,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('invoices/export', [InvoiceController::class, 'export']);
     Route::post('invoices/import', [InvoiceController::class, 'import']);
     Route::apiResource('invoices', InvoiceController::class);
+    Route::post('invoices/{invoice}/payment-link', [PublicPaymentLinkController::class, 'generate']);
     Route::get('invoices-stats', [InvoiceController::class, 'stats']);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send']);
     Route::post('invoices/{invoice}/mark-paid', [InvoiceController::class, 'markAsPaid']);

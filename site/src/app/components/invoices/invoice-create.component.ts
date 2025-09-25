@@ -31,6 +31,7 @@ import { AuthService } from '../../core/services/auth.service';
 export class InvoiceCreateComponent {
   form: FormGroup;
   loading = false;
+  serverErrors: string[] = []; // nuevos errores backend
 
   constructor(
     private fb: FormBuilder,
@@ -66,6 +67,7 @@ export class InvoiceCreateComponent {
   submit() {
     if (this.loading || this.form.invalid) return;
     this.loading = true;
+    this.serverErrors = [];
     const company = this.auth.getUserCompany();
     const payload = { ...this.form.value, company_id: company?.id ?? company ?? null };
     this.api.createInvoice(payload).subscribe({
@@ -78,7 +80,13 @@ export class InvoiceCreateComponent {
         }
       },
       error: (e) => {
-        this.snack.open(e?.message || 'Error al crear factura', 'Cerrar', { duration: 3000 });
+        if (e?.status === 422 && e?.error?.errors) {
+          const errs = e.error.errors;
+          this.serverErrors = Object.keys(errs).flatMap(k => Array.isArray(errs[k]) ? errs[k] : [errs[k]]);
+          this.snack.open('Hay errores de validación', 'Cerrar', { duration: 3000 });
+        } else {
+          this.snack.open(e?.message || 'Error al crear factura', 'Cerrar', { duration: 3000 });
+        }
         this.loading = false;
       },
       complete: () => this.loading = false

@@ -11,6 +11,18 @@ export interface ApiResponse<T> {
   errors?: any;
 }
 
+export interface PaginatedResponse<T> {
+  success: boolean; // Mantener compatibilidad con componentes que chequean success
+  message?: string;
+  data: T[];
+  pagination: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -100,14 +112,25 @@ export class ApiService {
   }
 
   // Métodos para Facturas
-  getInvoices(params?: any): Observable<any> {
+  getInvoices(params?: any): Observable<PaginatedResponse<any>> {
     let url = `${this.apiUrl}/invoices`;
     if (params) {
       const queryParams = new URLSearchParams(params).toString();
       url += `?${queryParams}`;
     }
-    return this.http.get<ApiResponse<any>>(url, { headers: this.getHeaders() })
+    return this.http.get<any>(url, { headers: this.getHeaders() })
       .pipe(
+        map(response => ({
+          success: response.success !== false,
+            message: response.message,
+            data: response.data ?? [],
+            pagination: response.pagination ?? {
+              current_page: 1,
+              per_page: response.data?.length || 0,
+              total: response.data?.length || 0,
+              last_page: 1
+            }
+        } as PaginatedResponse<any>)),
         catchError(this.handleError)
       );
   }
@@ -290,14 +313,25 @@ export class ApiService {
   }
 
   // Métodos para Pagos
-  getPayments(params?: any): Observable<any> {
+  getPayments(params?: any): Observable<PaginatedResponse<any>> {
     let url = `${this.apiUrl}/payments`;
     if (params) {
       const queryParams = new URLSearchParams(params).toString();
       url += `?${queryParams}`;
     }
-    return this.http.get<ApiResponse<any>>(url, { headers: this.getHeaders() })
+    return this.http.get<any>(url, { headers: this.getHeaders() })
       .pipe(
+        map(response => ({
+          success: response.success !== false,
+          message: response.message,
+          data: response.data ?? [],
+          pagination: response.pagination ?? {
+            current_page: 1,
+            per_page: response.data?.length || 0,
+            total: response.data?.length || 0,
+            last_page: 1
+          }
+        } as PaginatedResponse<any>)),
         catchError(this.handleError)
       );
   }

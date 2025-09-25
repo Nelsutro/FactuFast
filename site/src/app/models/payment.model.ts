@@ -1,4 +1,4 @@
-import { Invoice } from './invoice.model';
+import { Invoice, PartialInvoiceRef } from './invoice.model';
 
 export interface Payment {
   id: number;
@@ -11,5 +11,5 @@ export interface Payment {
   updated_at: Date;
   
   // Relación
-  invoice?: Invoice;
+  invoice?: Invoice | PartialInvoiceRef;
 }

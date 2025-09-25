@@ -44,6 +44,10 @@ export const routes: Routes = [
     ]
   },
   {
+    path: 'public-pay/:hash',
+    loadComponent: () => import('./components/public-pay/public-pay.component').then(m => m.PublicPayComponent)
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [AuthGuard]

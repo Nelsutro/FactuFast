@@ -147,8 +147,52 @@ class ClientSeeder extends Seeder
             ]
         ];
 
-        foreach ($clients as $client) {
-            Client::create($client);
+        foreach ($clients as $data) {
+            // Evitar duplicados: upsert por company_id + email
+            $existing = Client::where('company_id', $data['company_id'])
+                ->where('email', $data['email'])
+                ->first();
+            if ($existing) {
+                $existing->update(collect($data)->except(['company_id','email'])->toArray());
+            } else {
+                Client::create($data);
+            }
         }
+
+        // Generar un token de acceso demo para UN cliente por cada empresa
+        // Esto facilita pruebas del portal de clientes sin tener que solicitar token manualmente.
+        $this->generateDemoAccessTokens();
+    }
+
+    protected function generateDemoAccessTokens(): void
+    {
+        // Agrupar por company_id y tomar el primer cliente de cada empresa
+        $grouped = Client::select('id','company_id','name')->orderBy('company_id')->orderBy('id')->get()->groupBy('company_id');
+
+        $this->command?->line('');
+        $this->command?->info('=== DEMO TOKENS CLIENTES (válidos 7 días) ===');
+
+        foreach ($grouped as $companyId => $clients) {
+            /** @var Client $client */
+            $client = $clients->first();
+            // Solo regenerar si no tiene token o está expirado (evitar rotación accidental en entornos demo persistentes)
+            if (!$client->access_token || !$client->access_token_expires_at || !$client->access_token_expires_at->isFuture()) {
+                $token = $client->generateAccessToken();
+            } else {
+                $token = $client->access_token; // reutilizar
+            }
+            $this->command?->line(sprintf(
+                'Empresa %d -> Cliente "%s" (ID %d) TOKEN: %s (expira %s)',
+                $companyId,
+                $client->name,
+                $client->id,
+                $token,
+                optional($client->access_token_expires_at)->toDateTimeString()
+            ));
+        }
+
+        $this->command?->line('============================================');
+        $this->command?->line('Guarda uno de estos tokens para usarlo en el portal público.');
+        $this->command?->line('');
     }
 }

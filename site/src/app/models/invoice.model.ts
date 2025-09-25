@@ -21,3 +21,13 @@ export interface Invoice {
   client?: Client;
   payments?: Payment[];
 }
+
+// Permite representar una factura mínima embebida en otras respuestas (ej. pagos)
+// Referencia liviana usada en pagos u otros listados donde sólo necesitamos
+// algunos campos. Permitimos un client parcial (solo name, opcionalmente id).
+export interface PartialInvoiceRef {
+  invoice_number: string;
+  id?: number;
+  amount?: number;
+  client?: Partial<Client> & { name?: string };
+}
