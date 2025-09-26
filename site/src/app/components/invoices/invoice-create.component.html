@@ -8,8 +8,11 @@
   <mat-card-content>
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
       <mat-form-field appearance="outline">
-        <mat-label>ID Cliente</mat-label>
-  <input matInput type="number" formControlName="client_id" placeholder="Ej: 1" min="1" />
+        <mat-label>Cliente</mat-label>
+        <input matInput placeholder="Nombre del cliente" formControlName="client_name" list="clientNameList" />
+        <datalist id="clientNameList">
+          <option *ngFor="let c of clients" [value]="c.name"></option>
+        </datalist>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
@@ -42,6 +45,15 @@
           </button>
         </div>
         <button mat-stroked-button type="button" (click)="addItem()"><mat-icon>add</mat-icon> Agregar ítem</button>
+      </div>
+
+      <div *ngIf="serverErrors.length" style="grid-column:1 / -1;">
+        <mat-card color="warn" style="background:#ffebee; padding:12px;">
+          <strong>Errores:</strong>
+          <ul style="margin:4px 0 0 16px;">
+            <li *ngFor="let err of serverErrors">{{err}}</li>
+          </ul>
+        </mat-card>
       </div>
 
       <div class="actions">

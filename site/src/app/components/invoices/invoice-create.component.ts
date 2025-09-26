@@ -1,4 +1,4 @@
-import { Component, Optional } from '@angular/core';
+import { Component, Optional, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -11,6 +11,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ApiService } from '../../services/api.service';
 import { MatDialogRef } from '@angular/material/dialog';
 import { AuthService } from '../../core/services/auth.service';
+
+interface ClientOption { id: number; name: string; email?: string; }
 
 @Component({
   selector: 'app-invoice-create',
@@ -28,10 +30,13 @@ import { AuthService } from '../../core/services/auth.service';
     MatSnackBarModule
   ]
 })
-export class InvoiceCreateComponent {
+
+export class InvoiceCreateComponent implements OnInit {
   form: FormGroup;
   loading = false;
   serverErrors: string[] = []; // nuevos errores backend
+  clients: ClientOption[] = [];
+  filtering = false;
 
   constructor(
     private fb: FormBuilder,
@@ -42,12 +47,28 @@ export class InvoiceCreateComponent {
     @Optional() private dialogRef?: MatDialogRef<InvoiceCreateComponent>
   ) {
     this.form = this.fb.group({
-  client_id: [null, [Validators.required, Validators.min(1)]],
+      client_name: ['', [Validators.required, Validators.minLength(2)]],
       issue_date: [new Date().toISOString().substring(0,10), Validators.required],
       due_date: [new Date().toISOString().substring(0,10), Validators.required],
       items: this.fb.array([
         this.createItem()
       ])
+    });
+  }
+
+  ngOnInit(): void {
+    this.loadClients();
+  }
+
+  loadClients() {
+    // Reutilizamos getClients (devuelve data directa según ApiService actual)
+    this.api.getClients().subscribe({
+      next: (data) => {
+        if (Array.isArray(data)) {
+          this.clients = data.map((c: any) => ({ id: c.id, name: c.name, email: c.email }));
+        }
+      },
+      error: () => {}
     });
   }
 
@@ -69,7 +90,9 @@ export class InvoiceCreateComponent {
     this.loading = true;
     this.serverErrors = [];
     const company = this.auth.getUserCompany();
-    const payload = { ...this.form.value, company_id: company?.id ?? company ?? null };
+    // Enviar client_name; backend hará el lookup. No es necesario company_id (derivado).
+    const { client_name, issue_date, due_date, items } = this.form.value;
+    const payload = { client_name, issue_date, due_date, items };
     this.api.createInvoice(payload).subscribe({
       next: () => {
         this.snack.open('Factura creada', 'Cerrar', { duration: 2500 });

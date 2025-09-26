@@ -99,44 +99,113 @@ class InvoiceController extends Controller
     {
         try {
             $user = Auth::user();
-
             $validated = $request->validate([
-                'client_id' => 'required|exists:clients,id',
-                'invoice_number' => 'required|string|unique:invoices,invoice_number',
-                'amount' => 'required|numeric|min:0',
-                'status' => ['required', Rule::in(['draft', 'pending', 'paid', 'overdue', 'cancelled'])],
+                'client_id' => 'nullable|exists:clients,id',
+                'client_name' => 'nullable|string',
+                'invoice_number' => 'sometimes|string|unique:invoices,invoice_number',
+                'status' => 'sometimes|in:draft,pending,paid,overdue,cancelled',
                 'issue_date' => 'required|date',
                 'due_date' => 'required|date|after_or_equal:issue_date',
                 'notes' => 'nullable|string',
                 'items' => 'required|array|min:1',
                 'items.*.description' => 'required|string',
-                'items.*.quantity' => 'required|numeric|min:0.01',
-                'items.*.unit_price' => 'required|numeric|min:0',
-                'items.*.amount' => 'required|numeric|min:0'
+                'items.*.quantity' => 'required|numeric|min:1',
+                'items.*.price' => 'required|numeric|min:0'
             ]);
 
-            DB::beginTransaction();
+            if (!$request->filled('client_id') && !$request->filled('client_name')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validación: debe indicar cliente',
+                    'errors' => ['client_name' => ['Debe proporcionar client_id o client_name']]
+                ], 422);
+            }
 
-            // Crear la factura
-            $invoice = Invoice::create([
-                'company_id' => $user->company_id,
-                'client_id' => $validated['client_id'],
-                'invoice_number' => $validated['invoice_number'],
-                'amount' => $validated['amount'],
-                'status' => $validated['status'],
+            // Calcular monto desde items (quantity * price)
+            $itemsPayload = collect($request->input('items'));            
+            $computedAmount = $itemsPayload->reduce(function($carry, $row) {
+                return $carry + ((float)$row['quantity'] * (float)$row['price']);
+            }, 0.0);
+
+            // Resolver cliente (id o nombre)
+            $client = null;
+            if ($request->filled('client_id')) {
+                $client = Client::find($request->input('client_id'));
+            } elseif ($request->filled('client_name')) {
+                $clientQuery = Client::query()->where('name', $request->input('client_name'));
+                if ($user->role !== 'admin') {
+                    $clientQuery->where('company_id', $user->company_id);
+                } elseif ($request->filled('company_id')) {
+                    $clientQuery->where('company_id', $request->input('company_id'));
+                }
+                $matches = $clientQuery->get();
+                if ($matches->count() === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validación: cliente no encontrado',
+                        'errors' => ['client_name' => ['No se encontró un cliente con ese nombre']]
+                    ], 422);
+                }
+                if ($matches->count() > 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validación: nombre ambiguo',
+                        'errors' => ['client_name' => ['Nombre de cliente ambiguo, especifique client_id']]
+                    ], 422);
+                }
+                $client = $matches->first();
+            }
+            if (!$client) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validación: cliente no encontrado',
+                    'errors' => ['client_name' => ['Cliente no encontrado']]
+                ], 422);
+            }
+
+            // Verificar pertenencia y asignar company_id
+            $data = [];
+            if ($user->role !== 'admin') {
+                if ($client->company_id !== $user->company_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Permiso denegado',
+                        'errors' => ['client_name' => ['El cliente seleccionado no pertenece a tu empresa']]
+                    ], 403);
+                }
+                $data['company_id'] = $user->company_id;
+            } else {
+                $requestedCompany = $request->input('company_id');
+                $data['company_id'] = $requestedCompany && $requestedCompany == $client->company_id
+                    ? $requestedCompany
+                    : $client->company_id;
+            }
+
+            // Generar número si no viene
+            $invoiceNumber = $request->input('invoice_number');
+            if (!$invoiceNumber) {
+                $invoiceNumber = 'INV-' . now()->format('YmdHis') . '-' . rand(100, 999);
+            }
+
+            DB::beginTransaction();
+            $invoice = Invoice::create(array_merge($data, [
+                'client_id' => $client->id,
+                'invoice_number' => $invoiceNumber,
+                'amount' => $computedAmount,
+                'status' => $request->input('status', 'draft'),
                 'issue_date' => $validated['issue_date'],
                 'due_date' => $validated['due_date'],
                 'notes' => $validated['notes'] ?? null
-            ]);
+            ]));
 
-            // Crear los items de la factura
-            foreach ($validated['items'] as $item) {
+            foreach ($itemsPayload as $row) {
+                $lineAmount = (float)$row['quantity'] * (float)$row['price'];
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
-                    'description' => $item['description'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'amount' => $item['amount']
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $row['price'],
+                    'amount' => $lineAmount
                 ]);
             }
 
@@ -237,39 +306,89 @@ class InvoiceController extends Controller
             $invoice = $query->findOrFail($id);
 
             $validated = $request->validate([
-                'client_id' => 'sometimes|exists:clients,id',
-                'amount' => 'sometimes|numeric|min:0',
-                'status' => ['sometimes', Rule::in(['draft', 'pending', 'paid', 'overdue', 'cancelled'])],
+                'client_id' => 'sometimes|nullable|exists:clients,id',
+                'client_name' => 'sometimes|nullable|string',
+                'invoice_number' => 'sometimes|string|unique:invoices,invoice_number,' . $invoice->id,
+                'status' => 'sometimes|in:draft,pending,paid,overdue,cancelled',
                 'issue_date' => 'sometimes|date',
                 'due_date' => 'sometimes|date|after_or_equal:issue_date',
                 'notes' => 'nullable|string',
                 'items' => 'sometimes|array|min:1',
                 'items.*.description' => 'required_with:items|string',
-                'items.*.quantity' => 'required_with:items|numeric|min:0.01',
-                'items.*.unit_price' => 'required_with:items|numeric|min:0',
-                'items.*.amount' => 'required_with:items|numeric|min:0'
+                'items.*.quantity' => 'required_with:items|numeric|min:1',
+                'items.*.price' => 'required_with:items|numeric|min:0'
             ]);
 
-            DB::beginTransaction();
+            // Resolver cambio de cliente si se envía client_name sin client_id
+            if ($request->filled('client_name') && !$request->filled('client_id')) {
+                $clientQuery = Client::query()->where('name', $request->input('client_name'));
+                if ($user->role !== 'admin') {
+                    $clientQuery->where('company_id', $user->company_id);
+                } elseif ($request->filled('company_id')) {
+                    $clientQuery->where('company_id', $request->input('company_id'));
+                }
+                $matches = $clientQuery->get();
+                if ($matches->count() === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validación: cliente no encontrado',
+                        'errors' => ['client_name' => ['No se encontró un cliente con ese nombre']]
+                    ], 422);
+                }
+                if ($matches->count() > 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validación: nombre ambiguo',
+                        'errors' => ['client_name' => ['Nombre de cliente ambiguo, especifique client_id']]
+                    ], 422);
+                }
+                $validated['client_id'] = $matches->first()->id;
+            }
 
-            // Actualizar la factura
+            // Si se cambia client_id validar pertenencia
+            if (array_key_exists('client_id', $validated) && $validated['client_id']) {
+                $newClient = Client::find($validated['client_id']);
+                if (!$newClient) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validación: cliente no encontrado',
+                        'errors' => ['client_name' => ['Cliente no encontrado']]
+                    ], 422);
+                }
+                if ($user->role !== 'admin' && $newClient->company_id !== $user->company_id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Permiso denegado',
+                        'errors' => ['client_name' => ['El cliente seleccionado no pertenece a tu empresa']]
+                    ], 403);
+                }
+                // Ajustar company_id coherente si admin
+                if ($user->role === 'admin') {
+                    $validated['company_id'] = $newClient->company_id;
+                } else {
+                    $validated['company_id'] = $user->company_id;
+                }
+            }
+
+            DB::beginTransaction();
             $invoice->update($validated);
 
-            // Si se proporcionan items, reemplazar los existentes
-            if (isset($validated['items'])) {
-                // Eliminar items existentes
+            if ($request->has('items')) {
                 $invoice->items()->delete();
-
-                // Crear nuevos items
-                foreach ($validated['items'] as $item) {
-                    InvoiceItem::create([
-                        'invoice_id' => $invoice->id,
-                        'description' => $item['description'],
-                        'quantity' => $item['quantity'],
-                        'unit_price' => $item['unit_price'],
-                        'amount' => $item['amount']
+                $itemsPayload = collect($request->input('items'));
+                $recomputed = 0;
+                foreach ($itemsPayload as $row) {
+                    $lineAmount = (float)$row['quantity'] * (float)$row['price'];
+                    $invoice->items()->create([
+                        'description' => $row['description'],
+                        'quantity' => $row['quantity'],
+                        'unit_price' => $row['price'],
+                        'amount' => $lineAmount
                     ]);
+                    $recomputed += $lineAmount;
                 }
+                $invoice->amount = $recomputed;
+                $invoice->save();
             }
 
             DB::commit();
