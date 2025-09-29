@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { take } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { 
   ApiResponse, 
@@ -168,6 +169,24 @@ export class AuthService {
   private setToken(token: string): void {
     console.log('Guardando token en localStorage:', token.substring(0, 20) + '...');
     localStorage.setItem(this.tokenKey, token);
+  }
+
+  /**
+   * Aplicar un token obtenido por OAuth y refrescar el usuario actual
+   */
+  public applyToken(token: string, options?: { refreshUser?: boolean }): void {
+    this.setToken(token);
+
+    if (options?.refreshUser === false) {
+      return;
+    }
+
+    this.getCurrentUser()
+      .pipe(take(1))
+      .subscribe({
+        next: () => console.log('[Auth] Usuario actualizado tras OAuth'),
+        error: (error) => console.warn('[Auth] No se pudo refrescar usuario tras OAuth', error)
+      });
   }
 
   /**

@@ -1,17 +1,43 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatStepperModule } from '@angular/material/stepper';
-import { MatSnackBar } from '@angular/material/snack-bar';
-import { ClientPortalService, PaymentRequest } from '../../../core/services/client-portal.service';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Subscription } from 'rxjs';
+import { ClientPortalService } from '../../../core/services/client-portal.service';
+import { PortalPaymentService, InitiatePaymentResponse, PaymentStatusResponse } from '../../../services/portal-payment.service';
+
+interface PaymentProviderOption {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  badge?: string;
+  available: boolean;
+  comingSoon?: boolean;
+}
+
+const PROVIDER_CATALOG: PaymentProviderOption[] = [
+  {
+    id: 'webpay',
+    name: 'Webpay',
+    description: 'Paga al instante con tarjetas de crédito o débito chilenas.',
+    icon: 'credit_card',
+    badge: 'Recomendado',
+    available: true
+  },
+  {
+    id: 'mercadopago',
+    name: 'Mercado Pago',
+    description: 'Próximamente: billeteras digitales y cuotas flexibles.',
+    icon: 'account_balance_wallet',
+    comingSoon: true,
+    available: false
+  }
+];
 
 @Component({
   selector: 'app-payment',
@@ -20,54 +46,50 @@ import { ClientPortalService, PaymentRequest } from '../../../core/services/clie
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
-    ReactiveFormsModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
     MatProgressSpinnerModule,
-    MatStepperModule
+    MatSnackBarModule
   ]
 })
-export class PaymentComponent implements OnInit {
+export class PaymentComponent implements OnInit, OnDestroy {
   invoice: any = null;
-  paymentForm: FormGroup;
   loading = true;
   processing = false;
   invoiceId!: number;
-  
-  paymentMethods = [
-    { value: 'credit_card', label: 'Tarjeta de Crédito', icon: 'credit_card' },
-    { value: 'debit_card', label: 'Tarjeta de Débito', icon: 'payment' },
-    { value: 'bank_transfer', label: 'Transferencia Bancaria', icon: 'account_balance' },
-    { value: 'other', label: 'Otro', icon: 'more_horiz' }
-  ];
+
+  providers: PaymentProviderOption[] = PROVIDER_CATALOG.map(option => ({ ...option }));
+  selectedProvider: PaymentProviderOption | null = this.providers[0] ?? null;
+
+  paymentId?: number;
+  intentStatus?: string;
+  paymentStatus?: string;
+  redirectUrl?: string | null;
+  polling = false;
+  pollSub?: Subscription;
+  paymentError?: string;
 
   constructor(
-    private fb: FormBuilder,
     private clientPortalService: ClientPortalService,
+    private portalPaymentService: PortalPaymentService,
     private router: Router,
     private route: ActivatedRoute,
     private snackBar: MatSnackBar
-  ) {
-    this.paymentForm = this.fb.group({
-      amount: ['', [Validators.required, Validators.min(0.01)]],
-      payment_method: ['', Validators.required],
-      transaction_id: ['']
-    });
-  }
+  ) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.route.params.subscribe(params => {
       this.invoiceId = +params['id'];
       this.loadInvoice();
     });
   }
 
-  loadInvoice() {
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private loadInvoice(): void {
     const email = localStorage.getItem('client_portal_email');
     const token = localStorage.getItem('client_portal_token');
 
@@ -80,10 +102,7 @@ export class PaymentComponent implements OnInit {
       next: (response) => {
         if (response.success && response.data) {
           this.invoice = response.data;
-          // Establecer el monto pendiente como valor por defecto
-          this.paymentForm.patchValue({
-            amount: this.invoice.remaining_amount
-          });
+          this.syncProvidersAvailability();
         }
         this.loading = false;
       },
@@ -95,16 +114,60 @@ export class PaymentComponent implements OnInit {
     });
   }
 
-  setFullAmount() {
-    this.paymentForm.patchValue({
-      amount: this.invoice.remaining_amount
-    });
+  private syncProvidersAvailability(): void {
+    const enabled = this.extractEnabledProviders();
+    if (enabled.length) {
+      this.providers = PROVIDER_CATALOG.map(option => ({
+        ...option,
+        available: enabled.includes(option.id)
+      }));
+    } else {
+      // Mantener configuración por defecto (Webpay habilitado)
+      this.providers = PROVIDER_CATALOG.map(option => ({ ...option }));
+    }
+    const firstAvailable = this.providers.find(p => p.available) ?? null;
+    this.selectedProvider = firstAvailable;
   }
 
-  processPayment() {
-    if (this.paymentForm.invalid) return;
+  private extractEnabledProviders(): string[] {
+    const raw = this.invoice?.company?.payment_providers_enabled;
+    if (!raw) {
+      return [];
+    }
+    if (Array.isArray(raw)) {
+      return raw;
+    }
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+        if (typeof parsed === 'string') {
+          return [parsed];
+        }
+      } catch (err) {
+        // soporte para lista separada por comas
+        return raw.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  }
 
-    this.processing = true;
+  selectProvider(option: PaymentProviderOption): void {
+    if (!option.available) {
+      this.snackBar.open('Este medio estará disponible pronto.', 'Cerrar', { duration: 3000 });
+      return;
+    }
+    this.selectedProvider = option;
+    this.paymentError = undefined;
+  }
+
+  startPayment(): void {
+    if (!this.selectedProvider || !this.selectedProvider.available || this.processing) {
+      return;
+    }
+
     const email = localStorage.getItem('client_portal_email');
     const token = localStorage.getItem('client_portal_token');
 
@@ -113,47 +176,137 @@ export class PaymentComponent implements OnInit {
       return;
     }
 
-    const paymentData: PaymentRequest = this.paymentForm.value;
+    this.processing = true;
+    this.paymentError = undefined;
 
-    this.clientPortalService.payInvoice(this.invoiceId, paymentData, email, token).subscribe({
-      next: (response) => {
-        if (response.success) {
-          this.snackBar.open('¡Pago procesado exitosamente!', 'Cerrar', { duration: 5000 });
-          this.router.navigate(['/client-portal/dashboard']);
+    const returnUrl = `${window.location.origin}/client-portal/invoice/${this.invoiceId}?paid=1`;
+
+    this.portalPaymentService
+      .initiatePortalInvoicePayment(
+        this.invoiceId,
+        this.selectedProvider.id,
+        email,
+        token,
+        { returnUrl }
+      )
+      .subscribe({
+        next: (resp: InitiatePaymentResponse) => {
+          if (resp.success && resp.data) {
+            this.paymentId = resp.data.payment_id;
+            this.intentStatus = resp.data.intent_status;
+            this.redirectUrl = resp.data.redirect_url ?? null;
+            this.snackBar.open('Redirigiendo al proveedor de pagos…', 'Cerrar', { duration: 3000 });
+            this.startPolling(email, token);
+            if (this.redirectUrl) {
+              window.location.href = this.redirectUrl;
+            }
+          } else {
+            this.paymentError = resp.message || 'No se pudo iniciar el pago.';
+          }
+        },
+        error: (err) => {
+          console.error('Error iniciando pago', err);
+          this.paymentError = err.error?.message || 'Error al iniciar el pago.';
+        },
+        complete: () => {
+          this.processing = false;
         }
-        this.processing = false;
-      },
-      error: (error) => {
-        console.error('Error procesando pago:', error);
-        this.snackBar.open(error.error?.message || 'Error al procesar el pago', 'Cerrar', { duration: 3000 });
-        this.processing = false;
-      }
-    });
+      });
   }
 
-  goBack() {
+  private startPolling(email: string, token: string): void {
+    if (!this.paymentId) {
+      return;
+    }
+    this.stopPolling();
+    this.polling = true;
+    this.pollSub = this.portalPaymentService
+      .pollPayment(this.paymentId, email, token, 4000, 180000)
+      .subscribe({
+        next: (statusResp: PaymentStatusResponse) => {
+          if (statusResp.success && statusResp.data) {
+            this.paymentStatus = statusResp.data.status;
+            this.intentStatus = statusResp.data.intent_status;
+            if (statusResp.data.is_paid || statusResp.data.status === 'completed') {
+              this.onPaymentCompleted();
+            }
+          }
+        },
+        error: (err) => {
+          console.warn('Error verificando pago', err);
+        },
+        complete: () => {
+          this.polling = false;
+          if (this.paymentStatus !== 'completed') {
+            this.reloadInvoiceAfterAttempt();
+          }
+        }
+      });
+  }
+
+  private stopPolling(): void {
+    if (this.pollSub) {
+      this.pollSub.unsubscribe();
+      this.pollSub = undefined;
+    }
+  }
+
+  private onPaymentCompleted(): void {
+    this.snackBar.open('Pago confirmado correctamente.', 'Cerrar', { duration: 3000 });
+    this.stopPolling();
+    this.reloadInvoiceAfterAttempt();
+  }
+
+  private reloadInvoiceAfterAttempt(): void {
+    setTimeout(() => this.loadInvoice(), 800);
+  }
+
+  goBack(): void {
     this.router.navigate(['/client-portal/invoice', this.invoiceId]);
   }
 
-  getPaymentMethodIcon(method: string): string {
-    const methodObj = this.paymentMethods.find(m => m.value === method);
-    return methodObj ? methodObj.icon : 'payment';
+  getStatusLabel(status?: string): string {
+    switch (status) {
+      case 'completed':
+        return 'Completado';
+      case 'failed':
+        return 'Fallido';
+      case 'cancelled':
+        return 'Cancelado';
+      case 'pending':
+      case undefined:
+        return 'Pendiente';
+      default:
+        return status ?? 'Pendiente';
+    }
   }
 
-  getSelectedPaymentMethodLabel(): string {
-    const selectedValue = this.paymentForm.get('payment_method')?.value;
-    const methodObj = this.paymentMethods.find(m => m.value === selectedValue);
-    return methodObj ? methodObj.label : 'No seleccionado';
+  getStatusIcon(status?: string): string {
+    switch (status) {
+      case 'completed':
+        return 'check_circle';
+      case 'failed':
+      case 'cancelled':
+        return 'highlight_off';
+      case 'pending':
+      default:
+        return 'pending';
+    }
   }
 
-  getSelectedPaymentMethodIcon(): string {
-    const selectedValue = this.paymentForm.get('payment_method')?.value;
-    return this.getPaymentMethodIcon(selectedValue);
-  }
-
-  getRemainingAmount(): number {
-    const paymentAmount = this.paymentForm.get('amount')?.value || 0;
-    const remainingAmount = this.invoice?.remaining_amount || 0;
-    return remainingAmount - paymentAmount;
+  getStatusClasses(status?: string): string[] {
+    const classes = ['status-badge'];
+    switch (status) {
+      case 'completed':
+        classes.push('status-completed');
+        break;
+      case 'failed':
+      case 'cancelled':
+        classes.push('status-failed');
+        break;
+      default:
+        classes.push('status-pending');
+    }
+    return classes;
   }
 }

@@ -1,17 +1,25 @@
-<div class="layout single-overlay" [class.open-sidebar]="sidebarOpen">
-  <!-- Overlay global -->
-  <div class="global-overlay" *ngIf="sidebarOpen" (click)="toggleSidebar()"></div>
+<ng-container *ngIf="showCompanyLayout; else clientPortalLayout">
+  <div class="layout single-overlay" [class.open-sidebar]="sidebarOpen">
+    <!-- Overlay global -->
+    <div class="global-overlay" *ngIf="sidebarOpen" (click)="toggleSidebar()"></div>
 
-  <!-- Sidebar overlay (siempre misma estrategia) -->
-  <div class="overlay-sidebar" [class.open]="sidebarOpen">
-    <app-sidebar (closeSidenav)="toggleSidebar()" (collapsedChange)="onSidebarCollapsedChange($event)"></app-sidebar>
-  </div>
+    <!-- Sidebar overlay (siempre misma estrategia) -->
+    <div class="overlay-sidebar" [class.open]="sidebarOpen">
+      <app-sidebar (closeSidenav)="toggleSidebar()" (collapsedChange)="onSidebarCollapsedChange($event)"></app-sidebar>
+    </div>
 
-  <!-- Contenido principal -->
-  <div class="main-panel">
-    <app-header (toggleSidenav)="toggleSidebar()"></app-header>
-    <main class="main-content">
-      <router-outlet></router-outlet>
-    </main>
+    <!-- Contenido principal -->
+    <div class="main-panel">
+      <app-header (toggleSidenav)="toggleSidebar()"></app-header>
+      <main class="main-content">
+        <router-outlet></router-outlet>
+      </main>
+    </div>
   </div>
-</div>
+</ng-container>
+
+<ng-template #clientPortalLayout>
+  <div class="client-portal-wrapper">
+    <router-outlet></router-outlet>
+  </div>
+</ng-template>

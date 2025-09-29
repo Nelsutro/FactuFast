@@ -16,6 +16,10 @@ export const routes: Routes = [
     path: 'register',
     loadComponent: () => import('./components/auth/register/register.component').then(m => m.RegisterComponent)
   },
+  {
+    path: 'oauth/callback',
+    loadComponent: () => import('./components/auth/oauth-callback/oauth-callback.component').then(m => m.OauthCallbackComponent)
+  },
   // Rutas del Portal de Clientes (sin autenticación normal)
   {
     path: 'client-portal',

@@ -28,3 +28,11 @@
 .ff-dialog-panel .mat-mdc-dialog-surface { border-radius: 12px; overflow: hidden; }
 .ff-dialog-panel .mat-mdc-dialog-content { padding: 0; }
 .ff-dialog-panel .mat-mdc-dialog-content mat-card { box-shadow: none; margin: 0; }
+
+/* Layout simplificado para el portal de clientes */
+.client-portal-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 40%, #ffffff 100%);
+  display: flex;
+  flex-direction: column;
+}

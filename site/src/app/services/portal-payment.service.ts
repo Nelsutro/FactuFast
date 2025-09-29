@@ -44,8 +44,18 @@ export class PortalPaymentService {
   private http = inject(HttpClient);
   private apiBase = environment.apiUrl;
 
-  initiatePortalInvoicePayment(invoiceId: number, provider = 'webpay', email: string, token: string) {
-    return this.http.post<InitiatePaymentResponse>(`${this.apiBase}/client-portal/invoices/${invoiceId}/pay`, { provider }, {
+  initiatePortalInvoicePayment(
+    invoiceId: number,
+    provider = 'webpay',
+    email: string,
+    token: string,
+    options?: { returnUrl?: string }
+  ) {
+    const payload: Record<string, unknown> = { provider };
+    if (options?.returnUrl) {
+      payload['return_url'] = options.returnUrl;
+    }
+    return this.http.post<InitiatePaymentResponse>(`${this.apiBase}/client-portal/invoices/${invoiceId}/pay`, payload, {
       params: { email, token }
     });
   }

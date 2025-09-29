@@ -36,6 +36,23 @@ ng build
 
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
 
+## OAuth configuration
+
+The login screen now supports authentication via Google, Microsoft and Apple. Make sure the Angular environment exposes the SPA origin so the backend can generate the proper callback URLs:
+
+```ts
+// src/environments/environment.ts
+export const environment = {
+	production: false,
+	apiUrl: 'http://api.factufast.local/api',
+	appUrl: 'http://localhost:4200',
+	appName: 'FactuFast',
+	version: '1.0.0'
+};
+```
+
+Use the same `appUrl` value when registering redirect URIs in each OAuth provider. The SPA listens on `/oauth/callback` and will close the popup automatically after a successful login.
+
 ## Running unit tests
 
 To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:

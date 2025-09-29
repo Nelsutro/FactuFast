@@ -1,187 +1,135 @@
 <div class="payment-container" *ngIf="!loading && invoice">
-  <!-- Header -->
   <div class="payment-header">
-    <button mat-button (click)="goBack()" class="back-btn">
+    <button mat-button class="back-btn" (click)="goBack()">
       <mat-icon>arrow_back</mat-icon>
-      Volver a la Factura
+      <span>Volver a la factura</span>
     </button>
-    <h2>Realizar Pago</h2>
+    <div class="header-text">
+      <h1>Realizar pago</h1>
+      <p>Elige un proveedor autorizado y completa tu pago de forma segura.</p>
+    </div>
   </div>
 
-  <div class="payment-content">
-    <!-- Información de la factura -->
+  <div class="payment-layout">
     <mat-card class="invoice-summary">
       <mat-card-header>
-        <mat-card-title>Resumen de la Factura</mat-card-title>
+        <mat-card-title>Resumen de la factura</mat-card-title>
       </mat-card-header>
       <mat-card-content>
-        <div class="invoice-details">
-          <div class="detail-row">
-            <span class="label">Número de Factura:</span>
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="label">Factura</span>
             <span class="value">{{ invoice.invoice_number }}</span>
           </div>
-          <div class="detail-row">
-            <span class="label">Empresa:</span>
-            <span class="value">{{ invoice.company?.name }}</span>
+          <div class="summary-item">
+            <span class="label">Empresa emisora</span>
+            <span class="value">{{ invoice.company?.name || '—' }}</span>
           </div>
-          <div class="detail-row">
-            <span class="label">Fecha de Vencimiento:</span>
+          <div class="summary-item">
+            <span class="label">Vence</span>
             <span class="value" [class.overdue]="invoice.is_overdue">
-              {{ invoice.due_date | date:'dd/MM/yyyy' }}
+              {{ invoice.due_date | date: 'dd/MM/yyyy' }}
             </span>
           </div>
-          <div class="detail-row total">
-            <span class="label">Total de la Factura:</span>
-            <span class="value">${{ invoice.total | number:'1.2-2' }}</span>
+          <div class="summary-item emphasis">
+            <span class="label">Total</span>
+            <span class="value">${{ invoice.total | number: '1.2-2' }}</span>
           </div>
-          <div class="detail-row pending">
-            <span class="label">Monto Pendiente:</span>
-            <span class="value">${{ invoice.remaining_amount | number:'1.2-2' }}</span>
+          <div class="summary-item emphasis pending">
+            <span class="label">Saldo pendiente</span>
+            <span class="value">${{ invoice.remaining_amount | number: '1.2-2' }}</span>
           </div>
         </div>
       </mat-card-content>
     </mat-card>
 
-    <!-- Formulario de pago -->
-    <mat-card class="payment-form-card">
+    <mat-card class="provider-card">
       <mat-card-header>
-        <mat-card-title>
-          <mat-icon>payment</mat-icon>
-          Información del Pago
-        </mat-card-title>
+        <mat-card-title>Selecciona tu medio de pago</mat-card-title>
+        <mat-card-subtitle>Los pagos se procesan mediante proveedores certificados.</mat-card-subtitle>
       </mat-card-header>
-
       <mat-card-content>
-        <form [formGroup]="paymentForm" (ngSubmit)="processPayment()">
-          <!-- Monto -->
-          <div class="form-section">
-            <h3>Monto a Pagar</h3>
-            <div class="amount-section">
-              <mat-form-field appearance="outline" class="amount-field">
-                <mat-label>Monto</mat-label>
-                <input matInput 
-                       formControlName="amount" 
-                       type="number" 
-                       step="0.01"
-                       min="0.01"
-                       [max]="invoice.remaining_amount"
-                       placeholder="0.00">
-                <span matTextPrefix>$</span>
-                <mat-error *ngIf="paymentForm.get('amount')?.hasError('required')">
-                  El monto es requerido
-                </mat-error>
-                <mat-error *ngIf="paymentForm.get('amount')?.hasError('min')">
-                  El monto debe ser mayor a 0
-                </mat-error>
-                <mat-error *ngIf="paymentForm.get('amount')?.hasError('max')">
-                  El monto no puede ser mayor al pendiente
-                </mat-error>
-              </mat-form-field>
-              
-              <button mat-button 
-                      type="button" 
-                      (click)="setFullAmount()"
-                      class="full-amount-btn">
-                Pagar Total
-              </button>
+        <div class="providers-grid">
+          <div
+            class="provider-tile"
+            *ngFor="let provider of providers"
+            [class.selected]="provider.id === selectedProvider?.id"
+            [class.disabled]="!provider.available"
+            (click)="selectProvider(provider)"
+          >
+            <div class="provider-icon">
+              <mat-icon>{{ provider.icon }}</mat-icon>
+            </div>
+            <div class="provider-info">
+              <div class="provider-title">
+                <h3>{{ provider.name }}</h3>
+                <span *ngIf="provider.badge" class="badge">{{ provider.badge }}</span>
+                <span *ngIf="provider.comingSoon" class="badge soon">Próximamente</span>
+              </div>
+              <p>{{ provider.description }}</p>
             </div>
           </div>
+        </div>
 
-          <!-- Método de pago -->
-          <div class="form-section">
-            <h3>Método de Pago</h3>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Selecciona un método</mat-label>
-              <mat-select formControlName="payment_method">
-                <mat-option *ngFor="let method of paymentMethods" [value]="method.value">
-                  <div class="payment-method-option">
-                    <mat-icon>{{ method.icon }}</mat-icon>
-                    <span>{{ method.label }}</span>
-                  </div>
-                </mat-option>
-              </mat-select>
-              <mat-error *ngIf="paymentForm.get('payment_method')?.hasError('required')">
-                Selecciona un método de pago
-              </mat-error>
-            </mat-form-field>
+        <div class="actions">
+          <button
+            mat-raised-button
+            color="primary"
+            (click)="startPayment()"
+            [disabled]="processing || !selectedProvider?.available"
+          >
+            <mat-spinner *ngIf="processing" diameter="20"></mat-spinner>
+            <span *ngIf="!processing">Pagar con {{ selectedProvider?.name }}</span>
+            <span *ngIf="processing">Redirigiendo…</span>
+          </button>
+          <button mat-button (click)="goBack()" [disabled]="processing">Cancelar</button>
+        </div>
+
+        <div *ngIf="paymentError" class="error-banner">
+          <mat-icon>error</mat-icon>
+          <span>{{ paymentError }}</span>
+        </div>
+
+        <div *ngIf="paymentId" class="status-panel">
+          <h3>Estado del intento</h3>
+          <div class="status-row">
+            <span>ID del pago</span>
+            <span>#{{ paymentId }}</span>
           </div>
-
-          <!-- ID de transacción (opcional) -->
-          <div class="form-section">
-            <h3>Referencia de Pago (Opcional)</h3>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>ID de Transacción</mat-label>
-              <input matInput 
-                     formControlName="transaction_id" 
-                     placeholder="Número de referencia, autorización, etc.">
-              <mat-hint>
-                Puedes incluir el número de autorización, referencia bancaria u otro identificador
-              </mat-hint>
-            </mat-form-field>
+          <div class="status-row">
+            <span>Estado general</span>
+            <span [ngClass]="getStatusClasses(paymentStatus)">
+              <mat-icon>{{ getStatusIcon(paymentStatus) }}</mat-icon>
+              {{ getStatusLabel(paymentStatus) }}
+            </span>
           </div>
-
-          <!-- Resumen del pago -->
-          <div class="payment-summary">
-            <h3>Resumen del Pago</h3>
-            <div class="summary-content">
-              <div class="summary-row">
-                <span>Monto a pagar:</span>
-                <span class="amount">${{ paymentForm.get('amount')?.value | number:'1.2-2' }}</span>
-              </div>
-              <div class="summary-row">
-                <span>Método:</span>
-                <span>{{ getSelectedPaymentMethodLabel() }}</span>
-              </div>
-              <div class="summary-row" *ngIf="paymentForm.get('amount')?.value && invoice?.remaining_amount">
-                <span>Saldo restante:</span>
-                <span class="remaining">
-                  ${{ getRemainingAmount() | number:'1.2-2' }}
-                </span>
-              </div>
-            </div>
+          <div class="status-row">
+            <span>Estado en el gateway</span>
+            <span>{{ intentStatus || 'Pendiente' }}</span>
           </div>
-
-          <!-- Acciones -->
-          <div class="form-actions">
-            <button mat-button 
-                    type="button" 
-                    (click)="goBack()"
-                    [disabled]="processing">
-              Cancelar
-            </button>
-            
-            <button mat-raised-button 
-                    color="primary" 
-                    type="submit" 
-                    [disabled]="paymentForm.invalid || processing"
-                    class="process-btn">
-              <mat-spinner *ngIf="processing" diameter="20"></mat-spinner>
-              <mat-icon *ngIf="!processing">{{ getSelectedPaymentMethodIcon() }}</mat-icon>
-              <span *ngIf="!processing">Procesar Pago</span>
-              <span *ngIf="processing">Procesando...</span>
-            </button>
-          </div>
-        </form>
-      </mat-card-content>
-    </mat-card>
-
-    <!-- Información de seguridad -->
-    <mat-card class="security-info">
-      <mat-card-content>
-        <div class="security-content">
-          <mat-icon>security</mat-icon>
-          <div class="security-text">
-            <h4>Pago Seguro</h4>
-            <p>Todos los pagos son procesados de forma segura. La información proporcionada se utiliza únicamente para registrar tu pago.</p>
+          <div class="polling-note" *ngIf="polling">
+            <mat-icon>refresh</mat-icon>
+            <span>Verificando confirmación del proveedor…</span>
           </div>
         </div>
       </mat-card-content>
     </mat-card>
   </div>
+
+  <mat-card class="security-info">
+    <mat-card-content>
+      <div class="security-content">
+        <mat-icon>shield</mat-icon>
+        <div>
+          <h4>Pago seguro</h4>
+          <p>Tus datos se envían cifrados y nunca se almacenan en FactuFast.</p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
 </div>
 
-<!-- Loading -->
 <div *ngIf="loading" class="loading-container">
   <mat-spinner></mat-spinner>
-  <p>Cargando información de la factura...</p>
+  <p>Cargando información de la factura…</p>
 </div>

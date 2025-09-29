@@ -98,7 +98,13 @@ export class InvoiceDetailComponent implements OnInit, OnDestroy {
       return;
     }
     this.paying = true;
-    this.portalPaymentService.initiatePortalInvoicePayment(this.invoiceId, this.provider, email, token)
+    this.portalPaymentService.initiatePortalInvoicePayment(
+      this.invoiceId,
+      this.provider,
+      email,
+      token,
+      { returnUrl: this.buildReturnUrl() }
+    )
       .subscribe({
         next: (resp: InitiatePaymentResponse) => {
           if (resp.success && resp.data) {
@@ -121,6 +127,10 @@ export class InvoiceDetailComponent implements OnInit, OnDestroy {
           this.paying = false;
         }
       });
+  }
+
+  private buildReturnUrl(): string {
+    return `${window.location.origin}/client-portal/invoice/${this.invoiceId}?paid=1`;
   }
 
   private startPolling() {

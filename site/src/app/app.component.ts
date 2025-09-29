@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { HeaderComponent } from './components/header/header.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { AuthService } from './core/services/auth.service';
 import { CommonModule } from '@angular/common';
+import { filter } from 'rxjs/operators';
 
 @Component({
   selector: 'app-root',
@@ -19,8 +20,9 @@ export class AppComponent implements OnInit {
 
   // Breakpoint simple (podríamos mejorar con ResizeObserver)
   isMobile = false;
+  showCompanyLayout = true;
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit() {
     // Inicializar autenticación al cargar la aplicación
@@ -31,6 +33,14 @@ export class AppComponent implements OnInit {
 
     // Cargar estado de colapso
     this.sidebarCollapsed = localStorage.getItem('sidebar_collapsed') === '1';
+
+    // Controlar layout según la ruta
+    this.evaluateLayout(this.router.url);
+    this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe(() => {
+        this.evaluateLayout(this.router.url);
+      });
   }
 
   toggleSidebar() {
@@ -43,5 +53,15 @@ export class AppComponent implements OnInit {
 
   onResize() {
     this.isMobile = window.innerWidth < 768;
+  }
+
+  private evaluateLayout(url: string) {
+    const normalized = url.split('?')[0] ?? '/';
+  const isClientContext = /^\/?(client-portal|public-pay|oauth)/.test(normalized);
+    this.showCompanyLayout = !isClientContext;
+
+    if (!this.showCompanyLayout) {
+      this.sidebarOpen = false;
+    }
   }
 }

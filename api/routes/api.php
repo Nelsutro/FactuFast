@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\PublicPaymentLinkController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\WebpayReturnController;
+use App\Http\Controllers\Auth\OAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +27,9 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);
     Route::get('check-session', [AuthController::class, 'checkSession']);
+    Route::get('oauth/providers', [OAuthController::class, 'providers']);
+    Route::get('oauth/{provider}/redirect', [OAuthController::class, 'redirect']);
+    Route::match(['GET','POST'],'oauth/{provider}/callback', [OAuthController::class, 'callback']);
 });
 
 // Portal de clientes (sin autenticación Sanctum)

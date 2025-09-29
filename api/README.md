@@ -85,6 +85,87 @@ Notas:
 
 Una vez configurado, el endpoint `POST /api/invoices/{invoice}/email` podrá enviar correos usando estas credenciales.
 
+## Pasarela Webpay (Transbank)
+
+El backend requiere credenciales de Webpay Plus REST para iniciar transacciones desde el portal de clientes. Declara en tu `.env` (carpeta `api/`) los siguientes campos:
+
+```
+WEBPAY_ENVIRONMENT=integration   # integration | production
+WEBPAY_COMMERCE_CODE=597055555532
+WEBPAY_API_KEY=tu_api_key_de_transbank
+```
+
+Significado de cada variable:
+
+- **WEBPAY_ENVIRONMENT**: ambiente que usará la integración. Usa `integration` con las credenciales de sandbox y cambia a `production` cuando Transbank habilite el comercio real.
+- **WEBPAY_COMMERCE_CODE**: código de comercio asignado por Transbank para Webpay Plus REST. Debe coincidir con el ambiente elegido.
+- **WEBPAY_API_KEY**: API Key secreta asociada a ese código de comercio. Transbank la entrega en el portal de comercios.
+
+Cómo se utilizan:
+
+- El servicio `WebpayGateway` lee estos valores cuando se construye desde la configuración de cada empresa. Puedes cargar las credenciales directamente en la tabla `companies` (campos `webpay_environment`, `webpay_commerce_code`, `webpay_api_key`) o usarlos como valores por defecto al crear una empresa.
+- Si alguno de los campos es incorrecto o está vacío, Transbank responderá con `Not Authorized` al iniciar la transacción y el cliente no podrá completar el pago.
+
+Recomendaciones:
+
+- Prueba primero con las credenciales oficiales de integración para validar el flujo end-to-end.
+- Al cambiar datos sensibles en `.env`, ejecuta `php artisan config:clear` para refrescar la caché de configuración.
+- En producción, guarda las credenciales reales (no las de integración) y limita el acceso al archivo `.env`.
+
+## Autenticación OAuth (Google, Microsoft y Apple)
+
+Para habilitar el inicio de sesión social, configura las credenciales de cada proveedor y habilita las rutas expuestas bajo `/api/auth/oauth/*`.
+
+### Variables de entorno
+
+```
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI="${APP_URL}/auth/oauth/google/callback"
+
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
+MICROSOFT_TENANT_ID=common
+MICROSOFT_REDIRECT_URI="${APP_URL}/auth/oauth/microsoft/callback"
+
+APPLE_CLIENT_ID=
+APPLE_TEAM_ID=
+APPLE_KEY_ID=
+APPLE_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+APPLE_REDIRECT_URI="${APP_URL}/auth/oauth/apple/callback"
+
+OAUTH_ALLOWED_REDIRECTS=http://localhost:4200/oauth/callback,https://app.factufast.com/oauth/callback
+```
+
+> **Importante:** el paquete `socialiteproviders/apple` depende de la extensión `ext-sodium`. Activa la extensión en tu `php.ini` o instala la librería `libsodium`. En entornos donde no sea posible, instala el paquete pero no podrás completar el flujo de Apple hasta habilitarla.
+
+### Dependencias instaladas
+
+- `laravel/socialite` v5.23: núcleo de OAuth.
+- `socialiteproviders/microsoft` v4.7: driver para Microsoft Entra ID.
+- `socialiteproviders/apple` v5.7: driver para Sign in with Apple.
+
+### Migraciones nuevas
+
+- `social_accounts`: almacena la relación usuario ↔ proveedor (tokens encriptados, avatar, expiración, etc.).
+- `oauth_states`: conserva tokens `state` firmados para validar los flujos sin sesiones de servidor.
+
+Ejecuta `php artisan migrate` tras actualizar el código para aplicar estas tablas.
+
+### Flujo soportado
+
+1. El frontend pide a `/api/auth/oauth/{provider}/redirect` la URL de autenticación.
+2. Laravel genera un registro `oauth_states`, firma el estado y devuelve la URL del proveedor.
+3. El usuario se autentica con el proveedor y vuelve al callback `/api/auth/oauth/{provider}/callback`.
+4. El backend valida el `state`, enlaza la cuenta social, crea el usuario si no existe y emite un token Sanctum.
+5. El backend redirige al frontend (`/oauth/callback`) con `status`, `token`, `provider`, `state` y `return_url`.
+
+### Configuración adicional
+
+- Añade todos los orígenes del frontend en `OAUTH_ALLOWED_REDIRECTS` para evitar errores de redirección.
+- Para Apple, registra una clave privada en formato `.p8` y cópiala en `APPLE_PRIVATE_KEY` (respetando los saltos `\n`).
+- El frontend espera recibir el token en la ruta `/oauth/callback`, por lo que asegúrate de que esa URL esté incluida en las listas de redirect de cada proveedor.
+
 ## Scheduler (Tareas programadas)
 
 Este proyecto usa el scheduler de Laravel para automatizaciones periódicas.

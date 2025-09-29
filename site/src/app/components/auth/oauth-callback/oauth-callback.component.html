@@ -1,0 +1,24 @@
+<div class="callback-container" [class.success]="status === 'success'" [class.error]="status === 'error'">
+  <div class="card">
+    <div class="icon-wrapper" *ngIf="status === 'loading'">
+      <mat-progress-spinner diameter="46" mode="indeterminate"></mat-progress-spinner>
+    </div>
+
+    <div class="icon-wrapper" *ngIf="status === 'success'">
+      <mat-icon>check_circle</mat-icon>
+    </div>
+
+    <div class="icon-wrapper" *ngIf="status === 'error'">
+      <mat-icon>error</mat-icon>
+    </div>
+
+    <h1>
+      {{ status === 'success' ? '¡Listo!' : status === 'error' ? 'Algo salió mal' : 'Un momento...' }}
+    </h1>
+    <p>{{ message }}</p>
+
+    <div *ngIf="status === 'error'" class="actions">
+      <button mat-stroked-button color="primary" (click)="closeWindow()">Cerrar ventana</button>
+    </div>
+  </div>
+</div>

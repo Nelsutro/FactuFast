@@ -49,9 +49,13 @@ class PaymentService
             $payment->company_id = $invoice->company_id;
             $payment->client_id = $invoice->client_id;
             $payment->invoice_id = $invoice->id;
-            $payment->amount = $invoice->amount; // TODO: usar total real (sum items) si difiere
+            $payment->amount = $invoice->remaining_amount ?? $invoice->amount;
             $payment->payment_date = now();
-            $payment->payment_method = 'credit_card';
+            $payment->payment_method = match($provider) {
+                'webpay', 'mercadopago' => 'credit_card',
+                'bank_transfer' => 'bank_transfer',
+                default => 'other'
+            };
             $payment->status = 'pending';
             $payment->intent_status = 'created';
             $payment->payment_provider = $provider;

@@ -98,6 +98,17 @@ class User extends Authenticatable
         return $this->hasMany(Payment::class);
     }
 
+    public function socialAccounts()
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    public function getSocialAccountFor(string $provider): ?SocialAccount
+    {
+        return $this->socialAccounts
+            ->firstWhere('provider', SocialAccount::normalizeProvider($provider));
+    }
+
     // Scopes
     public function scopeAdmins($query)
     {
