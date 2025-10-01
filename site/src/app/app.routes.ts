@@ -17,6 +17,10 @@ export const routes: Routes = [
     loadComponent: () => import('./components/auth/register/register.component').then(m => m.RegisterComponent)
   },
   {
+    path: 'forgot-password',
+    loadComponent: () => import('./components/auth/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent)
+  },
+  {
     path: 'oauth/callback',
     loadComponent: () => import('./components/auth/oauth-callback/oauth-callback.component').then(m => m.OauthCallbackComponent)
   },
@@ -69,7 +73,7 @@ export const routes: Routes = [
   // Placeholder para detalle de factura (carga el listado por ahora)
   {
     path: 'invoices/:id',
-    loadComponent: () => import('./components/invoices/invoices.component').then(m => m.InvoicesComponent),
+    loadComponent: () => import('./components/invoices/invoice-detail.component').then(m => m.InvoiceDetailComponent),
     canActivate: [AuthGuard]
   },
   {
@@ -85,12 +89,12 @@ export const routes: Routes = [
   // Placeholders para detalle/edición de cotización (cargan el listado por ahora)
   {
     path: 'quotes/:id',
-    loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
+    loadComponent: () => import('./components/quotes/quote-detail.component').then(m => m.QuoteDetailComponent),
     canActivate: [AuthGuard]
   },
   {
     path: 'quotes/:id/edit',
-    loadComponent: () => import('./components/quotes/quotes.component').then(m => m.QuotesComponent),
+    loadComponent: () => import('./components/quotes/quote-detail.component').then(m => m.QuoteDetailComponent),
     canActivate: [AuthGuard]
   },
   {

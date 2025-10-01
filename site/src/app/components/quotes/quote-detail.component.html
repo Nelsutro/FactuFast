@@ -1,0 +1,140 @@
+<div class="detail-container" *ngIf="!loading; else loadingState">
+  <ng-container *ngIf="quote; else errorState">
+    <div class="toolbar">
+      <button mat-button color="primary" (click)="goBack()">
+        <mat-icon>arrow_back</mat-icon>
+        Volver a cotizaciones
+      </button>
+      <div class="toolbar-actions">
+        <button mat-stroked-button color="primary" (click)="refresh()">
+          <mat-icon>refresh</mat-icon>
+          Recargar
+        </button>
+        <button mat-stroked-button color="primary" (click)="downloadPdf()" [disabled]="downloading">
+          <mat-icon>picture_as_pdf</mat-icon>
+          <span *ngIf="!downloading; else downloadingTpl">Descargar PDF</span>
+        </button>
+        <button mat-stroked-button color="accent" (click)="startEdit()">
+          <mat-icon>edit</mat-icon>
+          Editar
+        </button>
+        <button mat-flat-button color="primary" (click)="convertToInvoice()" [disabled]="converting">
+          <mat-icon>swap_horiz</mat-icon>
+          Convertir a factura
+        </button>
+      </div>
+    </div>
+
+    <mat-card class="summary-card">
+      <mat-card-header>
+        <div mat-card-avatar class="summary-avatar">
+          <mat-icon>description</mat-icon>
+        </div>
+        <mat-card-title>Cotización #{{ quote?.quote_number }}</mat-card-title>
+        <mat-card-subtitle>Creada el {{ formatDate(quote?.quote_date || quote?.created_at) }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="summary-grid">
+          <div>
+            <span class="label">Estado</span>
+            <span class="value">
+              <span [ngClass]="getStatusClass(quote?.status)">{{ quote?.status | titlecase }}</span>
+            </span>
+          </div>
+          <div>
+            <span class="label">Monto total</span>
+            <span class="value">${{ formatCurrency(quote?.amount) }}</span>
+          </div>
+          <div>
+            <span class="label">Válida hasta</span>
+            <span class="value">{{ formatDate(quote?.valid_until) }}</span>
+          </div>
+          <div>
+            <span class="label">Cliente</span>
+            <span class="value">{{ quote?.client?.name || '—' }}</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="grid-layout">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Datos del cliente</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="info-row">
+            <span class="label">Nombre</span>
+            <span class="value">{{ quote?.client?.name || '—' }}</span>
+          </div>
+          <div class="info-row" *ngIf="quote?.client?.email">
+            <span class="label">Email</span>
+            <span class="value">{{ quote?.client?.email }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Notas</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="notes" *ngIf="quote?.notes; else noNotes">{{ quote?.notes }}</p>
+          <ng-template #noNotes>
+            <p class="notes empty">Sin notas registradas.</p>
+          </ng-template>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <mat-card>
+      <mat-card-header>
+        <mat-card-title>Ítems de la cotización</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <table class="items-table" *ngIf="hasItems(); else emptyItems">
+          <thead>
+            <tr>
+              <th>Descripción</th>
+              <th class="numeric">Cantidad</th>
+              <th class="numeric">Precio</th>
+              <th class="numeric">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of quote?.items">
+              <td>{{ item.description }}</td>
+              <td class="numeric">{{ item.quantity }}</td>
+              <td class="numeric">${{ formatCurrency(item.price) }}</td>
+              <td class="numeric">${{ formatCurrency(item.price * item.quantity) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #emptyItems>
+          <div class="empty-section">
+            <mat-icon>view_list</mat-icon>
+            <p>No hay ítems registrados para esta cotización.</p>
+          </div>
+        </ng-template>
+      </mat-card-content>
+    </mat-card>
+  </ng-container>
+</div>
+
+<ng-template #loadingState>
+  <div class="loading-wrapper">
+    <app-loading message="Cargando cotización..." [diameter]="64"></app-loading>
+  </div>
+</ng-template>
+
+<ng-template #downloadingTpl>
+  Descargando...
+</ng-template>
+
+<ng-template #errorState>
+  <div class="error-state">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <h3>{{ error }}</h3>
+    <button mat-flat-button color="primary" (click)="goBack()">Volver</button>
+  </div>
+</ng-template>

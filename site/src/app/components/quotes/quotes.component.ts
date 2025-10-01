@@ -267,7 +267,9 @@ export class QuotesComponent implements OnInit {
   }
 
   editQuote(quote: Quote) {
-    this.router.navigate(['/quotes', quote.id, 'edit']);
+    this.router.navigate(['/quotes/create'], {
+      queryParams: { duplicate: quote.id, mode: 'edit' }
+    });
   }
 
   sendQuote(quote: Quote) {
@@ -293,9 +295,19 @@ export class QuotesComponent implements OnInit {
   }
 
   downloadQuote(quote: Quote) {
-    console.log('Downloading quote:', quote.quote_number);
-    // Implement PDF download
-    // this.apiService.downloadQuotePDF(quote.id).subscribe(...)
+    this.apiService.downloadQuotePdf(quote.id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `quote_${quote.quote_number || quote.id}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.snackBar.open(err?.message || 'No fue posible descargar el PDF', 'Cerrar', { duration: 3000 });
+      }
+    });
   }
 
   convertToInvoice(quote: Quote) {

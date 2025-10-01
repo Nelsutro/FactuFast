@@ -1,0 +1,164 @@
+.detail-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.summary-card {
+  border-left: 4px solid var(--mat-primary-600, #1976d2);
+}
+
+.summary-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--mat-primary-50, #e3f2fd);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 24px;
+}
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.54);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.value {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.status-chip.accepted {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.status-chip.sent {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.status-chip.draft {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.status-chip.rejected {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-chip.default {
+  background-color: #e5e7eb;
+  color: #1f2937;
+}
+
+.grid-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.info-row .value {
+  font-weight: 500;
+}
+
+.notes {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.notes.empty {
+  color: rgba(0, 0, 0, 0.54);
+  font-style: italic;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table th,
+.items-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.items-table thead {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.numeric {
+  text-align: right;
+}
+
+.empty-section {
+  text-align: center;
+  padding: 24px;
+  color: rgba(0, 0, 0, 0.54);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.loading-wrapper,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.error-state h3 {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-actions {
+    justify-content: space-between;
+  }
+}

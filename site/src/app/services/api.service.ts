@@ -266,6 +266,14 @@ export class ApiService {
       );
   }
 
+  getQuote(id: number): Observable<any> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/quotes/${id}`, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
   createQuote(quote: any): Observable<any> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/quotes`, quote, { headers: this.getHeaders() })
       .pipe(
@@ -310,6 +318,13 @@ export class ApiService {
         map(response => response),
         catchError(this.handleError)
       );
+  }
+
+  downloadQuotePdf(id: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/quotes/${id}/pdf`, {
+      headers: this.getHeaders(),
+      responseType: 'blob' as 'json'
+    }) as unknown as Observable<Blob>;
   }
 
   // Métodos para Pagos
