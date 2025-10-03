@@ -9,6 +9,10 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    path: 'about',
+    loadComponent: () => import('./components/public/about/about.component').then(m => m.AboutComponent)
+  },
+  {
     path: 'login',
     loadComponent: () => import('./components/auth/login/login.component').then(m => m.LoginComponent)
   },

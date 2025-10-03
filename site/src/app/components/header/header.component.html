@@ -14,34 +14,47 @@
     <!-- Título dinámico -->
     <div class="page-title hide-mobile" *ngIf="pageTitle">{{ pageTitle }}</div>
 
-    <!-- Buscador Desktop -->
-    <mat-form-field appearance="outline" class="search-field hide-mobile" *ngIf="!showMobileSearch">
-      <mat-label>Buscar...</mat-label>
-      <input matInput type="text" [value]="searchTerm" (input)="onSearch($event)">
-      <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="clearSearch()" type="button">
-        <mat-icon>close</mat-icon>
+    <!-- Navegación principal -->
+    <nav class="primary-nav hide-mobile" *ngIf="isAuthenticated">
+      <button mat-button class="nav-link"
+              type="button"
+              (click)="navigateTo(dashboardLink.route)"
+              [class.active]="isNavActive(dashboardLink.route)">
+        <mat-icon aria-hidden="true">{{ dashboardLink.icon }}</mat-icon>
+        <span>{{ dashboardLink.label }}</span>
       </button>
-      <mat-icon matSuffix>search</mat-icon>
-    </mat-form-field>
 
-    <!-- Icono para abrir buscador en mobile -->
-    <button mat-icon-button class="show-mobile-search-btn show-mobile" (click)="toggleMobileSearch()" *ngIf="!showMobileSearch" aria-label="Buscar" matTooltip="Buscar">
-      <mat-icon aria-hidden="true">search</mat-icon>
-    </button>
-    <div class="mobile-search-container show-mobile" *ngIf="showMobileSearch">
-      <mat-form-field appearance="outline" class="mobile-search-field">
-        <mat-label>Buscar...</mat-label>
-        <input matInput type="text" [value]="searchTerm" (input)="onSearch($event)">
-        <button *ngIf="searchTerm" mat-icon-button matSuffix (click)="clearSearch()" type="button">
-          <mat-icon>close</mat-icon>
-        </button>
-        <button mat-icon-button matSuffix (click)="toggleMobileSearch()" type="button">
-          <mat-icon>keyboard_hide</mat-icon>
-        </button>
-      </mat-form-field>
-    </div>
+      <ng-container *ngFor="let section of navSections">
+        <ng-container *ngIf="canDisplaySection(section)">
+          <button mat-button class="nav-link nav-group"
+                  type="button"
+                  [matMenuTriggerFor]="sectionMenu"
+                  [class.active]="isSectionActive(section)">
+            <mat-icon aria-hidden="true">{{ section.icon }}</mat-icon>
+            <span>{{ section.label }}</span>
+          </button>
+          <mat-menu #sectionMenu="matMenu" class="nav-section-menu">
+            <ng-container *ngFor="let link of section.items">
+              <button mat-menu-item type="button" *ngIf="canDisplayNavLink(link)" (click)="navigateTo(link.route)">
+                <mat-icon aria-hidden="true">{{ link.icon }}</mat-icon>
+                <span>{{ link.label }}</span>
+              </button>
+            </ng-container>
+          </mat-menu>
+        </ng-container>
+      </ng-container>
+    </nav>
 
     <span class="spacer"></span>
+
+    <button mat-button class="about-link hide-mobile" (click)="goToAbout()" aria-label="Conocer FactuFast" matTooltip="Sobre FactuFast">
+      <mat-icon aria-hidden="true">travel_explore</mat-icon>
+      <span>Sobre FactuFast</span>
+    </button>
+
+    <button mat-icon-button class="about-link show-mobile" (click)="goToAbout()" aria-label="Sobre FactuFast" matTooltip="Sobre FactuFast">
+      <mat-icon aria-hidden="true">travel_explore</mat-icon>
+    </button>
 
     <!-- Acciones rápidas -->
     <button mat-icon-button [matMenuTriggerFor]="quickCreateMenu" class="quick-create-button" #quickCreateMenuTrigger="matMenuTrigger" [disabled]="isQuickCreating" aria-label="Crear" matTooltip="Crear">
@@ -72,6 +85,9 @@
       </button>
     </ng-container>
     <ng-template #loginButton>
+        <button mat-stroked-button color="accent" (click)="goToAbout()" class="about-btn show-mobile" aria-label="Conocer FactuFast">
+        <mat-icon>travel_explore</mat-icon>
+      </button>
       <button mat-stroked-button color="primary" (click)="goToLogin()" class="login-btn">
         <mat-icon>login</mat-icon>
         <span>Iniciar sesión</span>

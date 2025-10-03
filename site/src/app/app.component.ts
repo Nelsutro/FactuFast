@@ -57,8 +57,8 @@ export class AppComponent implements OnInit {
 
   private evaluateLayout(url: string) {
     const normalized = url.split('?')[0] ?? '/';
-  const isClientContext = /^\/?(client-portal|public-pay|oauth)/.test(normalized);
-    this.showCompanyLayout = !isClientContext;
+    const isStandaloneContext = /^\/?(client-portal|public-pay|oauth|about)/.test(normalized);
+    this.showCompanyLayout = !isStandaloneContext;
 
     if (!this.showCompanyLayout) {
       this.sidebarOpen = false;

@@ -1,0 +1,178 @@
+<div class="about-page">
+  <header class="about-header">
+    <div class="brand" (click)="scrollTo('hero')">
+      <mat-icon color="primary">receipt_long</mat-icon>
+      <span>FactuFast</span>
+    </div>
+    <nav class="header-nav">
+      <button mat-button (click)="scrollTo('about')">Nosotros</button>
+      <button mat-button (click)="scrollTo('solutions')">Cómo ayudamos</button>
+      <button mat-button (click)="scrollTo('journey')">Trayectoria</button>
+      <button mat-stroked-button color="primary" (click)="scrollTo('contact')">Contacto</button>
+      <button mat-raised-button color="primary" (click)="goToLogin()">Ingresar</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="hero" class="hero-section">
+      <div class="hero-content">
+        <span class="hero-badge">Gestión inteligente para tus finanzas</span>
+        <h1>Automatizamos la facturación para que tu pyme crezca sin fricción.</h1>
+        <p>
+          FactuFast centraliza la emisión de facturas, el seguimiento de pagos y la relación con tus clientes
+          en un flujo simple, seguro y colaborativo. Olvídate de perseguir cobros manualmente y concilia
+          tu información en minutos.
+        </p>
+        <div class="hero-actions">
+          <button mat-raised-button color="primary" (click)="goToLogin()">Comienza gratis</button>
+          <button mat-stroked-button color="accent" (click)="scrollTo('contact')">
+            Habla con nuestro equipo
+          </button>
+        </div>
+
+        <div class="metrics-grid">
+          <mat-card class="metric-card" *ngFor="let metric of metrics">
+            <span class="metric-value">{{ metric.value }}</span>
+            <span class="metric-label">{{ metric.label }}</span>
+            <p>{{ metric.description }}</p>
+          </mat-card>
+        </div>
+      </div>
+
+      <mat-card class="impact-card">
+        <mat-card-header>
+          <div mat-card-avatar class="icon-avatar">
+            <mat-icon>trending_up</mat-icon>
+          </div>
+          <mat-card-title>El impacto de automatizar con FactuFast</mat-card-title>
+          <mat-card-subtitle>Resultados reales obtenidos por nuestros clientes</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <ul>
+            <li><mat-icon color="primary">task_alt</mat-icon> Emite y envía documentos electrónicos en segundos.</li>
+            <li><mat-icon color="primary">insights</mat-icon> Visualiza KPIs de cobranza y flujo de caja en tiempo real.</li>
+            <li><mat-icon color="primary">payments</mat-icon> Concilia pagos automáticamente y reduce morosidad.</li>
+            <li><mat-icon color="primary">group</mat-icon> Colabora con tu equipo y tu contador desde un mismo lugar.</li>
+          </ul>
+        </mat-card-content>
+      </mat-card>
+    </section>
+
+    <section id="about" class="section about-section">
+      <div class="section-heading">
+        <span class="badge">Sobre nosotros</span>
+        <h2>Un aliado que entiende la realidad de las pymes latinoamericanas</h2>
+        <p>
+          Nacimos dentro de un estudio contable que buscaba eliminar planillas interminables y procesos manuales.
+          Construimos FactuFast para acompañar a emprendedores, áreas financieras y contadores a digitalizar su
+          operación sin perder el control.
+        </p>
+      </div>
+
+      <div class="pillars-grid" id="solutions">
+        <mat-card class="pillar-card" *ngFor="let pillar of pillars">
+          <mat-icon>{{ pillar.icon }}</mat-icon>
+          <h3>{{ pillar.title }}</h3>
+          <p>{{ pillar.description }}</p>
+        </mat-card>
+      </div>
+    </section>
+
+    <section id="journey" class="section journey-section">
+      <div class="section-heading">
+        <span class="badge">Nuestra trayectoria</span>
+        <h2>Construimos a partir del feedback de nuestros clientes</h2>
+      </div>
+      <div class="timeline">
+        <div class="timeline-item" *ngFor="let event of timeline">
+          <div class="timeline-marker">
+            <span>{{ event.year }}</span>
+          </div>
+          <mat-card>
+            <mat-card-title>{{ event.title }}</mat-card-title>
+            <mat-card-content>
+              <p>{{ event.description }}</p>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="section contact-section">
+      <div class="section-heading">
+        <span class="badge">Contacto</span>
+        <h2>Conversemos sobre cómo acelerar tu facturación</h2>
+        <p>
+          Completa el formulario o escríbenos directamente. Nuestro equipo te responderá dentro de las próximas 24 horas hábiles.
+        </p>
+      </div>
+
+      <div class="contact-grid">
+        <mat-card class="contact-form-card">
+          <mat-card-title>Agenda una llamada</mat-card-title>
+          <mat-card-content>
+            <form [formGroup]="contactForm" (ngSubmit)="submitContact()">
+              <mat-form-field appearance="outline">
+                <mat-label>Nombre completo</mat-label>
+                <input matInput formControlName="fullName" placeholder="Ej. Camila Reyes" />
+                <mat-error *ngIf="contactForm.get('fullName')?.hasError('required')">Requerido</mat-error>
+                <mat-error *ngIf="contactForm.get('fullName')?.hasError('minlength')">Mínimo 3 caracteres</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Email corporativo</mat-label>
+                <input matInput formControlName="email" type="email" placeholder="tucorreo@empresa.com" />
+                <mat-error *ngIf="contactForm.get('email')?.hasError('required')">Requerido</mat-error>
+                <mat-error *ngIf="contactForm.get('email')?.hasError('email')">Formato inválido</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Empresa</mat-label>
+                <input matInput formControlName="company" placeholder="Nombre de tu empresa" />
+                <mat-error *ngIf="contactForm.get('company')?.hasError('required')">Requerido</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>¿En qué podemos ayudarte?</mat-label>
+                <textarea matInput rows="4" formControlName="message" placeholder="Cuéntanos sobre tu proceso actual"></textarea>
+                <mat-error *ngIf="contactForm.get('message')?.hasError('required')">Requerido</mat-error>
+                <mat-error *ngIf="contactForm.get('message')?.hasError('minlength')">Mínimo 10 caracteres</mat-error>
+              </mat-form-field>
+
+              <button mat-raised-button color="primary" type="submit" [disabled]="submitting">
+                <mat-icon>send</mat-icon>
+                <span *ngIf="!submitting">Enviar mensaje</span>
+                <span *ngIf="submitting">Enviando...</span>
+              </button>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="contact-info-card">
+          <mat-card-title>Canales directos</mat-card-title>
+          <mat-card-content>
+            <ul>
+              <li *ngFor="let channel of contactChannels">
+                <mat-icon color="primary">{{ channel.icon }}</mat-icon>
+                <div>
+                  <span class="label">{{ channel.label }}</span>
+                  <a *ngIf="channel.href" [href]="channel.href" target="_blank" rel="noopener">
+                    {{ channel.value }}
+                  </a>
+                  <span *ngIf="!channel.href">{{ channel.value }}</span>
+                </div>
+              </li>
+            </ul>
+            <mat-divider></mat-divider>
+            <div class="contact-footer">
+              <p>¿Ya eres cliente?</p>
+              <button mat-stroked-button color="accent" (click)="goToLogin()">
+                Ingresa a FactuFast
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+  </main>
+</div>

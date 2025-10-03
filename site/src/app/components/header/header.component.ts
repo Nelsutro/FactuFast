@@ -7,8 +7,6 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatBadgeModule } from '@angular/material/badge';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -20,6 +18,19 @@ import { NotificationService, AppNotification } from '../../core/services/notifi
 import { AuthService } from '../../core/services/auth.service';
 
 type Notification = AppNotification;
+
+interface NavLink {
+  label: string;
+  icon: string;
+  route: string;
+  roles?: string[];
+}
+
+interface NavSection {
+  label: string;
+  icon: string;
+  items: NavLink[];
+}
 
 @Component({
   selector: 'app-header',
@@ -33,8 +44,6 @@ type Notification = AppNotification;
     MatIconModule,
     MatMenuModule,
     MatBadgeModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatDividerModule,
     MatChipsModule,
     MatDialogModule,
@@ -58,10 +67,7 @@ export class HeaderComponent implements OnInit {
 
   // UI state
   isDarkTheme: boolean = false;
-  isSearching: boolean = false;
-  searchTerm: string = '';
   updateCount: number = 0;
-  showMobileSearch: boolean = false;
   pageTitle: string = '';
 
   // Quick actions
@@ -69,6 +75,37 @@ export class HeaderComponent implements OnInit {
 
   // Notifications
   notifications: Notification[] = [];
+
+  readonly dashboardLink: NavLink = { label: 'Dashboard', icon: 'space_dashboard', route: '/dashboard' };
+
+  readonly navSections: NavSection[] = [
+    {
+      label: 'Gestión',
+      icon: 'inventory_2',
+      items: [
+        { label: 'Clientes', icon: 'groups', route: '/clients' },
+        { label: 'Facturas', icon: 'receipt_long', route: '/invoices' },
+        { label: 'Cotizaciones', icon: 'format_quote', route: '/quotes' },
+        { label: 'Empresas', icon: 'business', route: '/companies', roles: ['admin'] }
+      ]
+    },
+    {
+      label: 'Operación',
+      icon: 'sync_alt',
+      items: [
+        { label: 'Pagos', icon: 'paid', route: '/payments' },
+        { label: 'Automatización', icon: 'auto_mode', route: '/automation' }
+      ]
+    },
+    {
+      label: 'Configuración',
+      icon: 'tune',
+      items: [
+        { label: 'Preferencias', icon: 'settings', route: '/settings' },
+        { label: 'Ayuda y soporte', icon: 'help', route: '/ayuda' }
+      ]
+    }
+  ];
 
   private routeTitleMap: { [key: string]: string } = {
     '': 'Dashboard',
@@ -158,14 +195,6 @@ export class HeaderComponent implements OnInit {
     return slug.charAt(0).toUpperCase() + slug.slice(1);
   }
 
-  // Search Management
-  toggleMobileSearch(): void {
-    this.showMobileSearch = !this.showMobileSearch;
-    if (!this.showMobileSearch) {
-      this.searchTerm = '';
-    }
-  }
-
   // User Management
   private loadUserInfo(): void {
     this.authService.currentUser$.subscribe((user: any) => {
@@ -201,8 +230,45 @@ export class HeaderComponent implements OnInit {
     this.router.navigate(['/']);
   }
 
+  goToAbout(): void {
+    this.router.navigate(['/about']);
+  }
+
   goToProfile(): void {
     this.router.navigate(['/perfil']);
+  }
+
+  navigateTo(route: string): void {
+    this.router.navigate([route]);
+  }
+
+  isNavActive(route: string): boolean {
+    const current = this.router.url || '';
+    if (!route) {
+      return false;
+    }
+    if (route === '/dashboard') {
+      return current === '/dashboard' || current === '/' || current.startsWith('/dashboard');
+    }
+    return current === route || current.startsWith(`${route}/`);
+  }
+
+  canDisplayNavLink(link: NavLink): boolean {
+    if (!this.isAuthenticated) {
+      return false;
+    }
+    if (!link.roles || link.roles.length === 0) {
+      return true;
+    }
+    return link.roles.includes(this.userRole);
+  }
+
+  canDisplaySection(section: NavSection): boolean {
+    return this.isAuthenticated && section.items.some(link => this.canDisplayNavLink(link));
+  }
+
+  isSectionActive(section: NavSection): boolean {
+    return section.items.some(link => this.isNavActive(link.route));
   }
 
   goToSettings(): void {
@@ -215,17 +281,6 @@ export class HeaderComponent implements OnInit {
 
   viewUpdates(): void {
     this.router.navigate(['/novedades']);
-  }
-
-  // Search functionality
-  onSearch(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.searchTerm = input.value;
-    // Implement search logic here
-  }
-
-  clearSearch(): void {
-    this.searchTerm = '';
   }
 
   // Notification Management
