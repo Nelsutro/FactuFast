@@ -76,6 +76,9 @@ class PublicPaymentLinkController extends Controller
                 'payment_id' => $payment->id,
                 'provider_payment_id' => $payment->provider_payment_id,
                 'intent_status' => $payment->intent_status,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+                'is_paid' => $payment->status === 'completed',
                 'redirect_url' => $payment->redirect_url
             ]
         ], 201);
@@ -92,6 +95,39 @@ class PublicPaymentLinkController extends Controller
                 'hash' => $linkHash,
                 'public_url' => url("/api/public/pay/{$linkHash}"),
                 'expires_at' => now()->addSeconds($ttl)->timestamp
+            ]
+        ]);
+    }
+
+    public function status(string $hash, Request $request): JsonResponse
+    {
+        $parsed = SignedPaymentLink::parse($hash);
+        if (!$parsed) {
+            return response()->json(['success' => false, 'message' => 'Link inválido o expirado'], 410);
+        }
+
+        $paymentId = (int) $request->get('payment_id');
+        if (!$paymentId) {
+            return response()->json(['success' => false, 'message' => 'payment_id requerido'], 400);
+        }
+
+        $payment = Payment::where('id', $paymentId)
+            ->where('company_id', $parsed['company_id'])
+            ->where('invoice_id', $parsed['invoice_id'])
+            ->first();
+
+        if (!$payment) {
+            return response()->json(['success' => false, 'message' => 'Pago no encontrado'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $payment->id,
+                'status' => $payment->status,
+                'intent_status' => $payment->intent_status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+                'is_paid' => $payment->status === 'completed',
             ]
         ]);
     }

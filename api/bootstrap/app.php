@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         
         $middleware->alias([
             'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
+            'token.policies' => \App\Http\Middleware\EnforceApiTokenPolicies::class,
+            'abilities' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

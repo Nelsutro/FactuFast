@@ -17,6 +17,9 @@ use App\Mail\InvoicePdfMail;
 use App\Mail\InvoiceCreatedClientMail;
 use App\Mail\InvoiceCreatedCompanyMail;
 use Illuminate\Support\Facades\Log;
+use App\Jobs\ProcessInvoiceImportBatch;
+use App\Models\ImportBatch;
+use Illuminate\Support\Facades\Storage;
 
 class InvoiceController extends Controller
 {
@@ -601,95 +604,33 @@ class InvoiceController extends Controller
             ], 422);
         }
 
-        $created = 0;
-        $skipped = 0;
-        $errors = [];
+        $originalName = $file->getClientOriginalName();
+        $path = $file->storeAs(
+            'imports/invoices',
+            now()->format('Ymd_His') . '_' . uniqid() . '_' . $originalName,
+            'local'
+        );
 
-        if (($handle = fopen($file->getRealPath(), 'r')) !== false) {
-            $row = 0;
-            $header = null;
-            while (($data = fgetcsv($handle, 0, ',')) !== false) {
-                $row++;
+        $batch = ImportBatch::create([
+            'company_id' => $user->company_id,
+            'user_id' => $user->id,
+            'type' => 'invoices',
+            'status' => 'pending',
+            'source_filename' => $originalName,
+            'stored_path' => $path,
+            'meta' => ['uploader_ip' => $request->ip()],
+        ]);
 
-                // Detectar encabezado
-                if ($row === 1) {
-                    $maybeHeader = array_map(fn($h) => strtolower(trim($h)), $data);
-                    if (in_array('invoice_number', $maybeHeader)) {
-                        $header = $maybeHeader;
-                        continue;
-                    }
-                }
-
-                // Mapear columnas esperadas
-                if ($header) {
-                    $map = array_combine($header, $data + array_fill(0, max(0, count($header) - count($data)), ''));
-                    $invoiceNumber = trim($map['invoice_number'] ?? '');
-                    $clientEmail = trim($map['client_email'] ?? '');
-                    $amount = trim($map['amount'] ?? '');
-                    $status = strtolower(trim($map['status'] ?? 'pending'));
-                    $issueDate = trim($map['issue_date'] ?? '');
-                    $dueDate = trim($map['due_date'] ?? '');
-                    $notes = trim($map['notes'] ?? '');
-                } else {
-                    // Posicional: invoice_number,client_email,amount,status,issue_date,due_date,notes
-                    $invoiceNumber = trim($data[0] ?? '');
-                    $clientEmail = trim($data[1] ?? '');
-                    $amount = trim($data[2] ?? '');
-                    $status = strtolower(trim($data[3] ?? 'pending'));
-                    $issueDate = trim($data[4] ?? '');
-                    $dueDate = trim($data[5] ?? '');
-                    $notes = trim($data[6] ?? '');
-                }
-
-                // Validaciones básicas
-                if ($invoiceNumber === '') { $skipped++; $errors[] = "Fila $row: invoice_number vacío"; continue; }
-                if ($clientEmail === '') { $skipped++; $errors[] = "Fila $row: client_email vacío"; continue; }
-                if (!filter_var($clientEmail, FILTER_VALIDATE_EMAIL)) { $skipped++; $errors[] = "Fila $row: email inválido ($clientEmail)"; continue; }
-                if ($amount === '' || !is_numeric($amount)) { $skipped++; $errors[] = "Fila $row: amount inválido"; continue; }
-                if (!in_array($status, ['draft','pending','paid','overdue','cancelled'])) { $skipped++; $errors[] = "Fila $row: status inválido ($status)"; continue; }
-                // Fechas
-                $issue_date_parsed = date_create($issueDate) ?: null;
-                $due_date_parsed = date_create($dueDate) ?: null;
-                if (!$issue_date_parsed || !$due_date_parsed) { $skipped++; $errors[] = "Fila $row: fechas inválidas"; continue; }
-                if ($due_date_parsed < $issue_date_parsed) { $skipped++; $errors[] = "Fila $row: due_date anterior a issue_date"; continue; }
-
-                // Cliente por email y compañía
-                $client = Client::where('company_id', $user->company_id)->where('email', $clientEmail)->first();
-                if (!$client) { $skipped++; $errors[] = "Fila $row: cliente no encontrado ($clientEmail)"; continue; }
-
-                // Unicidad de invoice_number
-                if (Invoice::where('invoice_number', $invoiceNumber)->exists()) { $skipped++; $errors[] = "Fila $row: invoice_number duplicado ($invoiceNumber)"; continue; }
-
-                // Crear factura
-                Invoice::create([
-                    'company_id' => $user->company_id,
-                    'client_id' => $client->id,
-                    'invoice_number' => $invoiceNumber,
-                    'amount' => (float)$amount,
-                    'status' => $status,
-                    'issue_date' => $issue_date_parsed->format('Y-m-d'),
-                    'due_date' => $due_date_parsed->format('Y-m-d'),
-                    'notes' => $notes ?: null,
-                ]);
-                $created++;
-            }
-            fclose($handle);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'No se pudo leer el archivo CSV'
-            ], 422);
-        }
+        ProcessInvoiceImportBatch::dispatch($batch->id);
 
         return response()->json([
             'success' => true,
-            'message' => 'Importación de facturas finalizada',
+            'message' => 'Importación encolada. Recibirás notificación al finalizar.',
             'data' => [
-                'created' => $created,
-                'skipped' => $skipped,
-                'errors' => array_slice($errors, 0, 50)
+                'batch_id' => $batch->id,
+                'status' => $batch->status,
             ]
-        ]);
+        ], 202);
     }
 
     /**

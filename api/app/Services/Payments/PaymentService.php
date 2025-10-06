@@ -7,6 +7,7 @@ use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 
 class PaymentService
 {
@@ -66,13 +67,20 @@ class PaymentService
 
             $payment->provider_payment_id = $gatewayResp['provider_payment_id'] ?? null;
             $payment->intent_status = $gatewayResp['status'] ?? 'initiated';
+
             if (!empty($gatewayResp['raw'])) {
                 $payment->raw_gateway_response = $gatewayResp['raw'];
             }
+
+            if (!$payment->provider_payment_id && in_array($payment->intent_status, ['error', 'failed'], true)) {
+                $payment->status = 'failed';
+            }
+
             $payment->save();
 
-            // Normalizar redirect
-            $payment->redirect_url = $gatewayResp['redirect_url'] ?? null; // atributo virtual (no guardado)
+            $payment = $this->finalizePaymentFromGateway($payment->fresh('invoice'), $gatewayResp);
+            $payment->setAttribute('redirect_url', $gatewayResp['redirect_url'] ?? null);
+
             return $payment;
         });
     }
@@ -84,22 +92,7 @@ class PaymentService
         }
         $gateway = $this->getGatewayForCompany($payment->invoice->company, $payment->payment_provider);
         $resp = $gateway->retrieve($payment->provider_payment_id);
-        $payment->intent_status = $resp['status'] ?? $payment->intent_status;
-        if (($resp['paid'] ?? false) && !$payment->paid_at) {
-            $payment->paid_at = $resp['paid_at'] ?? now();
-            $payment->status = 'completed';
-            // marcar factura como pagada si corresponde
-            $invoice = $payment->invoice;
-            if ($invoice && $invoice->status !== 'paid') {
-                $invoice->status = 'paid';
-                $invoice->save();
-            }
-        }
-        if (!empty($resp['raw'])) {
-            $payment->raw_gateway_response = $resp['raw'];
-        }
-        $payment->save();
-        return $payment;
+        return $this->finalizePaymentFromGateway($payment, $resp);
     }
 
     public function applyWebhook(string $provider, array $payload): ?Payment
@@ -118,20 +111,68 @@ class PaymentService
         }
         $gateway = $this->getGatewayForCompany($payment->invoice->company, $provider);
         $data = $gateway->handleWebhook($payload);
-        $payment->intent_status = $data['status'] ?? $payment->intent_status;
-        if (!empty($data['raw'])) {
-            $payment->raw_gateway_response = $data['raw'];
+
+        return $this->finalizePaymentFromGateway($payment, $data);
+    }
+
+    public function applyGatewayResult(Payment $payment, array $gatewayData): Payment
+    {
+        return $this->finalizePaymentFromGateway($payment, $gatewayData);
+    }
+
+    protected function finalizePaymentFromGateway(Payment $payment, array $gatewayData): Payment
+    {
+        if (!empty($gatewayData['raw'])) {
+            $payment->raw_gateway_response = $gatewayData['raw'];
         }
-        if (($data['paid'] ?? false) && !$payment->paid_at) {
-            $payment->paid_at = $data['paid_at'] ?? now();
+
+        if (($gatewayData['paid'] ?? false)) {
+            $paidAt = $gatewayData['paid_at'] ?? now();
+            if (!$paidAt instanceof CarbonInterface) {
+                $paidAt = Carbon::make($paidAt) ?? now();
+            }
+
             $payment->status = 'completed';
-            $invoice = $payment->invoice;
-            if ($invoice && $invoice->status !== 'paid') {
+            $payment->paid_at = $payment->paid_at ?: $paidAt;
+            $payment->intent_status = $gatewayData['status'] ?? 'paid';
+            $payment->save();
+
+            $this->markInvoiceStatus($payment);
+            return $payment;
+        }
+
+        if (!empty($gatewayData['status'])) {
+            $payment->intent_status = $gatewayData['status'];
+        }
+
+        if (isset($gatewayData['status']) && in_array($gatewayData['status'], ['failed', 'error', 'aborted', 'rejected'], true)) {
+            $payment->status = 'failed';
+        }
+
+        $payment->save();
+
+        return $payment;
+    }
+
+    protected function markInvoiceStatus(Payment $payment): void
+    {
+        $invoice = $payment->invoice()->with('payments')->first();
+        if (!$invoice) {
+            return;
+        }
+
+        $remaining = $invoice->remaining_amount;
+        if ($remaining <= 0) {
+            if ($invoice->status !== 'paid') {
                 $invoice->status = 'paid';
                 $invoice->save();
             }
+            return;
         }
-        $payment->save();
-        return $payment;
+
+        if ($invoice->status === 'paid' && $remaining > 0) {
+            $invoice->status = 'pending';
+            $invoice->save();
+        }
     }
 }

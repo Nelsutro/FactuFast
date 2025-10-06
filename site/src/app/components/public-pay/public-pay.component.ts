@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { PortalPaymentService } from '../../services/portal-payment.service';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-public-pay',
@@ -19,20 +20,26 @@ import { FormsModule } from '@angular/forms';
     <p>Estado: <span [ngClass]="invoice.status">{{ invoice.status }}</span></p>
     <p *ngIf="invoice.due_date">Vence: {{ invoice.due_date }}</p>
     <p *ngIf="expiredLink" class="warn">Enlace expirado</p>
+    <div *ngIf="statusMessage" class="status-message" [ngClass]="{ success: paid, error: latestStatus === 'failed' }">
+      {{ statusMessage }}
+    </div>
     <div *ngIf="!paymentStarted && !invoice.is_paid && !expiredLink">
       <button mat-raised-button color="primary" (click)="startPayment()" [disabled]="starting">Pagar ahora</button>
     </div>
     <div *ngIf="paymentStarted && !completed">
-      <p>Procesando intento de pago ({{ intentStatus }})...</p>
+      <p>Procesando intento de pago ({{ intentStatus || 'pendiente' }})...</p>
       <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
     </div>
-    <div *ngIf="completed && paid">
-      <h3>✅ Pago confirmado</h3>
-      <p>Gracias. Puedes cerrar esta ventana.</p>
-    </div>
-    <div *ngIf="completed && !paid">
-      <h3>⚠ No se confirmó el pago</h3>
-      <button mat-stroked-button color="primary" (click)="retry()">Reintentar</button>
+    <div *ngIf="completed">
+      <ng-container *ngIf="paid; else paymentFailed">
+        <h3>✅ Pago confirmado</h3>
+        <p>Gracias. Puedes cerrar esta ventana.</p>
+      </ng-container>
+      <ng-template #paymentFailed>
+        <h3>⚠ No se confirmó el pago</h3>
+        <p *ngIf="latestStatus">Estado reportado: {{ latestStatus }}</p>
+        <button mat-stroked-button color="primary" (click)="retry()">Reintentar</button>
+      </ng-template>
     </div>
   </mat-card>
   <ng-template #loadingTmpl>
@@ -46,10 +53,13 @@ import { FormsModule } from '@angular/forms';
     .public-pay-card { max-width: 420px; margin: 40px auto; display: block; }
     .center { text-align: center; margin-top: 80px; }
     .warn { color: #d32f2f; font-weight: 600; }
+    .status-message { margin: 12px 0; font-weight: 600; }
+    .status-message.success { color: #2e7d32; }
+    .status-message.error { color: #c62828; }
   `],
   imports: [CommonModule, MatCardModule, MatButtonModule, MatProgressSpinnerModule, MatIconModule, FormsModule]
 })
-export class PublicPayComponent implements OnInit {
+export class PublicPayComponent implements OnInit, OnDestroy {
   hash!: string;
   invoice: any;
   loaded = false;
@@ -61,10 +71,12 @@ export class PublicPayComponent implements OnInit {
   completed = false;
   paid = false;
   provider = 'webpay';
+  latestStatus: string | null = null;
+  statusMessage = '';
+  private pollSub?: Subscription;
 
   constructor(
     private route: ActivatedRoute,
-    private router: Router,
     private snack: MatSnackBar,
     private portalPay: PortalPaymentService
   ) {}
@@ -72,6 +84,10 @@ export class PublicPayComponent implements OnInit {
   ngOnInit(): void {
     this.hash = this.route.snapshot.paramMap.get('hash')!;
     this.load();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
   }
 
   load() {
@@ -86,6 +102,11 @@ export class PublicPayComponent implements OnInit {
         if (Date.now()/1000 > res.data.expires_at) {
           this.expiredLink = true;
         }
+        if (this.invoice.is_paid) {
+          this.completed = true;
+          this.paid = true;
+          this.statusMessage = 'Esta factura ya se encuentra pagada.';
+        }
       },
       error: err => {
         this.loaded = true;
@@ -96,6 +117,7 @@ export class PublicPayComponent implements OnInit {
   }
 
   startPayment() {
+    this.resetStates();
     this.starting = true;
     this.portalPay.initiatePublicPayment(this.hash, this.provider).subscribe({
       next: res => {
@@ -104,13 +126,21 @@ export class PublicPayComponent implements OnInit {
         this.paymentStarted = true;
         this.paymentId = res.data.payment_id;
         this.intentStatus = res.data.intent_status;
-        if (res.data.redirect_url) {
-          window.location.href = res.data.redirect_url;
-        } else {
-          // Polling sólo aplica al flujo client-portal (requiere email/token). Para público necesitaríamos endpoint de estado público (futuro)
+        this.latestStatus = res.data.status ?? null;
+
+        if (res.data.is_paid) {
+          this.markCompleted(true, res.data.status ?? 'paid');
+          return;
         }
-        // Marcar completado simulado (hasta que exista webhook real)
-        setTimeout(()=> { this.completed = true; this.paid = true; }, 3000);
+
+        if (res.data.redirect_url) {
+          this.statusMessage = 'Redirigiendo al proveedor de pagos…';
+          window.location.href = res.data.redirect_url;
+          return;
+        }
+
+        this.statusMessage = 'Esperando confirmación del proveedor…';
+        this.pollPublicPayment();
       },
       error: err => {
         this.starting = false;
@@ -120,6 +150,76 @@ export class PublicPayComponent implements OnInit {
   }
 
   retry() {
-    this.completed = false; this.paid = false; this.paymentStarted = false; this.startPayment();
+    this.resetStates();
+    this.startPayment();
+  }
+
+  private pollPublicPayment() {
+    if (!this.paymentId) {
+      return;
+    }
+
+    this.stopPolling();
+    this.pollSub = this.portalPay.pollPublicPaymentStatus(this.hash, this.paymentId).subscribe({
+      next: resp => {
+        if (!resp.success || !resp.data) {
+          return;
+        }
+
+        const data = resp.data;
+        this.intentStatus = data.intent_status;
+        this.latestStatus = data.status;
+
+        if (data.is_paid) {
+          this.markCompleted(true, data.status);
+          return;
+        }
+
+        if (data.status === 'failed') {
+          this.markCompleted(false, data.status);
+        }
+      },
+      error: err => {
+        this.statusMessage = 'No fue posible verificar el estado del pago.';
+        this.snack.open(err.error?.message || 'Error consultando estado de pago', 'Cerrar', { duration: 4000 });
+        this.markCompleted(false, 'error');
+      },
+      complete: () => {
+        if (!this.completed) {
+          this.statusMessage = 'No se recibió confirmación del proveedor. Intenta nuevamente.';
+        }
+      }
+    });
+  }
+
+  private markCompleted(isPaid: boolean, status?: string) {
+    this.completed = true;
+    this.paid = isPaid;
+    this.paymentStarted = true;
+    if (status) {
+      this.latestStatus = status;
+    }
+    this.statusMessage = isPaid
+      ? 'Pago confirmado correctamente.'
+      : 'No fue posible confirmar el pago. Reintenta o contacta soporte.';
+    this.stopPolling();
+    this.invoice.status = isPaid ? 'paid' : this.invoice.status;
+    this.invoice.is_paid = isPaid ? true : this.invoice.is_paid;
+  }
+
+  private resetStates() {
+    this.stopPolling();
+    this.paymentStarted = false;
+    this.completed = false;
+    this.paid = false;
+    this.statusMessage = '';
+    this.latestStatus = null;
+  }
+
+  private stopPolling() {
+    if (this.pollSub) {
+      this.pollSub.unsubscribe();
+      this.pollSub = undefined;
+    }
   }
 }

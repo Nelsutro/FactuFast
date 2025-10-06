@@ -34,6 +34,24 @@ class WebpayGateway implements PaymentGatewayInterface
         $buyOrder = 'INV-' . $invoice->id . '-' . Str::random(6);
         $sessionId = 'client-' . $invoice->client_id;
 
+        if ($this->isSimulation()) {
+            $token = 'sim-webpay-' . Str::random(20);
+
+            return [
+                'provider_payment_id' => $token,
+                'redirect_url' => null,
+                'status' => 'authorized',
+                'paid' => true,
+                'paid_at' => Carbon::now(),
+                'raw' => [
+                    'mode' => 'simulation',
+                    'message' => 'Webpay completado automáticamente (sin credenciales configuradas).',
+                    'amount' => $amount,
+                    'return_url' => $returnUrl,
+                ],
+            ];
+        }
+
         $endpointBase = $this->environment === 'production'
             ? 'https://webpay3g.transbank.cl'
             : 'https://webpay3gint.transbank.cl';
@@ -67,6 +85,8 @@ class WebpayGateway implements PaymentGatewayInterface
                 'provider_payment_id' => $providerPaymentId,
                 'redirect_url' => $redirectUrl . '?token_ws=' . $token,
                 'status' => 'created',
+                'paid' => false,
+                'paid_at' => null,
                 'raw' => $data,
             ];
         } catch (\Throwable $e) {
@@ -75,6 +95,8 @@ class WebpayGateway implements PaymentGatewayInterface
                 'provider_payment_id' => null,
                 'redirect_url' => null,
                 'status' => 'error',
+                'paid' => false,
+                'paid_at' => null,
                 'raw' => ['error' => $e->getMessage()]
             ];
         }
@@ -82,6 +104,18 @@ class WebpayGateway implements PaymentGatewayInterface
 
     public function retrieve(string $providerPaymentId): array
     {
+        if ($this->isSimulation()) {
+            return [
+                'status' => 'paid',
+                'paid' => true,
+                'paid_at' => Carbon::now(),
+                'raw' => [
+                    'mode' => 'simulation',
+                    'provider_payment_id' => $providerPaymentId,
+                ]
+            ];
+        }
+
         // Webpay no expone un endpoint "get" simple; se confirma vía commit con token.
         // Aquí devolvemos estado neutro; la confirmación real ocurre en return handler.
         return [
@@ -107,6 +141,18 @@ class WebpayGateway implements PaymentGatewayInterface
     // Método auxiliar para confirmar (commit) usando token de regreso
     public function commit(string $token): array
     {
+        if ($this->isSimulation()) {
+            return [
+                'status' => 'paid',
+                'paid' => true,
+                'paid_at' => Carbon::now(),
+                'raw' => [
+                    'mode' => 'simulation',
+                    'token' => $token,
+                ]
+            ];
+        }
+
         $endpointBase = $this->environment === 'production'
             ? 'https://webpay3g.transbank.cl'
             : 'https://webpay3gint.transbank.cl';
@@ -143,5 +189,10 @@ class WebpayGateway implements PaymentGatewayInterface
                 'raw' => ['error' => $e->getMessage()]
             ];
         }
+    }
+
+    protected function isSimulation(): bool
+    {
+        return empty($this->commerceCode) || empty($this->apiKey);
     }
 }

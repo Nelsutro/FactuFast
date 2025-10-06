@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
@@ -61,4 +60,9 @@ return [
         'redirect' => env('APPLE_REDIRECT_URI'),
     ],
 
+    'api_tokens' => [
+        'default_rate' => env('API_TOKEN_RATE_LIMIT', 120),
+        'default_decay' => env('API_TOKEN_RATE_LIMIT_DECAY', 60),
+        'default_expiration_days' => env('API_TOKEN_EXPIRATION_DAYS', 90),
+    ],
 ];

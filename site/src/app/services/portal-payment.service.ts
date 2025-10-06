@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Observable, interval, switchMap, takeWhile, map } from 'rxjs';
+import { interval, switchMap, takeWhile } from 'rxjs';
 
 export interface InitiatePaymentResponse {
   success: boolean;
@@ -9,6 +9,9 @@ export interface InitiatePaymentResponse {
     payment_id: number;
     provider_payment_id?: string;
     intent_status: string;
+    status?: string;
+    paid_at?: string | null;
+    is_paid?: boolean;
     redirect_url?: string | null;
   };
   message?: string;
@@ -36,6 +39,17 @@ export interface PublicInvoiceData {
     company: { name?: string|null; tax_id?: string|null };
     is_paid: boolean;
     expires_at: number;
+  };
+}
+
+export interface PublicPaymentStatusResponse {
+  success: boolean;
+  data?: {
+    id: number;
+    status: string;
+    intent_status: string;
+    paid_at: string | null;
+    is_paid: boolean;
   };
 }
 
@@ -72,6 +86,26 @@ export class PortalPaymentService {
 
   initiatePublicPayment(hash: string, provider = 'webpay') {
     return this.http.post<InitiatePaymentResponse>(`${this.apiBase}/public/pay/${hash}/init`, { provider });
+  }
+
+  getPublicPaymentStatus(hash: string, paymentId: number) {
+    return this.http.get<PublicPaymentStatusResponse>(`${this.apiBase}/public/pay/${hash}/status`, {
+      params: { payment_id: paymentId }
+    });
+  }
+
+  pollPublicPaymentStatus(hash: string, paymentId: number, intervalMs = 2500, maxMs = 120000) {
+    const start = Date.now();
+    return interval(intervalMs).pipe(
+      switchMap(() => this.getPublicPaymentStatus(hash, paymentId)),
+      takeWhile(response => {
+        const elapsed = Date.now() - start;
+        const done = response.data?.is_paid === true ||
+          response.data?.status === 'failed' ||
+          elapsed > maxMs;
+        return !done;
+      }, true)
+    );
   }
 
   pollPayment(paymentId: number, email: string, token: string, intervalMs = 2000, maxMs = 60000) {

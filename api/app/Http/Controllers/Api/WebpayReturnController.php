@@ -11,6 +11,10 @@ use App\Services\Payments\PaymentService;
 
 class WebpayReturnController extends Controller
 {
+    public function __construct(private PaymentService $payments)
+    {
+    }
+
     public function __invoke(Request $request)
     {
         $token = $request->get('token_ws');
@@ -29,36 +33,36 @@ class WebpayReturnController extends Controller
         $invoice = $payment->invoice()->with('company')->first();
         $gateway = WebpayGateway::fromCompany($invoice->company);
         $commitResult = $gateway->commit($token);
+        $commitResult['raw'] = array_merge(
+            ['commit_timestamp' => now()->toIso8601String()],
+            $commitResult['raw'] ?? []
+        );
 
-        // Actualizar registro
-        $raw = $payment->raw_gateway_response ?? [];
-        $raw['commit'] = $commitResult['raw'] ?? [];
-        $payment->raw_gateway_response = $raw;
-        if ($commitResult['paid']) {
-            $payment->status = 'completed';
-            $payment->paid_at = now();
-            $payment->intent_status = 'authorized';
-            // Marcar invoice pagada si el monto cubre
-            $invoice->refresh();
-            if ($invoice->remaining_amount <= 0) {
-                $invoice->status = 'paid';
-                $invoice->save();
-            }
-        } else {
-            $payment->intent_status = $commitResult['status'];
-        }
-        $payment->save();
+        $payment = $this->payments->applyGatewayResult($payment->load('invoice.payments'), $commitResult);
+
+        $status = $payment->status;
+        $intent = $payment->intent_status;
+        $isPaid = $payment->status === 'completed';
 
         // Redirigir a UI portal cliente (si definimos una ruta), por ahora JSON
         if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'payment_id' => $payment->id,
-                'status' => $payment->status,
-                'intent_status' => $payment->intent_status
+                'status' => $status,
+                'intent_status' => $intent,
+                'paid' => $isPaid,
             ]);
         }
 
-        return redirect(url('/client-portal/invoice/' . $invoice->id . '?paid=1'));
+        $query = http_build_query([
+            'paid' => $isPaid ? '1' : '0',
+            'status' => $status,
+            'intent' => $intent,
+            'payment_id' => $payment->id,
+            'provider' => 'webpay'
+        ]);
+
+        return redirect(url('/client-portal/invoice/' . $invoice->id) . '?' . $query);
     }
 }

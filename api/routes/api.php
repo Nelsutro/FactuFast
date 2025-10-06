@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\PublicPaymentLinkController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\WebpayReturnController;
 use App\Http\Controllers\Auth\OAuthController;
+use App\Http\Controllers\Api\ImportBatchController;
+use App\Http\Controllers\Api\ApiTokenController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +48,7 @@ Route::prefix('client-portal')->group(function () {
 Route::prefix('public/pay')->group(function () {
     Route::get('{hash}', [PublicPaymentLinkController::class, 'show']);
     Route::post('{hash}/init', [PublicPaymentLinkController::class, 'initiate']);
+    Route::get('{hash}/status', [PublicPaymentLinkController::class, 'status']);
 });
 
 // Webhooks de pagos (públicos, añadir verificación futura)
@@ -56,7 +59,7 @@ Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'h
 Route::match(['GET','POST'],'payments/webpay/return', WebpayReturnController::class);
 
 // Rutas protegidas (requieren autenticación)
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'token.policies'])->group(function () {
     
     // Autenticación
     Route::prefix('auth')->group(function () {
@@ -64,6 +67,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::get('user', [AuthController::class, 'user']);
         Route::get('me', [AuthController::class, 'me']);
+    });
+
+    // Configuración (por empresa del usuario)
+    Route::get('settings', [SettingsController::class, 'index']);
+    Route::put('settings', [SettingsController::class, 'update']);
+    Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
+    Route::prefix('settings')->group(function () {
+        Route::get('api-tokens', [ApiTokenController::class, 'index']);
+        Route::post('api-tokens', [ApiTokenController::class, 'store']);
+        Route::delete('api-tokens/{token}', [ApiTokenController::class, 'destroy']);
     });
 
     // Perfil (alias + update)
@@ -78,7 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Facturas (CSV primero para evitar colisión con invoices/{invoice})
     Route::get('invoices/export', [InvoiceController::class, 'export']);
-    Route::post('invoices/import', [InvoiceController::class, 'import']);
+    Route::post('invoices/import', [InvoiceController::class, 'import'])->middleware('abilities:api:import-invoices');
     Route::apiResource('invoices', InvoiceController::class);
     Route::post('invoices/{invoice}/payment-link', [PublicPaymentLinkController::class, 'generate']);
     Route::get('invoices-stats', [InvoiceController::class, 'stats']);
@@ -87,6 +100,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
     Route::post('invoices/{invoice}/email', [InvoiceController::class, 'sendEmail']);
 
+    Route::get('import-batches/{batch}', [ImportBatchController::class, 'show']);
+    Route::get('import-batches/{batch}/errors', [ImportBatchController::class, 'errors']);
+    Route::get('import-batches/{batch}/errors/export', [ImportBatchController::class, 'downloadErrors']);
+
     // Clientes
     Route::apiResource('clients', ClientController::class);
     Route::get('clients/export', [ClientController::class, 'export']);
@@ -94,7 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Cotizaciones (CSV primero para evitar colisión con quotes/{quote})
     Route::get('quotes/export', [QuoteController::class, 'export']);
-    Route::post('quotes/import', [QuoteController::class, 'import']);
+    Route::post('quotes/import', [QuoteController::class, 'import'])->middleware('abilities:api:import-quotes');
     Route::apiResource('quotes', QuoteController::class);
     Route::get('quotes-stats', [QuoteController::class, 'stats']);
     Route::post('quotes/{quote}/convert', [QuoteController::class, 'convertToInvoice']);
@@ -107,11 +124,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Empresas
     Route::apiResource('companies', CompanyController::class);
     Route::get('companies/{company}/invoices', [CompanyController::class, 'invoices']);
-
-    // Configuración (por empresa del usuario)
-    Route::get('settings', [SettingsController::class, 'index']);
-    Route::put('settings', [SettingsController::class, 'update']);
-    Route::post('settings/logo', [SettingsController::class, 'uploadLogo']);
 });
 
 // Rutas de prueba
