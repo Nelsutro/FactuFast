@@ -7,13 +7,16 @@ Este documento consolida el estado actual del cronograma y define los pasos sigu
 ### Recepción masiva (lotes)
 - [x] Implementar cola de procesamiento y workers para dividir los CSV en lotes.
 - [x] Guardar bitácoras por registro con estado (ok/error) descargables desde la UI.
-- [ ] Añadir reintentos automáticos y métricas básicas de carga en el dashboard.
+- [x] Añadir reintentos automáticos y métricas básicas de carga en el dashboard.
+- [x] Surfacear métricas de lotes en la SPA (cards + historial) y alertas básicas.
+- [ ] Conectar alertas de importación con notificaciones (snackbar/correo) y filtros de histórico.
 
 ### Recepción vía API
 - [x] Emitir claves API por cliente (tabla de tokens + consola de administración).
 - [ ] Documentar oficialmente los endpoints (OpenAPI y guía rápida) y limitar scopes por token.
 - [x] Configurar rate limiting y auditoría de uso por token.
-- [ ] Exponer reporte básico de uso (endpoint/tabla) y panel mínimo en la UI.
+- [x] Exponer reporte básico de uso (endpoint/tabla) y panel mínimo en la UI.
+- [ ] Diseñar alertas y filtros avanzados para tokens (errores recurrentes, umbrales de consumo).
 
 ### Programación automática
 - Extender el cron actual para generar facturas/recordatorios según reglas configurables.

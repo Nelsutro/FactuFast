@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { ApiTokenSummary, ApiTokenLogsResponse, PaginationMeta } from '../models/api-token.model';
 
 export interface ApiResponse<T> {
   data: T;
@@ -15,12 +16,11 @@ export interface PaginatedResponse<T> {
   success: boolean; // Mantener compatibilidad con componentes que chequean success
   message?: string;
   data: T[];
-  pagination: {
-    current_page: number;
-    per_page: number;
-    total: number;
-    last_page: number;
-  };
+  pagination: PaginationMeta;
+}
+
+export interface ApiResponseWithPagination<T> extends ApiResponse<T> {
+  pagination?: PaginationMeta;
 }
 
 @Injectable({
@@ -417,6 +417,50 @@ export class ApiService {
     return this.http.put<ApiResponse<any>>(`${this.apiUrl}/companies/${id}`, company, { headers: this.getHeaders() })
       .pipe(
         map(response => response.data),
+        catchError(this.handleError)
+      );
+  }
+
+  // Métodos para Tokens de API
+  getApiTokens(): Observable<ApiTokenSummary[]> {
+    return this.http.get<ApiResponse<ApiTokenSummary[]>>(`${this.apiUrl}/settings/api-tokens`, { headers: this.getHeaders() })
+      .pipe(
+        map(response => response.data ?? []),
+        catchError(this.handleError)
+      );
+  }
+
+  getApiTokenLogs(
+    tokenId: number | string,
+    params: { page?: number; per_page?: number; since?: string; until?: string; only_errors?: boolean } = {}
+  ): Observable<ApiTokenLogsResponse> {
+    let httpParams = new HttpParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') {
+        return;
+      }
+      httpParams = httpParams.set(key, String(value));
+    });
+
+    return this.http
+      .get<ApiResponseWithPagination<ApiTokenLogsResponse>>(
+        `${this.apiUrl}/settings/api-tokens/${tokenId}/logs`,
+        {
+          headers: this.getHeaders(),
+          params: httpParams
+        }
+      )
+      .pipe(
+        map(response => ({
+          ...response.data,
+          pagination: response.pagination ?? {
+            current_page: 1,
+            per_page: response.data?.logs?.length ?? 0,
+            total: response.data?.logs?.length ?? 0,
+            last_page: 1
+          }
+        })),
         catchError(this.handleError)
       );
   }

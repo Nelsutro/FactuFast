@@ -8,7 +8,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCardModule } from '@angular/material/card';
+import { MatChipsModule } from '@angular/material/chips';
 import { SettingsService, CompanySettings } from '../../core/services/settings.service';
+import { ApiService } from '../../services/api.service';
+import { ApiTokenSummary, ApiTokenLogsResponse, ApiTokenLogEntry, PaginationMeta } from '../../models';
 
 @Component({
   selector: 'app-settings',
@@ -23,6 +28,9 @@ import { SettingsService, CompanySettings } from '../../core/services/settings.s
     MatSlideToggleModule,
     MatIconModule,
     MatSnackBarModule,
+    MatProgressSpinnerModule,
+    MatCardModule,
+    MatChipsModule,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.css']
@@ -31,9 +39,28 @@ export class SettingsComponent implements OnInit {
   private fb = inject(FormBuilder);
   private settingsSvc = inject(SettingsService);
   private snackbar = inject(MatSnackBar);
+  private apiSvc = inject(ApiService);
 
   loading = false;
   logoPreview: string | null = null;
+
+  apiTokensLoading = false;
+  apiTokens: ApiTokenSummary[] = [];
+  selectedToken: ApiTokenSummary | null = null;
+  tokenLogsLoading = false;
+  tokenLogs: ApiTokenLogEntry[] = [];
+  tokenLogsPagination: PaginationMeta | null = null;
+  tokenLogsOnlyErrors = false;
+  readonly tokenLogsPageSize = 25;
+
+  private readonly dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 
   companyForm = this.fb.group({
     name: ['', [Validators.required, Validators.maxLength(255)]],
@@ -57,6 +84,7 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.loadApiTokens();
   }
 
   load(): void {
@@ -147,5 +175,119 @@ export class SettingsComponent implements OnInit {
       },
       error: () => this.snackbar.open('No se pudo subir el logo', 'Cerrar', { duration: 3000 }),
     });
+  }
+
+  refreshApiTokens(): void {
+    this.loadApiTokens(true);
+  }
+
+  private loadApiTokens(force = false): void {
+    if (this.apiTokensLoading && !force) {
+      return;
+    }
+
+    this.apiTokensLoading = true;
+    this.apiSvc.getApiTokens().subscribe({
+      next: (tokens) => {
+        this.apiTokens = tokens;
+        if (!this.selectedToken || !this.apiTokens.some(t => t.id === this.selectedToken?.id)) {
+          this.selectedToken = this.apiTokens[0] ?? null;
+        } else {
+          this.selectedToken = this.apiTokens.find(t => t.id === this.selectedToken?.id) ?? null;
+        }
+
+        if (this.selectedToken) {
+          this.loadTokenLogs();
+        } else {
+          this.tokenLogs = [];
+          this.tokenLogsPagination = null;
+        }
+      },
+      error: () => {
+        this.snackbar.open('No se pudieron cargar los tokens API', 'Cerrar', { duration: 3000 });
+        this.apiTokensLoading = false;
+      },
+      complete: () => {
+        this.apiTokensLoading = false;
+      }
+    });
+  }
+
+  selectToken(token: ApiTokenSummary): void {
+    if (this.selectedToken?.id === token.id) {
+      return;
+    }
+    this.selectedToken = token;
+    this.tokenLogsPagination = null;
+    this.loadTokenLogs(1, true);
+  }
+
+  loadTokenLogs(page = 1, resetFilters = false): void {
+    if (!this.selectedToken) return;
+    if (resetFilters) {
+      this.tokenLogsOnlyErrors = false;
+    }
+
+    this.tokenLogsLoading = true;
+    const params: Record<string, string | number | boolean> = {
+      page,
+      per_page: this.tokenLogsPageSize,
+    };
+
+    if (this.tokenLogsOnlyErrors) {
+      params['only_errors'] = true;
+    }
+
+    this.apiSvc.getApiTokenLogs(this.selectedToken.id, params).subscribe({
+      next: (response: ApiTokenLogsResponse) => {
+        this.tokenLogs = response.logs;
+        this.tokenLogsPagination = response.pagination;
+        const updatedToken = this.apiTokens.find(token => token.id === response.token.id);
+        if (updatedToken) {
+          this.selectedToken = updatedToken;
+        }
+      },
+      error: () => {
+        this.snackbar.open('No se pudo obtener el historial de uso', 'Cerrar', { duration: 3000 });
+        this.tokenLogsLoading = false;
+      },
+      complete: () => {
+        this.tokenLogsLoading = false;
+      }
+    });
+  }
+
+  toggleOnlyErrors(): void {
+    this.tokenLogsOnlyErrors = !this.tokenLogsOnlyErrors;
+    this.loadTokenLogs(1);
+  }
+
+  goToLogsPage(step: number): void {
+    if (!this.tokenLogsPagination) return;
+    const target = this.tokenLogsPagination.current_page + step;
+    if (target < 1 || target > this.tokenLogsPagination.last_page) return;
+    this.loadTokenLogs(target);
+  }
+
+  trackTokenById(_: number, token: ApiTokenSummary): number {
+    return token.id;
+  }
+
+  formatDate(value: string | null | undefined): string {
+    if (!value) return '—';
+    try {
+      return this.dateTimeFormatter.format(new Date(value));
+    } catch (error) {
+      return value;
+    }
+  }
+
+  statusLabel(status: number | null): string {
+    if (status == null) return '—';
+    if (status >= 500) return 'Error servidor';
+    if (status >= 400) return 'Error cliente';
+    if (status >= 300) return 'Redirección';
+    if (status >= 200) return 'Éxito';
+    return `${status}`;
   }
 }

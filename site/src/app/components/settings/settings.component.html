@@ -88,4 +88,182 @@
       </form>
     </div>
   </mat-tab>
+
+  <mat-tab label="Tokens API">
+    <div class="section">
+      <div class="tokens-header">
+        <div>
+          <h2>Supervisión de tokens</h2>
+          <p class="subtitle">Monitorea el uso y los errores recientes de tus tokens personales.</p>
+        </div>
+        <button mat-stroked-button color="primary" (click)="refreshApiTokens()" [disabled]="apiTokensLoading">
+          <mat-icon>refresh</mat-icon>
+          Actualizar
+        </button>
+      </div>
+
+      <div class="loading-container" *ngIf="apiTokensLoading">
+        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
+      </div>
+
+      <ng-container *ngIf="!apiTokensLoading">
+        <ng-container *ngIf="apiTokens.length; else noTokens">
+          <div class="api-tokens-panel">
+            <div class="tokens-list">
+              <mat-card
+                class="token-card"
+                *ngFor="let token of apiTokens; trackBy: trackTokenById"
+                (click)="selectToken(token)"
+                [class.active]="token.id === selectedToken?.id"
+              >
+                <div class="token-card__header">
+                  <h3>{{ token.name }}</h3>
+                  <span class="badge badge--danger" *ngIf="token.revoked">Revocado</span>
+                </div>
+                <div class="token-meta">
+                  <span>Creado: {{ formatDate(token.created_at) }}</span>
+                  <span>
+                    Último uso: {{ formatDate(token.metrics.last_request_at ?? token.last_used_at) }}
+                  </span>
+                </div>
+                <mat-chip-set *ngIf="token.abilities?.length" aria-label="Permisos" class="abilities">
+                  <mat-chip *ngFor="let ability of token.abilities" color="primary" selected>
+                    {{ ability }}
+                  </mat-chip>
+                </mat-chip-set>
+                <div class="token-metric">
+                  <span class="token-metric__value">{{ token.metrics.total_requests | number:'1.0-0' }}</span>
+                  <span class="token-metric__label">Solicitudes totales</span>
+                </div>
+                <div class="token-metric token-metric--secondary">
+                  <span class="token-metric__value">{{ token.metrics.requests_last_7_days | number:'1.0-0' }}</span>
+                  <span class="token-metric__label">Últimos 7 días</span>
+                </div>
+              </mat-card>
+            </div>
+
+            <div class="token-details" *ngIf="selectedToken as token; else selectTokenHint">
+              <div class="token-details__header">
+                <div>
+                  <h3>{{ token.name }}</h3>
+                  <p class="token-details__meta">
+                    Límite: {{ token.rate_limit_per_minute }} req/min · Ventana: {{ token.rate_limit_decay_seconds }}s
+                  </p>
+                </div>
+                <div class="chips-inline" *ngIf="token.abilities.length">
+                  <mat-chip-set aria-label="Permisos activos">
+                    <mat-chip *ngFor="let ability of token.abilities" color="primary" selected>
+                      {{ ability }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </div>
+              </div>
+
+              <div class="metrics-grid">
+                <div class="metric-card">
+                  <span class="metric-card__label">Total solicitudes</span>
+                  <span class="metric-card__value">{{ token.metrics.total_requests | number:'1.0-0' }}</span>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-card__label">Último request</span>
+                  <span class="metric-card__value">{{ formatDate(token.metrics.last_request_at) }}</span>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-card__label">Último error</span>
+                  <span class="metric-card__value">
+                    {{ formatDate(token.metrics.last_error_at) }}
+                  </span>
+                  <span class="metric-card__helper" *ngIf="token.metrics.last_error_status">
+                    Código {{ token.metrics.last_error_status }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="logs-header">
+                <h4>Historial reciente</h4>
+                <div class="logs-controls">
+                  <mat-slide-toggle [checked]="tokenLogsOnlyErrors" (change)="toggleOnlyErrors()">
+                    Solo errores
+                  </mat-slide-toggle>
+                  <button mat-icon-button color="primary" (click)="loadTokenLogs(tokenLogsPagination?.current_page || 1)" [disabled]="tokenLogsLoading">
+                    <mat-icon>refresh</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="logs-table-wrapper" [class.is-loading]="tokenLogsLoading">
+                <div class="logs-loading" *ngIf="tokenLogsLoading">
+                  <mat-progress-spinner diameter="28" mode="indeterminate"></mat-progress-spinner>
+                </div>
+                <table class="logs-table" *ngIf="tokenLogs.length; else emptyLogs">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Método</th>
+                      <th>Ruta</th>
+                      <th>Estado</th>
+                      <th>Duración</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let log of tokenLogs">
+                      <td>{{ formatDate(log.created_at) }}</td>
+                      <td><span class="method-pill" [ngClass]="log.method.toLowerCase()">{{ log.method }}</span></td>
+                      <td class="path">{{ log.path }}</td>
+                      <td>
+                        <span class="status-pill"
+                              [ngClass]="{
+                                'status-pill--error': log.status_code != null && log.status_code >= 500,
+                                'status-pill--warning': log.status_code != null && log.status_code >= 400 && log.status_code < 500,
+                                'status-pill--success': log.status_code != null && log.status_code < 400
+                              }">
+                          {{ log.status_code ?? '—' }}
+                        </span>
+                        <span class="status-hint">{{ statusLabel(log.status_code) }}</span>
+                      </td>
+                      <td>
+                        <span *ngIf="log.duration_ms != null; else noDuration">{{ log.duration_ms | number:'1.0-0' }} ms</span>
+                        <ng-template #noDuration>—</ng-template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="pagination" *ngIf="tokenLogsPagination && tokenLogsPagination.last_page > 1">
+                <button mat-icon-button (click)="goToLogsPage(-1)" [disabled]="tokenLogsPagination.current_page === 1">
+                  <mat-icon>chevron_left</mat-icon>
+                </button>
+                <span>Página {{ tokenLogsPagination.current_page }} / {{ tokenLogsPagination.last_page }}</span>
+                <button mat-icon-button (click)="goToLogsPage(1)" [disabled]="tokenLogsPagination.current_page === tokenLogsPagination.last_page">
+                  <mat-icon>chevron_right</mat-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </ng-container>
+
+      <ng-template #noTokens>
+        <div class="empty-state">
+          <mat-icon>vpn_key</mat-icon>
+          <p>Aún no has generado tokens. Crea uno desde la API o el backend para comenzar.</p>
+        </div>
+      </ng-template>
+
+      <ng-template #selectTokenHint>
+        <div class="empty-state empty-state--compact">
+          <mat-icon>info</mat-icon>
+          <p>Selecciona un token para ver sus métricas y solicitudes recientes.</p>
+        </div>
+      </ng-template>
+
+      <ng-template #emptyLogs>
+        <div class="empty-state empty-state--compact">
+          <mat-icon>event_note</mat-icon>
+          <p>No hay solicitudes registradas para este token en el período seleccionado.</p>
+        </div>
+      </ng-template>
+    </div>
+  </mat-tab>
 </mat-tab-group>

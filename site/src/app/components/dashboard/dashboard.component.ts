@@ -7,7 +7,7 @@ import { Chart, ChartConfiguration, ChartType, registerables } from 'chart.js';
 import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { DashboardStats, Invoice, User } from '../../models';
+import { DashboardStats, ImportMetrics, Invoice, User } from '../../models';
 
 import { MatSelectModule } from '@angular/material/select';
 import { MatOptionModule } from '@angular/material/core';
@@ -50,6 +50,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // Data properties
   dashboardStats: DashboardStats | null = null;
+  importMetrics: ImportMetrics | null = null;
   currentUser: User | null = null;
   loading = true;
   error: string | null = null;
@@ -60,10 +61,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   statusChart: Chart | null = null;
 
   // Alerts
-  alerts = {
+  alerts: {
+    overdue: number;
+    pending: number;
+    quotes: number;
+    importsFailed: number;
+    importsPending: number;
+  } = {
     overdue: 0,
     pending: 0,
-    quotes: 0
+    quotes: 0,
+    importsFailed: 0,
+    importsPending: 0
   };
 
   constructor(
@@ -124,8 +133,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       }
 
-      // Mapear datos del gráfico de ingresos
-      const revenue_chart = this.mapRevenueResponseToChartData(revenueData);
+  // Mapear datos del gráfico de ingresos
+  const revenue_chart = this.mapRevenueResponseToChartData(revenueData);
+  const importMetrics = this.mapImportMetrics((stats as any)?.import_metrics);
 
       // Construir gráfico de estados a partir de stats disponibles
       const invoice_status_chart = [
@@ -140,14 +150,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         active_quotes: stats?.active_quotes ?? 0,
         recent_invoices: recent as Invoice[],
         revenue_chart,
-        invoice_status_chart
+        invoice_status_chart,
+        import_metrics: importMetrics
       };
+
+      this.importMetrics = importMetrics;
 
       // Setear alertas desde datos reales disponibles
       this.alerts = {
         overdue: (stats as any)?.overdue_invoices ?? 0,
         pending: this.dashboardStats.pending_invoices ?? 0,
-        quotes: (stats as any)?.pending_quotes ?? (this.dashboardStats.active_quotes ?? 0)
+        quotes: (stats as any)?.pending_quotes ?? (this.dashboardStats.active_quotes ?? 0),
+        importsFailed: importMetrics?.failed_batches ?? 0,
+        importsPending: importMetrics?.pending_batches ?? 0
       };
 
       // Crear gráficos después de cargar datos
@@ -159,6 +174,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     } catch (error) {
       this.error = 'Error al cargar los datos del dashboard';
       console.error('Dashboard error:', error);
+      this.importMetrics = null;
+      this.alerts = {
+        overdue: 0,
+        pending: 0,
+        quotes: 0,
+        importsFailed: 0,
+        importsPending: 0
+      };
     } finally {
       this.loading = false;
     }
@@ -179,6 +202,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (period === '6m') return 'monthly';
     if (period === '1y') return 'yearly';
     return undefined;
+  }
+
+  private mapImportMetrics(raw: any): ImportMetrics | null {
+    if (!raw || typeof raw !== 'object') {
+      return null;
+    }
+
+    return {
+      last_import_at: raw.last_import_at ?? null,
+      recent_batches: Number(raw.recent_batches ?? 0),
+      rows_processed: Number(raw.rows_processed ?? 0),
+      success_rate: raw.success_rate !== undefined && raw.success_rate !== null
+        ? Number(raw.success_rate)
+        : null,
+      error_rows: Number(raw.error_rows ?? 0),
+      avg_duration_seconds: raw.avg_duration_seconds !== undefined && raw.avg_duration_seconds !== null
+        ? Number(raw.avg_duration_seconds)
+        : null,
+      pending_batches: Number(raw.pending_batches ?? 0),
+      failed_batches: Number(raw.failed_batches ?? 0)
+    };
   }
 
   createRevenueChart() {
@@ -282,7 +326,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           active_quotes: 0,
           recent_invoices: [],
           revenue_chart: chartData,
-          invoice_status_chart: []
+          invoice_status_chart: [],
+          import_metrics: this.importMetrics
         };
       } else {
         this.dashboardStats.revenue_chart = chartData;
@@ -421,6 +466,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       'cancelled': 'cancelled-chip'
     };
     return classes[status] || 'default-chip';
+  }
+
+  formatImportSuccess(metrics: ImportMetrics | null = this.importMetrics): string {
+    if (!metrics || metrics.success_rate === undefined || metrics.success_rate === null) {
+      return 'N/A';
+    }
+    return `${metrics.success_rate.toFixed(1)}%`;
+  }
+
+  formatDuration(seconds?: number | null): string {
+    if (!seconds || seconds <= 0) {
+      return 'N/A';
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const remaining = Math.round(seconds % 60);
+
+    if (minutes > 0) {
+      return `${minutes}m ${remaining}s`;
+    }
+
+    return `${remaining}s`;
   }
 
   logout(): void {

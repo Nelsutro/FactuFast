@@ -66,6 +66,62 @@
       </mat-card>
     </div>
 
+    <div class="stats-cards import-cards" fxLayout="row" fxLayoutGap="16px" fxLayoutWrap *ngIf="importMetrics as metrics">
+      <mat-card class="stat-card success" fxFlex="1 1 30%">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-info">
+              <p class="stat-label">Filas procesadas (7 días)</p>
+              <p class="stat-value">{{ metrics.rows_processed | number:'1.0-0' }}</p>
+            </div>
+            <div class="stat-icon">
+              <mat-icon>dataset</mat-icon>
+            </div>
+          </div>
+          <div class="stat-trend">
+            <mat-icon>schedule</mat-icon>
+            <span>{{ metrics.recent_batches }} lotes recientes</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card accent" fxFlex="1 1 30%">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-info">
+              <p class="stat-label">Tasa de éxito</p>
+              <p class="stat-value">{{ formatImportSuccess(metrics) }}</p>
+            </div>
+            <div class="stat-icon">
+              <mat-icon>percent</mat-icon>
+            </div>
+          </div>
+          <div class="stat-trend">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ metrics.error_rows | number:'1.0-0' }} filas con error</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card warn" fxFlex="1 1 30%">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-info">
+              <p class="stat-label">Lotes pendientes</p>
+              <p class="stat-value">{{ metrics.pending_batches }}</p>
+            </div>
+            <div class="stat-icon">
+              <mat-icon>hourglass_empty</mat-icon>
+            </div>
+          </div>
+          <div class="stat-trend">
+            <mat-icon>report_problem</mat-icon>
+            <span>{{ metrics.failed_batches }} lotes fallidos</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
     <!-- Main Section: Charts + Quick Actions -->
 <div class="main-section" fxLayout="row" fxLayoutGap="16px" fxLayoutAlign="start stretch" fxLayoutWrap>
 
@@ -178,14 +234,46 @@
       <!-- Quick Actions & Alerts -->
       <mat-card fxFlex="1 1 32%" class="actions-card">
         <mat-card-header>
-          <mat-card-title>Acciones Rápidas</mat-card-title>
+          <mat-card-title>Importaciones y alertas</mat-card-title>
         </mat-card-header>
         <mat-card-content>
+          <div class="import-summary" *ngIf="importMetrics as metrics; else noImportMetrics">
+            <h4>Resumen de importaciones</h4>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon color="primary">update</mat-icon>
+                Último lote: {{ metrics.last_import_at ? (metrics.last_import_at | date:'short') : 'Sin registros' }}
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon color="accent">timelapse</mat-icon>
+                Duración promedio: {{ formatDuration(metrics.avg_duration_seconds) }}
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon color="warn">error</mat-icon>
+                Errores recientes: {{ metrics.error_rows | number:'1.0-0' }} filas
+              </mat-list-item>
+            </mat-list>
+          </div>
+
+          <ng-template #noImportMetrics>
+            <div class="import-summary empty">
+              <mat-icon color="primary">cloud_upload</mat-icon>
+              <p>Aún no hay cargas registradas.</p>
+            </div>
+          </ng-template>
 
           <!-- Alerts -->
           <div class="alerts-section" fxLayout="column" fxLayoutGap="4px" style="margin-top:16px;">
             <h4>Alertas</h4>
             <mat-list>
+              <mat-list-item *ngIf="alerts.importsFailed > 0">
+                <mat-icon color="warn">report</mat-icon>
+                {{ alerts.importsFailed }} lotes fallidos esperando revisión
+              </mat-list-item>
+              <mat-list-item *ngIf="alerts.importsPending > 0">
+                <mat-icon color="accent">hourglass_top</mat-icon>
+                {{ alerts.importsPending }} lotes en cola
+              </mat-list-item>
               <mat-list-item *ngIf="alerts.overdue > 0">
                 <mat-icon color="warn">warning</mat-icon>
                 {{ alerts.overdue }} facturas vencidas
@@ -198,12 +286,11 @@
                 <mat-icon color="primary">format_quote</mat-icon>
                 {{ alerts.quotes }} cotizaciones esperando respuesta
               </mat-list-item>
-              <mat-list-item *ngIf="alerts.overdue===0 && alerts.pending===0 && alerts.quotes===0">
+              <mat-list-item *ngIf="alerts.importsFailed===0 && alerts.importsPending===0 && alerts.overdue===0 && alerts.pending===0 && alerts.quotes===0">
                 <mat-icon color="primary">check_circle</mat-icon> Todo al día
               </mat-list-item>
             </mat-list>
           </div>
-
         </mat-card-content>
       </mat-card>
 

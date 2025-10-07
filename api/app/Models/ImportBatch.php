@@ -49,19 +49,41 @@ class ImportBatch extends Model
         return $this->hasMany(ImportBatchRow::class);
     }
 
-    public function markProcessing(): void
+    public function markProcessing(?int $attempt = null): void
     {
-        $this->update([
+        $payload = [
             'status' => 'processing',
-            'started_at' => now(),
-        ]);
+        ];
+
+        if (is_null($this->started_at)) {
+            $payload['started_at'] = now();
+        }
+
+        if (!is_null($attempt)) {
+            $meta = $this->meta ?? [];
+            $meta['attempts'] = $attempt;
+            $meta['last_attempt_at'] = now()->toISOString();
+            $payload['meta'] = $meta;
+        }
+
+        $this->update($payload);
     }
 
     public function markCompleted(): void
     {
+        $meta = $this->meta ?? [];
+        unset($meta['error']);
+
+        $now = now();
+        if ($this->started_at) {
+            $meta['last_duration_ms'] = $this->started_at->diffInMilliseconds($now);
+        }
+        $meta['last_success_at'] = $now->toISOString();
+
         $this->update([
             'status' => 'completed',
-            'finished_at' => now(),
+            'finished_at' => $now,
+            'meta' => $meta,
         ]);
     }
 
@@ -72,9 +94,15 @@ class ImportBatch extends Model
             $payload['error'] = $message;
         }
 
+        $now = now();
+        if ($this->started_at) {
+            $payload['last_duration_ms'] = $this->started_at->diffInMilliseconds($now);
+        }
+        $payload['last_error_at'] = $now->toISOString();
+
         $this->update([
             'status' => 'failed',
-            'finished_at' => now(),
+            'finished_at' => $now,
             'meta' => $payload,
         ]);
     }
@@ -85,5 +113,21 @@ class ImportBatch extends Model
             $this->increment($column, $amount);
         }
         $this->refresh();
+    }
+
+    public function syncCounters(): void
+    {
+        $counts = $this->rows()
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $processed = array_sum($counts->all());
+
+        $this->forceFill([
+            'processed_rows' => $processed,
+            'success_count' => (int) ($counts['success'] ?? 0),
+            'error_count' => (int) ($counts['error'] ?? 0),
+        ])->save();
     }
 }

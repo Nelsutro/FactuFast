@@ -15,7 +15,10 @@ class ProcessInvoiceImportBatch implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;
+    public int $tries = 3;
+
+    /** @var int[]|int */
+    public $backoff = [30, 120, 300];
 
     public function __construct(public int $batchId)
     {
@@ -29,7 +32,10 @@ class ProcessInvoiceImportBatch implements ShouldQueue
             return;
         }
 
-        $batch->markProcessing();
+        $batch->syncCounters();
+
+        $attempt = (int) ($batch->meta['attempts'] ?? 0) + 1;
+        $batch->markProcessing($attempt);
 
         try {
             $disk = Storage::disk('local');
@@ -44,22 +50,29 @@ class ProcessInvoiceImportBatch implements ShouldQueue
                 return;
             }
 
+            $processedRows = array_flip($batch->rows()->pluck('row_number')->all());
             $header = null;
             $rowNumber = 0;
 
-            while (($row = fgetcsv($handle, 0, ',')) !== false) {
-                $rowNumber++;
+            try {
+                while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                    $rowNumber++;
 
-                if ($rowNumber === 1) {
-                    $header = array_map(static fn($value) => strtolower(trim($value)), $row);
-                    continue;
+                    if ($rowNumber === 1) {
+                        $header = array_map(static fn($value) => strtolower(trim($value)), $row);
+                        continue;
+                    }
+
+                    if (isset($processedRows[$rowNumber])) {
+                        continue;
+                    }
+
+                    $data = $this->mapRow($header, $row);
+                    $service->processRow($batch, $data, $rowNumber);
                 }
-
-                $data = $this->mapRow($header, $row);
-                $service->processRow($batch, $data, $rowNumber);
+            } finally {
+                fclose($handle);
             }
-
-            fclose($handle);
 
             $batch->update(['total_rows' => max(0, $rowNumber - 1)]);
             $batch->markCompleted();

@@ -8,6 +8,7 @@ export interface DashboardStats {
   recent_invoices: Invoice[];
   revenue_chart: ChartData[];
   invoice_status_chart: StatusData[];
+  import_metrics?: ImportMetrics | null;
 }
 
 export interface ChartData {
@@ -19,4 +20,15 @@ export interface StatusData {
   status: string;
   count: number;
   color: string;
+}
+
+export interface ImportMetrics {
+  last_import_at?: string | null;
+  recent_batches: number;
+  rows_processed: number;
+  success_rate?: number | null;
+  error_rows: number;
+  avg_duration_seconds?: number | null;
+  pending_batches: number;
+  failed_batches: number;
 }

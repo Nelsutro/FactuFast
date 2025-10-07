@@ -77,6 +77,7 @@ Route::middleware(['auth:sanctum', 'token.policies'])->group(function () {
         Route::get('api-tokens', [ApiTokenController::class, 'index']);
         Route::post('api-tokens', [ApiTokenController::class, 'store']);
         Route::delete('api-tokens/{token}', [ApiTokenController::class, 'destroy']);
+        Route::get('api-tokens/{token}/logs', [ApiTokenController::class, 'logs']);
     });
 
     // Perfil (alias + update)

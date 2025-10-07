@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ImportBatch;
 use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\Payment;
@@ -56,6 +57,41 @@ class DashboardController extends Controller
             ->where('payment_date', '>=', now()->subDays(30))
             ->count();
 
+        $importQuery = ImportBatch::query()->where('type', 'invoices');
+        if (!$user->isAdmin()) {
+            $importQuery->where('company_id', $user->company_id);
+        }
+
+        $recentImportBatches = (clone $importQuery)
+            ->where('created_at', '>=', now()->subDays(7))
+            ->get([
+                'id',
+                'processed_rows',
+                'success_count',
+                'error_count',
+                'started_at',
+                'finished_at',
+                'created_at',
+                'status',
+            ]);
+
+        $rowsProcessed = (int) $recentImportBatches->sum('processed_rows');
+        $successRows = (int) $recentImportBatches->sum('success_count');
+        $errorRows = (int) $recentImportBatches->sum('error_count');
+
+        $avgDuration = $recentImportBatches
+            ->filter(static fn (ImportBatch $batch) => $batch->started_at && $batch->finished_at)
+            ->avg(static fn (ImportBatch $batch) => $batch->started_at->diffInSeconds($batch->finished_at));
+
+        $pendingBatches = (clone $importQuery)
+            ->whereIn('status', ['pending', 'processing'])
+            ->count();
+        $failedBatches = (clone $importQuery)
+            ->where('status', 'failed')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->count();
+        $lastImport = (clone $importQuery)->latest('created_at')->first();
+
         $stats = [
             'pending_invoices' => $pendingInvoices,
             'paid_invoices' => $paidInvoices,
@@ -65,6 +101,18 @@ class DashboardController extends Controller
             'pending_quotes' => $pendingQuotes,
             'recent_invoices' => $recentInvoices,
             'recent_payments' => $recentPayments,
+            'import_metrics' => [
+                'last_import_at' => $lastImport?->created_at?->toISOString(),
+                'recent_batches' => $recentImportBatches->count(),
+                'rows_processed' => $rowsProcessed,
+                'success_rate' => ($successRows + $errorRows) > 0
+                    ? round(($successRows / max(1, $successRows + $errorRows)) * 100, 1)
+                    : null,
+                'error_rows' => $errorRows,
+                'avg_duration_seconds' => $avgDuration ? (int) round($avgDuration) : null,
+                'pending_batches' => $pendingBatches,
+                'failed_batches' => $failedBatches,
+            ],
         ];
 
         return response()->json([
