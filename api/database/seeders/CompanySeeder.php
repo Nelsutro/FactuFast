@@ -48,7 +48,10 @@ class CompanySeeder extends Seeder
         ];
 
         foreach ($companies as $company) {
-            Company::create($company);
+            Company::updateOrCreate(
+                ['tax_id' => $company['tax_id']],
+                $company
+            );
         }
     }
 }
