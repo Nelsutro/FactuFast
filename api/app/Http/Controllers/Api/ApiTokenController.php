@@ -19,12 +19,19 @@ use Laravel\Sanctum\Contracts\HasApiTokens;
 class ApiTokenController extends Controller
 {
     private const AVAILABLE_ABILITIES = [
+        'api:read-dashboard',
+        'api:manage-settings',
         'api:read-invoices',
         'api:write-invoices',
+        'api:import-invoices',
         'api:read-clients',
         'api:write-clients',
-        'api:import-invoices',
+        'api:read-quotes',
+        'api:write-quotes',
         'api:import-quotes',
+        'api:read-payments',
+        'api:write-payments',
+        'api:read-companies',
     ];
 
     public function index(Request $request): JsonResponse

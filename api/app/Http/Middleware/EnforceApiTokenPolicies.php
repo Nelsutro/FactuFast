@@ -48,6 +48,11 @@ class EnforceApiTokenPolicies
             }
 
             RateLimiter::hit($key, $decay);
+
+            $denied = $this->validateAbilities($request, $token);
+            if ($denied) {
+                return $denied;
+            }
         }
 
         /** @var \Symfony\Component\HttpFoundation\Response $response */
@@ -73,5 +78,48 @@ class EnforceApiTokenPolicies
         }
 
         return $response;
+    }
+
+    private function validateAbilities(Request $request, PersonalAccessToken $token): ?Response
+    {
+        $policies = config('services.api_tokens.policies', []);
+
+        if (empty($policies)) {
+            return null;
+        }
+
+        $path = $request->path();
+        $method = $request->method();
+
+        foreach ($policies as $policy) {
+            $methods = $policy['methods'] ?? [];
+            $pattern = $policy['pattern'] ?? null;
+            $abilities = $policy['abilities'] ?? [];
+
+            if (!$pattern || empty($abilities)) {
+                continue;
+            }
+
+            if (!empty($methods) && !in_array($method, $methods, true)) {
+                continue;
+            }
+
+            if (!Str::is($pattern, $path)) {
+                continue;
+            }
+
+            $missing = collect($abilities)
+                ->reject(fn (string $ability) => $token->can($ability))
+                ->values();
+
+            if ($missing->isNotEmpty()) {
+                return response()->json([
+                    'message' => 'El token no tiene permisos suficientes para esta operación.',
+                    'required_abilities' => $missing,
+                ], 403);
+            }
+        }
+
+        return null;
     }
 }

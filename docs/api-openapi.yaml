@@ -1,0 +1,2111 @@
+openapi: 3.1.0
+info:
+  title: FactuFast API
+  version: 0.1.0
+  description: |
+    API oficial de FactuFast para integrar recepción de facturas, clientes, cotizaciones y pagos.
+    Esta especificación cubre los endpoints públicos, portal de clientes, webhooks y rutas protegidas
+    con autenticación via Laravel Sanctum.
+servers:
+  - url: https://api.factufast.cert.example.com/api
+    description: Ambiente certificación (referencial)
+  - url: http://localhost:8000/api
+    description: Ambiente local de desarrollo
+tags:
+  - name: Auth
+    description: Autenticación de usuarios internos y gestión de sesión
+  - name: OAuth
+    description: Flujos de autenticación social (Google/Microsoft/Apple)
+  - name: ClientPortal
+    description: Acceso de clientes finales mediante tokens temporales
+  - name: PublicPayments
+    description: Pagos públicos mediante link seguro
+  - name: Webhooks
+    description: Recepción de eventos externos de pagos
+  - name: Dashboard
+    description: Métricas agregadas para la empresa
+  - name: Settings
+    description: Configuración y manejo de tokens de API
+  - name: Invoices
+    description: CRUD y operaciones de facturas
+  - name: Clients
+    description: CRUD, importación y exportación de clientes
+  - name: Quotes
+    description: CRUD y conversión de cotizaciones
+  - name: Payments
+    description: Gestión y consulta de pagos
+  - name: Companies
+    description: Recursos de empresas y listado de facturas asociadas
+  - name: ImportBatches
+    description: Seguimiento de lotes importados
+  - name: Diagnostics
+    description: Endpoints temporales o de verificación
+security:
+  - SanctumToken: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Autenticar usuario mediante credenciales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Credenciales inválidas
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar un nuevo usuario administrador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Usuario registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /auth/check-session:
+    get:
+      tags: [Auth]
+      summary: Validar si existe sesión activa
+      responses:
+        '200':
+          description: Estado de sesión
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión del token actual
+      security:
+        - SanctumToken: []
+      responses:
+        '204':
+          description: Sesión finalizada
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renovar token de sesión
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Token renovado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /auth/user:
+    get:
+      tags: [Auth]
+      summary: Obtener datos del usuario autenticado
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Alias protegido para obtener datos del usuario actual
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Usuario autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+  /auth/oauth/providers:
+    get:
+      tags: [OAuth]
+      summary: Listar proveedores habilitados
+      responses:
+        '200':
+          description: Proveedores configurados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: string
+  /auth/oauth/{provider}/redirect:
+    get:
+      tags: [OAuth]
+      summary: Iniciar flujo OAuth redirect
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '302':
+          description: Redirección al proveedor
+  /auth/oauth/{provider}/callback:
+    get:
+      tags: [OAuth]
+      summary: Procesar callback OAuth
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '200':
+          description: Sesión creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+    post:
+      tags: [OAuth]
+      summary: Procesar callback HTTP POST (proveedores que lo requieran)
+      parameters:
+        - $ref: '#/components/parameters/OAuthProvider'
+      responses:
+        '200':
+          description: Sesión creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /client-portal/request-access:
+    post:
+      tags: [ClientPortal]
+      summary: Solicitar enlace de acceso temporal al portal de clientes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                company_tax_id:
+                  type: string
+                  description: RUT/RFC para desambiguar clientes
+      responses:
+        '200':
+          description: Enlace token generado o reutilizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPortalAccessResponse'
+  /client-portal/access:
+    post:
+      tags: [ClientPortal]
+      summary: Validar token temporal y registrar acceso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token]
+              properties:
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+                company_tax_id:
+                  type: string
+      responses:
+        '200':
+          description: Acceso autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPortalAccessSuccess'
+        '401':
+          description: Token inválido o expirado
+  /client-portal/invoices:
+    get:
+      tags: [ClientPortal]
+      summary: Listar facturas del cliente autenticado por token
+      security:
+        - ClientPortalToken: []
+      responses:
+        '200':
+          description: Listado de facturas básicas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/InvoiceSummary'
+        '401':
+          description: Acceso no autorizado
+  /client-portal/invoices/{invoiceId}:
+    get:
+      tags: [ClientPortal]
+      summary: Obtener detalle de factura desde portal
+      security:
+        - ClientPortalToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Factura detallada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientPortalInvoiceDetail'
+        '404':
+          description: Factura no encontrada
+  /client-portal/invoices/{invoiceId}/pay:
+    post:
+      tags: [ClientPortal]
+      summary: Iniciar pago de factura
+      security:
+        - ClientPortalToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum: [webpay, mercadopago]
+                return_url:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Intento de pago creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentResponse'
+  /client-portal/payments/{paymentId}/status:
+    get:
+      tags: [ClientPortal]
+      summary: Consultar estado del pago asociado a token portal
+      security:
+        - ClientPortalToken: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Estado del pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+  /public/pay/{hash}:
+    get:
+      tags: [PublicPayments]
+      summary: Consultar detalles del pago público
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Información de la factura y pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicPaymentDetail'
+        '404':
+          description: Link inválido
+    post:
+      tags: [PublicPayments]
+      summary: Iniciar pago desde un enlace público
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  default: webpay
+                return_url:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Intento de pago creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentIntentResponse'
+  /public/pay/{hash}/status:
+    get:
+      tags: [PublicPayments]
+      summary: Consultar estado de un pago público
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Estado del pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+  /webhooks/payments/{provider}:
+    post:
+      tags: [Webhooks]
+      summary: Webhook de confirmación de pagos (firmado con HMAC)
+      parameters:
+        - $ref: '#/components/parameters/PaymentProvider'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '202':
+          description: Evento recibido
+  /payments/webpay/return:
+    get:
+      tags: [PublicPayments]
+      summary: Callback de Webpay para confirmar pago
+      responses:
+        '302':
+          description: Redirección a la SPA con estado del pago
+    post:
+      tags: [PublicPayments]
+      summary: Callback POST para Webpay
+      responses:
+        '200':
+          description: Estado procesado
+  /dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Métricas generales del dashboard
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Totales y KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+  /dashboard/revenue:
+    get:
+      tags: [Dashboard]
+      summary: Serie temporal de ingresos
+      security:
+        - SanctumToken: []
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Ingresos agrupados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardRevenue'
+  /settings:
+    get:
+      tags: [Settings]
+      summary: Obtener configuración de la empresa actual
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Configuración y logos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    put:
+      tags: [Settings]
+      summary: Actualizar configuración general
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdateRequest'
+      responses:
+        '200':
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+  /settings/logo:
+    post:
+      tags: [Settings]
+      summary: Subir logotipo
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                logo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Logo cargado
+  /settings/api-tokens:
+    get:
+      tags: [Settings]
+      summary: Listar tokens API con métricas
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Tokens y estadísticas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenListResponse'
+    post:
+      tags: [Settings]
+      summary: Generar nuevo token API
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiTokenRequest'
+      responses:
+        '201':
+          description: Token generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateApiTokenResponse'
+  /settings/api-tokens/{tokenId}:
+    delete:
+      tags: [Settings]
+      summary: Revocar token API
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/TokenId'
+      responses:
+        '200':
+          description: Token revocado
+  /settings/api-tokens/{tokenId}/logs:
+    get:
+      tags: [Settings]
+      summary: Obtener logs de uso del token API
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/TokenId'
+        - in: query
+          name: since
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: only_errors
+          schema:
+            type: boolean
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 100
+      responses:
+        '200':
+          description: Logs paginados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTokenLogsResponse'
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: Listar facturas
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Colección de facturas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceCollection'
+    post:
+      tags: [Invoices]
+      summary: Crear factura
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceCreateRequest'
+      responses:
+        '201':
+          description: Factura creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+  /invoices/{invoiceId}:
+    get:
+      tags: [Invoices]
+      summary: Ver factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Factura
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+    put:
+      tags: [Invoices]
+      summary: Actualizar factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceUpdateRequest'
+      responses:
+        '200':
+          description: Factura actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+    delete:
+      tags: [Invoices]
+      summary: Eliminar factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '204':
+          description: Factura eliminada
+  /invoices/export:
+    get:
+      tags: [Invoices]
+      summary: Exportar facturas a CSV
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /invoices/import:
+    post:
+      tags: [Invoices]
+      summary: Importar facturas desde CSV
+      security:
+        - SanctumToken: []
+        - ApiTokenAbility: [api:import-invoices]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Importación encolada
+  /invoices/{invoiceId}/payment-link:
+    post:
+      tags: [Invoices]
+      summary: Generar link público de pago
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '201':
+          description: Link creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicPaymentLink'
+  /invoices/{invoiceId}/send:
+    post:
+      tags: [Invoices]
+      summary: Enviar factura por correo
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '202':
+          description: Envío encolado
+  /invoices/{invoiceId}/mark-paid:
+    post:
+      tags: [Invoices]
+      summary: Marcar factura como pagada manualmente
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Factura actualizada
+  /invoices/{invoiceId}/pdf:
+    get:
+      tags: [Invoices]
+      summary: Descargar PDF de la factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Archivo PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /invoices/{invoiceId}/email:
+    post:
+      tags: [Invoices]
+      summary: Reenviar factura por correo
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '202':
+          description: Envío encolado
+  /invoices-stats:
+    get:
+      tags: [Invoices]
+      summary: Estadísticas agregadas de facturas
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Métricas por estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceStats'
+  /import-batches/{batchId}:
+    get:
+      tags: [ImportBatches]
+      summary: Consultar detalle de un batch importado
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: Detalle del batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+  /import-batches/{batchId}/errors:
+    get:
+      tags: [ImportBatches]
+      summary: Consultar errores del batch
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: Lista de errores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatchErrors'
+  /import-batches/{batchId}/errors/export:
+    get:
+      tags: [ImportBatches]
+      summary: Descargar errores en CSV
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/BatchId'
+      responses:
+        '200':
+          description: CSV de errores
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /clients:
+    get:
+      tags: [Clients]
+      summary: Listar clientes
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Colección de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientCollection'
+    post:
+      tags: [Clients]
+      summary: Crear cliente
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCreateRequest'
+      responses:
+        '201':
+          description: Cliente creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+  /clients/{clientId}:
+    get:
+      tags: [Clients]
+      summary: Ver cliente
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          description: Cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+    put:
+      tags: [Clients]
+      summary: Actualizar cliente
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientUpdateRequest'
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+    delete:
+      tags: [Clients]
+      summary: Eliminar cliente
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '204':
+          description: Cliente eliminado
+  /clients/export:
+    get:
+      tags: [Clients]
+      summary: Exportar clientes CSV
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /clients/import:
+    post:
+      tags: [Clients]
+      summary: Importar clientes
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Importación encolada
+  /quotes:
+    get:
+      tags: [Quotes]
+      summary: Listar cotizaciones
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Colección de cotizaciones
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteCollection'
+    post:
+      tags: [Quotes]
+      summary: Crear cotización
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteCreateRequest'
+      responses:
+        '201':
+          description: Cotización creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+  /quotes/{quoteId}:
+    get:
+      tags: [Quotes]
+      summary: Ver cotización
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/QuoteId'
+      responses:
+        '200':
+          description: Cotización
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+    put:
+      tags: [Quotes]
+      summary: Actualizar cotización
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/QuoteId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteUpdateRequest'
+      responses:
+        '200':
+          description: Cotización actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+    delete:
+      tags: [Quotes]
+      summary: Eliminar cotización
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/QuoteId'
+      responses:
+        '204':
+          description: Cotización eliminada
+  /quotes/export:
+    get:
+      tags: [Quotes]
+      summary: Exportar cotizaciones CSV
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Archivo CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /quotes/import:
+    post:
+      tags: [Quotes]
+      summary: Importar cotizaciones
+      security:
+        - SanctumToken: []
+        - ApiTokenAbility: [api:import-quotes]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Importación encolada
+  /quotes/{quoteId}/convert:
+    post:
+      tags: [Quotes]
+      summary: Convertir cotización en factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/QuoteId'
+      responses:
+        '201':
+          description: Factura generada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+  /quotes-stats:
+    get:
+      tags: [Quotes]
+      summary: Estadísticas agregadas de cotizaciones
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Métricas por estado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteStats'
+  /payments:
+    get:
+      tags: [Payments]
+      summary: Listar pagos
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Colección de pagos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCollection'
+    post:
+      tags: [Payments]
+      summary: Registrar pago manual
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreateRequest'
+      responses:
+        '201':
+          description: Pago registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+  /payments/{paymentId}:
+    get:
+      tags: [Payments]
+      summary: Ver pago
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Pago
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+    put:
+      tags: [Payments]
+      summary: Actualizar pago
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentUpdateRequest'
+      responses:
+        '200':
+          description: Pago actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+    delete:
+      tags: [Payments]
+      summary: Eliminar pago
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '204':
+          description: Pago eliminado
+  /payments-stats:
+    get:
+      tags: [Payments]
+      summary: Estadísticas de pagos
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Métricas de pagos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStats'
+  /invoices/{invoiceId}/payments:
+    get:
+      tags: [Payments]
+      summary: Listar pagos de una factura
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Pagos asociados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCollection'
+  /companies:
+    get:
+      tags: [Companies]
+      summary: Listar empresas accesibles
+      security:
+        - SanctumToken: []
+      responses:
+        '200':
+          description: Colección de empresas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyCollection'
+    post:
+      tags: [Companies]
+      summary: Crear empresa
+      security:
+        - SanctumToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreateRequest'
+      responses:
+        '201':
+          description: Empresa creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+  /companies/{companyId}:
+    get:
+      tags: [Companies]
+      summary: Ver empresa
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Empresa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+    put:
+      tags: [Companies]
+      summary: Actualizar empresa
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyUpdateRequest'
+      responses:
+        '200':
+          description: Empresa actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+    delete:
+      tags: [Companies]
+      summary: Eliminar empresa
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '204':
+          description: Empresa eliminada
+  /companies/{companyId}/invoices:
+    get:
+      tags: [Companies]
+      summary: Listar facturas de la empresa
+      security:
+        - SanctumToken: []
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Facturas de la empresa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceCollection'
+  /test:
+    get:
+      tags: [Diagnostics]
+      summary: Health-check de la API
+      responses:
+        '200':
+          description: Estado general
+  /test-data:
+    get:
+      tags: [Diagnostics]
+      summary: Datos de prueba (solo desarrollo)
+      responses:
+        '200':
+          description: Totales simulados
+  /test-invoices:
+    get:
+      tags: [Diagnostics]
+      summary: Facturas de prueba sin autenticación
+      parameters:
+        - in: query
+          name: company_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Facturas demo
+  /test-quotes:
+    get:
+      tags: [Diagnostics]
+      summary: Cotizaciones de prueba
+      parameters:
+        - in: query
+          name: company_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Cotizaciones demo
+  /test-payments:
+    get:
+      tags: [Diagnostics]
+      summary: Pagos de prueba
+      parameters:
+        - in: query
+          name: company_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pagos demo
+  /test-companies:
+    get:
+      tags: [Diagnostics]
+      summary: Empresas de prueba
+      responses:
+        '200':
+          description: Empresas demo
+  /test-users:
+    get:
+      tags: [Diagnostics]
+      summary: Usuarios de prueba
+      responses:
+        '200':
+          description: Usuarios demo
+components:
+  securitySchemes:
+    SanctumToken:
+      type: http
+      scheme: bearer
+      bearerFormat: SanctumToken
+      description: >-
+        Token Bearer emitido vía Sanctum (para SPA / API tokens). Incluya `Authorization: Bearer {token}`.
+    ClientPortalToken:
+      type: apiKey
+      in: header
+      name: X-Client-Token
+      description: >-
+        Portal de clientes usa `X-Client-Email` y `X-Client-Token` para autenticar solicitudes.
+    ApiTokenAbility:
+      type: apiKey
+      in: header
+      name: X-Api-Abilities
+      description: >-
+        Representa las habilidades requeridas en el token. Solo informativo para la documentación; el chequeo real lo realiza el middleware.
+  parameters:
+    OAuthProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [google, microsoft, apple]
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: integer
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: integer
+    TokenId:
+      name: tokenId
+      in: path
+      required: true
+      schema:
+        type: string
+    BatchId:
+      name: batchId
+      in: path
+      required: true
+      schema:
+        type: string
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema:
+        type: integer
+    QuoteId:
+      name: quoteId
+      in: path
+      required: true
+      schema:
+        type: integer
+    CompanyId:
+      name: companyId
+      in: path
+      required: true
+      schema:
+        type: integer
+    PaymentProvider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [webpay, mercadopago]
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        company_name:
+          type: string
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/User'
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, client, viewer]
+        company_id:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    ClientPortalAccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        access_link:
+          type: string
+          format: uri
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    ClientPortalAccessSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            client:
+              $ref: '#/components/schemas/Client'
+            token:
+              type: string
+    InvoiceSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoice_number:
+          type: string
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        total:
+          type: number
+          format: float
+        status:
+          type: string
+        remaining_amount:
+          type: number
+          format: float
+        is_overdue:
+          type: boolean
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+    ClientPortalInvoiceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Invoice'
+        - type: object
+          properties:
+            company:
+              $ref: '#/components/schemas/Company'
+            payments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Payment'
+    PaymentIntentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            payment_id:
+              type: integer
+            provider_payment_id:
+              type: string
+            intent_status:
+              type: string
+            redirect_url:
+              type: string
+              format: uri
+    PaymentStatus:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/Payment'
+    PublicPaymentDetail:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            invoice:
+              $ref: '#/components/schemas/Invoice'
+            client:
+              $ref: '#/components/schemas/Client'
+            payment:
+              $ref: '#/components/schemas/Payment'
+    DashboardStats:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            totals:
+              type: object
+            recent_activity:
+              type: array
+              items:
+                type: object
+    DashboardRevenue:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+              revenue:
+                type: number
+    Settings:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            company:
+              $ref: '#/components/schemas/Company'
+            preferences:
+              type: object
+    SettingsUpdateRequest:
+      type: object
+      properties:
+        company_name:
+          type: string
+        tax_id:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        timezone:
+          type: string
+    ApiTokenListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiToken'
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        abilities:
+          type: array
+          items:
+            type: string
+        rate_limit_per_minute:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        revoked:
+          type: boolean
+        metrics:
+          type: object
+          properties:
+            total_requests:
+              type: integer
+            last_request_at:
+              type: string
+              format: date-time
+            requests_last_7_days:
+              type: integer
+            last_error_at:
+              type: string
+              format: date-time
+            last_error_status:
+              type: integer
+    CreateApiTokenRequest:
+      type: object
+      required: [name, abilities]
+      properties:
+        name:
+          type: string
+        abilities:
+          type: array
+          items:
+            type: string
+            enum:
+              - api:read-dashboard
+              - api:manage-settings
+              - api:read-invoices
+              - api:write-invoices
+              - api:import-invoices
+              - api:read-clients
+              - api:write-clients
+              - api:read-quotes
+              - api:write-quotes
+              - api:import-quotes
+              - api:read-payments
+              - api:write-payments
+              - api:read-companies
+        rate_limit_per_minute:
+          type: integer
+        expires_in_days:
+          type: integer
+        description:
+          type: string
+    CreateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            token:
+              type: string
+            token_id:
+              type: string
+            expires_at:
+              type: string
+              format: date-time
+            rate_limit_per_minute:
+              type: integer
+            abilities:
+              type: array
+              items:
+                type: string
+    ApiTokenLogsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            token:
+              $ref: '#/components/schemas/ApiToken'
+            logs:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  ip:
+                    type: string
+                  method:
+                    type: string
+                  path:
+                    type: string
+                  status_code:
+                    type: integer
+                  duration_ms:
+                    type: number
+                  meta:
+                    type: object
+                  created_at:
+                    type: string
+                    format: date-time
+        pagination:
+          type: object
+          properties:
+            current_page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            last_page:
+              type: integer
+    InvoiceCollection:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invoice'
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+        company_id:
+          type: integer
+        client_id:
+          type: integer
+        invoice_number:
+          type: string
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [draft, pending, paid, overdue, cancelled]
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    InvoiceCreateRequest:
+      type: object
+      required: [client_id, invoice_number, amount, issue_date, due_date]
+      properties:
+        client_id:
+          type: integer
+        invoice_number:
+          type: string
+        amount:
+          type: number
+          format: float
+        issue_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        notes:
+          type: string
+    InvoiceUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/InvoiceCreateRequest'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [draft, pending, paid, overdue, cancelled]
+    InvoiceStats:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          additionalProperties:
+            type: integer
+    PublicPaymentLink:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            url:
+              type: string
+              format: uri
+            hash:
+              type: string
+    ImportBatch:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        total_rows:
+          type: integer
+        processed_rows:
+          type: integer
+        failed_rows:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+    ImportBatchErrors:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              row_number:
+                type: integer
+              error:
+                type: string
+    ClientCollection:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Client'
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+        company_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ClientCreateRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          type: string
+    ClientUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ClientCreateRequest'
+    QuoteCollection:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Quote'
+    Quote:
+      type: object
+      properties:
+        id:
+          type: integer
+        company_id:
+          type: integer
+        client_id:
+          type: integer
+        number:
+          type: string
+        status:
+          type: string
+          enum: [draft, sent, accepted, rejected, expired]
+        total:
+          type: number
+          format: float
+        valid_until:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    QuoteCreateRequest:
+      type: object
+      required: [client_id, number, total]
+      properties:
+        client_id:
+          type: integer
+        number:
+          type: string
+        total:
+          type: number
+          format: float
+        valid_until:
+          type: string
+          format: date
+        notes:
+          type: string
+    QuoteUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/QuoteCreateRequest'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [draft, sent, accepted, rejected, expired]
+    QuoteStats:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          additionalProperties:
+            type: integer
+    PaymentCollection:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+    Payment:
+      type: object
+      properties:
+        id:
+          type: integer
+        invoice_id:
+          type: integer
+        client_id:
+          type: integer
+        provider:
+          type: string
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        intent_status:
+          type: string
+        paid_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PaymentCreateRequest:
+      type: object
+      required: [invoice_id, amount]
+      properties:
+        invoice_id:
+          type: integer
+        amount:
+          type: number
+          format: float
+        provider:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        metadata:
+          type: object
+    PaymentUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/PaymentCreateRequest'
+    PaymentStats:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          additionalProperties:
+            type: integer
+    CompanyCollection:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tax_id:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CompanyCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        tax_id:
+          type: string
+        address:
+          type: string
+        phone:
+          type: string
+    CompanyUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/CompanyCreateRequest'

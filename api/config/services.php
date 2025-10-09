@@ -64,5 +64,102 @@ return [
         'default_rate' => env('API_TOKEN_RATE_LIMIT', 120),
         'default_decay' => env('API_TOKEN_RATE_LIMIT_DECAY', 60),
         'default_expiration_days' => env('API_TOKEN_EXPIRATION_DAYS', 90),
+        'policies' => [
+            // Dashboard
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/dashboard*',
+                'abilities' => ['api:read-dashboard'],
+            ],
+
+            // Settings & API tokens
+            [
+                'methods' => ['GET', 'PUT', 'POST', 'DELETE'],
+                'pattern' => 'api/settings*',
+                'abilities' => ['api:manage-settings'],
+            ],
+
+            // Invoices
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/invoices*',
+                'abilities' => ['api:read-invoices'],
+            ],
+            [
+                'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
+                'pattern' => 'api/invoices*',
+                'abilities' => ['api:write-invoices'],
+            ],
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/invoices-stats',
+                'abilities' => ['api:read-invoices'],
+            ],
+            [
+                'methods' => ['POST'],
+                'pattern' => 'api/invoices/import',
+                'abilities' => ['api:import-invoices'],
+            ],
+
+            // Clients
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/clients*',
+                'abilities' => ['api:read-clients'],
+            ],
+            [
+                'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
+                'pattern' => 'api/clients*',
+                'abilities' => ['api:write-clients'],
+            ],
+
+            // Quotes
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/quotes*',
+                'abilities' => ['api:read-quotes'],
+            ],
+            [
+                'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
+                'pattern' => 'api/quotes*',
+                'abilities' => ['api:write-quotes'],
+            ],
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/quotes-stats',
+                'abilities' => ['api:read-quotes'],
+            ],
+            [
+                'methods' => ['POST'],
+                'pattern' => 'api/quotes/import',
+                'abilities' => ['api:import-quotes'],
+            ],
+
+            // Payments
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/payments*',
+                'abilities' => ['api:read-payments'],
+            ],
+            [
+                'methods' => ['POST', 'PUT', 'PATCH', 'DELETE'],
+                'pattern' => 'api/payments*',
+                'abilities' => ['api:write-payments'],
+            ],
+
+            // Import batches (lectura de estados)
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/import-batches*',
+                'abilities' => ['api:read-invoices'],
+            ],
+
+            // Companies
+            [
+                'methods' => ['GET'],
+                'pattern' => 'api/companies*',
+                'abilities' => ['api:read-companies'],
+            ],
+        ],
     ],
 ];
