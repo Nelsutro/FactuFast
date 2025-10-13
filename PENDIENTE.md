@@ -16,7 +16,7 @@ Este documento consolida el estado actual del cronograma y define los pasos sigu
 - [x] Documentar oficialmente los endpoints (OpenAPI y guía rápida) y limitar scopes por token.
 - [x] Configurar rate limiting y auditoría de uso por token.
 - [x] Exponer reporte básico de uso (endpoint/tabla) y panel mínimo en la UI.
-- [ ] Diseñar alertas y filtros avanzados para tokens (errores recurrentes, umbrales de consumo).
+- [x] Diseñar alertas y filtros avanzados para tokens (errores recurrentes, umbrales de consumo).
 
 ### Programación automática
 - Extender el cron actual para generar facturas/recordatorios según reglas configurables.

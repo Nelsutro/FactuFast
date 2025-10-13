@@ -161,5 +161,24 @@ return [
                 'abilities' => ['api:read-companies'],
             ],
         ],
+        'alerts' => [
+            'windows' => [
+                'short_minutes' => env('API_TOKEN_ALERT_WINDOW_SHORT', 60),
+                'long_minutes' => env('API_TOKEN_ALERT_WINDOW_LONG', 1440),
+            ],
+            'error_rate' => [
+                'threshold_percent' => env('API_TOKEN_ALERT_ERROR_RATE_PERCENT', 20),
+                'min_requests' => env('API_TOKEN_ALERT_ERROR_RATE_MIN_REQUESTS', 25),
+            ],
+            'error_count' => [
+                'threshold' => env('API_TOKEN_ALERT_ERROR_COUNT', 10),
+            ],
+            'server_error_count' => [
+                'threshold' => env('API_TOKEN_ALERT_SERVER_ERROR_COUNT', 3),
+            ],
+            'request_spike' => [
+                'threshold' => env('API_TOKEN_ALERT_REQUEST_SPIKE', 5000),
+            ],
+        ],
     ],
 ];

@@ -432,7 +432,22 @@ export class ApiService {
 
   getApiTokenLogs(
     tokenId: number | string,
-    params: { page?: number; per_page?: number; since?: string; until?: string; only_errors?: boolean } = {}
+    params: {
+      page?: number;
+      per_page?: number;
+      since?: string;
+      until?: string;
+      only_errors?: boolean;
+      method?: string;
+      status?: number;
+      status_from?: number;
+      status_to?: number;
+      status_family?: string;
+      path_contains?: string;
+      ip?: string;
+      duration_min?: number;
+      duration_max?: number;
+    } = {}
   ): Observable<ApiTokenLogsResponse> {
     let httpParams = new HttpParams();
 

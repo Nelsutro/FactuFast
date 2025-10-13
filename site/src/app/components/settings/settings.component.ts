@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -11,6 +11,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDividerModule } from '@angular/material/divider';
 import { SettingsService, CompanySettings } from '../../core/services/settings.service';
 import { ApiService } from '../../services/api.service';
 import { ApiTokenSummary, ApiTokenLogsResponse, ApiTokenLogEntry, PaginationMeta } from '../../models';
@@ -21,6 +24,7 @@ import { ApiTokenSummary, ApiTokenLogsResponse, ApiTokenLogEntry, PaginationMeta
   imports: [
     CommonModule,
     ReactiveFormsModule,
+  FormsModule,
     MatTabsModule,
     MatFormFieldModule,
     MatInputModule,
@@ -31,6 +35,9 @@ import { ApiTokenSummary, ApiTokenLogsResponse, ApiTokenLogEntry, PaginationMeta
     MatProgressSpinnerModule,
     MatCardModule,
     MatChipsModule,
+  MatSelectModule,
+  MatButtonToggleModule,
+  MatDividerModule,
   ],
   templateUrl: './settings.component.html',
   styleUrls: ['./settings.component.css']
@@ -50,8 +57,39 @@ export class SettingsComponent implements OnInit {
   tokenLogsLoading = false;
   tokenLogs: ApiTokenLogEntry[] = [];
   tokenLogsPagination: PaginationMeta | null = null;
-  tokenLogsOnlyErrors = false;
   readonly tokenLogsPageSize = 25;
+  readonly tokenLogMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+  readonly tokenLogTimeframes: Array<{ value: '1h' | '24h' | '7d' | 'all'; label: string }> = [
+    { value: '1h', label: 'Última hora' },
+    { value: '24h', label: 'Últimas 24h' },
+    { value: '7d', label: 'Últimos 7 días' },
+    { value: 'all', label: 'Todo' }
+  ];
+  readonly statusFamilyOptions: Array<{ value: '2xx' | '3xx' | '4xx' | '5xx' | 'all'; label: string }> = [
+    { value: 'all', label: 'Todas' },
+    { value: '2xx', label: '2xx Éxito' },
+    { value: '3xx', label: '3xx Redirección' },
+    { value: '4xx', label: '4xx Error cliente' },
+    { value: '5xx', label: '5xx Error servidor' }
+  ];
+  readonly alertSeverityIcon: Record<'info' | 'warning' | 'danger', string> = {
+    info: 'info',
+    warning: 'warning',
+    danger: 'error_outline'
+  };
+
+  tokenLogFilters = {
+    onlyErrors: false,
+    method: 'ALL' as 'ALL' | string,
+    statusFamily: 'all' as 'all' | '2xx' | '3xx' | '4xx' | '5xx',
+    statusFrom: null as number | null,
+    statusTo: null as number | null,
+    pathContains: '',
+    ip: '',
+    durationMin: null as number | null,
+    durationMax: null as number | null,
+    timeframe: '24h' as '1h' | '24h' | '7d' | 'all'
+  };
 
   private readonly dateTimeFormatter = new Intl.DateTimeFormat('es-CL', {
     year: 'numeric',
@@ -219,14 +257,12 @@ export class SettingsComponent implements OnInit {
     }
     this.selectedToken = token;
     this.tokenLogsPagination = null;
-    this.loadTokenLogs(1, true);
+    this.resetTokenLogFilters();
+    this.loadTokenLogs(1);
   }
 
-  loadTokenLogs(page = 1, resetFilters = false): void {
+  loadTokenLogs(page = 1): void {
     if (!this.selectedToken) return;
-    if (resetFilters) {
-      this.tokenLogsOnlyErrors = false;
-    }
 
     this.tokenLogsLoading = true;
     const params: Record<string, string | number | boolean> = {
@@ -234,8 +270,45 @@ export class SettingsComponent implements OnInit {
       per_page: this.tokenLogsPageSize,
     };
 
-    if (this.tokenLogsOnlyErrors) {
+    const computedSince = this.computeSinceFromTimeframe();
+    if (computedSince) {
+      params['since'] = computedSince;
+    }
+
+    if (this.tokenLogFilters.onlyErrors) {
       params['only_errors'] = true;
+    }
+
+    if (this.tokenLogFilters.method !== 'ALL') {
+      params['method'] = this.tokenLogFilters.method;
+    }
+
+    if (this.tokenLogFilters.statusFamily !== 'all') {
+      params['status_family'] = this.tokenLogFilters.statusFamily;
+    }
+
+    if (this.tokenLogFilters.statusFrom != null) {
+      params['status_from'] = this.tokenLogFilters.statusFrom;
+    }
+
+    if (this.tokenLogFilters.statusTo != null) {
+      params['status_to'] = this.tokenLogFilters.statusTo;
+    }
+
+    if (this.tokenLogFilters.pathContains.trim().length > 0) {
+      params['path_contains'] = this.tokenLogFilters.pathContains.trim();
+    }
+
+    if (this.tokenLogFilters.ip.trim().length > 0) {
+      params['ip'] = this.tokenLogFilters.ip.trim();
+    }
+
+    if (this.tokenLogFilters.durationMin != null) {
+      params['duration_min'] = this.tokenLogFilters.durationMin;
+    }
+
+    if (this.tokenLogFilters.durationMax != null) {
+      params['duration_max'] = this.tokenLogFilters.durationMax;
     }
 
     this.apiSvc.getApiTokenLogs(this.selectedToken.id, params).subscribe({
@@ -258,7 +331,16 @@ export class SettingsComponent implements OnInit {
   }
 
   toggleOnlyErrors(): void {
-    this.tokenLogsOnlyErrors = !this.tokenLogsOnlyErrors;
+    this.tokenLogFilters.onlyErrors = !this.tokenLogFilters.onlyErrors;
+    if (this.tokenLogFilters.onlyErrors) {
+      this.tokenLogFilters.statusFamily = '5xx';
+      this.tokenLogFilters.statusFrom = 500;
+      this.tokenLogFilters.statusTo = null;
+    } else {
+      this.tokenLogFilters.statusFamily = 'all';
+      this.tokenLogFilters.statusFrom = null;
+      this.tokenLogFilters.statusTo = null;
+    }
     this.loadTokenLogs(1);
   }
 
@@ -267,6 +349,120 @@ export class SettingsComponent implements OnInit {
     const target = this.tokenLogsPagination.current_page + step;
     if (target < 1 || target > this.tokenLogsPagination.last_page) return;
     this.loadTokenLogs(target);
+  }
+
+  resetTokenLogFilters(): void {
+    this.tokenLogFilters = {
+      onlyErrors: false,
+      method: 'ALL',
+      statusFamily: 'all',
+      statusFrom: null,
+      statusTo: null,
+      pathContains: '',
+      ip: '',
+      durationMin: null,
+      durationMax: null,
+      timeframe: '24h'
+    };
+  }
+
+  applyTokenLogFilters(): void {
+    this.loadTokenLogs(1);
+  }
+
+  clearAdvancedFilters(): void {
+    const preserveOnlyErrors = this.tokenLogFilters.onlyErrors;
+    this.resetTokenLogFilters();
+    this.tokenLogFilters.onlyErrors = preserveOnlyErrors;
+    this.loadTokenLogs(1);
+  }
+
+  get hasAdvancedFilters(): boolean {
+    const filters = this.tokenLogFilters;
+    return (
+      filters.method !== 'ALL' ||
+      filters.statusFamily !== 'all' ||
+      filters.statusFrom != null ||
+      filters.statusTo != null ||
+      filters.pathContains.trim().length > 0 ||
+      filters.ip.trim().length > 0 ||
+      filters.durationMin != null ||
+      filters.durationMax != null ||
+      filters.timeframe !== '24h'
+    );
+  }
+
+  setMethodFilter(method: string): void {
+    this.tokenLogFilters.method = method as typeof this.tokenLogFilters.method;
+    this.applyTokenLogFilters();
+  }
+
+  setStatusFamily(value: 'all' | '2xx' | '3xx' | '4xx' | '5xx'): void {
+    this.tokenLogFilters.statusFamily = value;
+    switch (value) {
+      case 'all':
+        this.tokenLogFilters.statusFrom = null;
+        this.tokenLogFilters.statusTo = null;
+        break;
+      case '2xx':
+        this.tokenLogFilters.statusFrom = 200;
+        this.tokenLogFilters.statusTo = 299;
+        break;
+      case '3xx':
+        this.tokenLogFilters.statusFrom = 300;
+        this.tokenLogFilters.statusTo = 399;
+        break;
+      case '4xx':
+        this.tokenLogFilters.statusFrom = 400;
+        this.tokenLogFilters.statusTo = 499;
+        break;
+      case '5xx':
+        this.tokenLogFilters.statusFrom = 500;
+        this.tokenLogFilters.statusTo = 599;
+        break;
+    }
+    this.applyTokenLogFilters();
+  }
+
+  setTimeframe(value: '1h' | '24h' | '7d' | 'all'): void {
+    this.tokenLogFilters.timeframe = value;
+    this.applyTokenLogFilters();
+  }
+
+  updateNumericFilter(
+    key: 'statusFrom' | 'statusTo' | 'durationMin' | 'durationMax',
+    value: string | number | null
+  ): void {
+    if (value === null || value === '') {
+      this.tokenLogFilters[key] = null;
+      return;
+    }
+
+    const parsed = Number(value);
+    this.tokenLogFilters[key] = Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private computeSinceFromTimeframe(): string | null {
+    const { timeframe } = this.tokenLogFilters;
+    if (!timeframe || timeframe === 'all') {
+      return null;
+    }
+
+    const now = new Date();
+    const since = new Date(now);
+    switch (timeframe) {
+      case '1h':
+        since.setHours(now.getHours() - 1);
+        break;
+      case '24h':
+        since.setHours(now.getHours() - 24);
+        break;
+      case '7d':
+        since.setDate(now.getDate() - 7);
+        break;
+    }
+
+    return since.toISOString();
   }
 
   trackTokenById(_: number, token: ApiTokenSummary): number {

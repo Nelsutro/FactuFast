@@ -4,6 +4,20 @@ export interface ApiTokenMetrics {
   requests_last_7_days: number;
   last_error_at: string | null;
   last_error_status: number | null;
+  requests_last_short_window: number;
+  errors_last_short_window: number;
+  server_errors_last_short_window: number;
+  error_rate_last_short_window: number;
+  requests_last_long_window: number;
+  errors_last_long_window: number;
+}
+
+export interface ApiTokenAlert {
+  type: 'high_error_rate' | 'error_spike' | 'server_error_spike' | 'request_spike';
+  severity: 'info' | 'warning' | 'danger';
+  title: string;
+  description: string;
+  meta?: Record<string, any>;
 }
 
 export interface ApiTokenSummary {
@@ -17,6 +31,7 @@ export interface ApiTokenSummary {
   expires_at: string | null;
   revoked: boolean;
   metrics: ApiTokenMetrics;
+  alerts: ApiTokenAlert[];
 }
 
 export interface ApiTokenMeta {

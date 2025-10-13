@@ -177,16 +177,150 @@
                     Código {{ token.metrics.last_error_status }}
                   </span>
                 </div>
+                <div class="metric-card">
+                  <span class="metric-card__label">Ventana corta</span>
+                  <span class="metric-card__value">{{ token.metrics.requests_last_short_window | number:'1.0-0' }}</span>
+                  <span class="metric-card__helper">
+                    {{ token.metrics.errors_last_short_window | number:'1.0-0' }} errores · {{ token.metrics.error_rate_last_short_window | number:'1.0-1' }}%
+                  </span>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-card__label">Ventana larga</span>
+                  <span class="metric-card__value">{{ token.metrics.requests_last_long_window | number:'1.0-0' }}</span>
+                  <span class="metric-card__helper">
+                    {{ token.metrics.errors_last_long_window | number:'1.0-0' }} errores totales
+                  </span>
+                </div>
+              </div>
+
+              <mat-divider class="token-divider" *ngIf="token.alerts?.length"></mat-divider>
+
+              <div class="token-alerts" *ngIf="token.alerts?.length">
+                <h4>Alertas recientes</h4>
+                <div class="alerts-grid">
+                  <div class="alert-card" *ngFor="let alert of token.alerts" [ngClass]="'alert-card--' + alert.severity">
+                    <mat-icon class="alert-card__icon" [ngClass]="'alert-card__icon--' + alert.severity">
+                      {{ alertSeverityIcon[alert.severity] }}
+                    </mat-icon>
+                    <div class="alert-card__content">
+                      <h5>{{ alert.title }}</h5>
+                      <p>{{ alert.description }}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="logs-header">
                 <h4>Historial reciente</h4>
                 <div class="logs-controls">
-                  <mat-slide-toggle [checked]="tokenLogsOnlyErrors" (change)="toggleOnlyErrors()">
+                  <mat-button-toggle-group class="timeframe-toggle" [value]="tokenLogFilters.timeframe" (change)="setTimeframe($event.value)">
+                    <mat-button-toggle *ngFor="let option of tokenLogTimeframes" [value]="option.value">
+                      {{ option.label }}
+                    </mat-button-toggle>
+                  </mat-button-toggle-group>
+                  <mat-slide-toggle [checked]="tokenLogFilters.onlyErrors" (change)="toggleOnlyErrors()">
                     Solo errores
                   </mat-slide-toggle>
                   <button mat-icon-button color="primary" (click)="loadTokenLogs(tokenLogsPagination?.current_page || 1)" [disabled]="tokenLogsLoading">
                     <mat-icon>refresh</mat-icon>
+                  </button>
+                </div>
+              </div>
+
+              <div class="logs-filters">
+                <div class="filters-row">
+                  <label class="filter-label">Método</label>
+                  <mat-button-toggle-group class="methods-toggle" [value]="tokenLogFilters.method" (change)="setMethodFilter($event.value)">
+                    <mat-button-toggle value="ALL">Todos</mat-button-toggle>
+                    <mat-button-toggle *ngFor="let method of tokenLogMethods" [value]="method">
+                      {{ method }}
+                    </mat-button-toggle>
+                  </mat-button-toggle-group>
+                </div>
+
+                <div class="filters-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Familia de estados</mat-label>
+                    <mat-select [value]="tokenLogFilters.statusFamily" (selectionChange)="setStatusFamily($event.value)">
+                      <mat-option *ngFor="let option of statusFamilyOptions" [value]="option.value">{{ option.label }}</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Estado desde</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      [ngModel]="tokenLogFilters.statusFrom"
+                      (ngModelChange)="updateNumericFilter('statusFrom', $event)"
+                      (blur)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Estado hasta</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      [ngModel]="tokenLogFilters.statusTo"
+                      (ngModelChange)="updateNumericFilter('statusTo', $event)"
+                      (blur)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Ruta contiene</mat-label>
+                    <input
+                      matInput
+                      [(ngModel)]="tokenLogFilters.pathContains"
+                      (keyup.enter)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>IP</mat-label>
+                    <input
+                      matInput
+                      [(ngModel)]="tokenLogFilters.ip"
+                      (keyup.enter)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Duración mínima (ms)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      [ngModel]="tokenLogFilters.durationMin"
+                      (ngModelChange)="updateNumericFilter('durationMin', $event)"
+                      (blur)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Duración máxima (ms)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      [ngModel]="tokenLogFilters.durationMax"
+                      (ngModelChange)="updateNumericFilter('durationMax', $event)"
+                      (blur)="applyTokenLogFilters()"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </mat-form-field>
+                </div>
+
+                <div class="filters-actions">
+                  <button mat-stroked-button color="primary" (click)="applyTokenLogFilters()" [disabled]="tokenLogsLoading">
+                    Aplicar filtros
+                  </button>
+                  <button mat-button type="button" (click)="clearAdvancedFilters()" [disabled]="!hasAdvancedFilters">
+                    Limpiar filtros
                   </button>
                 </div>
               </div>

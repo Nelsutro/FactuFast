@@ -45,7 +45,20 @@ class ApiTokenController extends Controller
 
         $aggregated = [];
         if ($tokenIds->isNotEmpty()) {
-            $sevenDaysAgo = now()->subDays(7);
+            $now = now();
+            $sevenDaysAgo = $now->copy()->subDays(7);
+
+            $alertsConfig = config('services.api_tokens.alerts', []);
+            $windowsConfig = $alertsConfig['windows'] ?? [];
+            $shortMinutes = (int) ($windowsConfig['short_minutes'] ?? 60);
+            $longMinutes = (int) ($windowsConfig['long_minutes'] ?? 1440);
+            $shortSince = $now->copy()->subMinutes($shortMinutes);
+            $longSince = $now->copy()->subMinutes($longMinutes);
+
+            $errorRateConfig = $alertsConfig['error_rate'] ?? [];
+            $errorCountConfig = $alertsConfig['error_count'] ?? [];
+            $serverErrorCountConfig = $alertsConfig['server_error_count'] ?? [];
+            $requestSpikeConfig = $alertsConfig['request_spike'] ?? [];
 
             $baseStats = ApiTokenLog::query()
                 ->selectRaw('personal_access_token_id, COUNT(*) as total_requests, MAX(created_at) as last_request_at')
@@ -70,6 +83,22 @@ class ApiTokenController extends Controller
                 ->groupBy('personal_access_token_id')
                 ->map(fn ($group) => $group->first());
 
+            $shortWindowStats = ApiTokenLog::query()
+                ->selectRaw('personal_access_token_id, COUNT(*) as requests_short, SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) as errors_short, SUM(CASE WHEN status_code >= 500 THEN 1 ELSE 0 END) as server_errors_short')
+                ->whereIn('personal_access_token_id', $tokenIds)
+                ->where('created_at', '>=', $shortSince)
+                ->groupBy('personal_access_token_id')
+                ->get()
+                ->keyBy('personal_access_token_id');
+
+            $longWindowStats = ApiTokenLog::query()
+                ->selectRaw('personal_access_token_id, COUNT(*) as requests_long, SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) as errors_long')
+                ->whereIn('personal_access_token_id', $tokenIds)
+                ->where('created_at', '>=', $longSince)
+                ->groupBy('personal_access_token_id')
+                ->get()
+                ->keyBy('personal_access_token_id');
+
             foreach ($tokenIds as $id) {
                 $stats = $baseStats->get($id);
                 $lastRequestAt = $stats && $stats->last_request_at
@@ -77,12 +106,95 @@ class ApiTokenController extends Controller
                     : null;
                 $errorEntry = $lastError->get($id) ?? null;
 
+                $shortStats = $shortWindowStats->get($id);
+                $requestsShort = (int) ($shortStats->requests_short ?? 0);
+                $errorsShort = (int) ($shortStats->errors_short ?? 0);
+                $serverErrorsShort = (int) ($shortStats->server_errors_short ?? 0);
+                $errorRateShort = $requestsShort > 0 ? round(($errorsShort / $requestsShort) * 100, 2) : 0.0;
+
+                $longStats = $longWindowStats->get($id);
+                $requestsLong = (int) ($longStats->requests_long ?? 0);
+                $errorsLong = (int) ($longStats->errors_long ?? 0);
+
+                $alerts = [];
+                if ($requestsShort > 0) {
+                    $minRequests = (int) ($errorRateConfig['min_requests'] ?? 25);
+                    $thresholdPercent = (float) ($errorRateConfig['threshold_percent'] ?? 20);
+
+                    if ($requestsShort >= $minRequests && $errorRateShort >= $thresholdPercent) {
+                        $alerts[] = [
+                            'type' => 'high_error_rate',
+                            'severity' => 'warning',
+                            'title' => 'Porcentaje alto de errores',
+                            'description' => sprintf('%.1f%% de las %d solicitudes registraron error en los últimos %d minutos.', $errorRateShort, $requestsShort, $shortMinutes),
+                            'meta' => [
+                                'window_minutes' => $shortMinutes,
+                                'requests' => $requestsShort,
+                                'errors' => $errorsShort,
+                                'error_rate' => $errorRateShort,
+                            ],
+                        ];
+                    }
+
+                    $errorCountThreshold = (int) ($errorCountConfig['threshold'] ?? 10);
+                    if ($errorsShort >= $errorCountThreshold && $errorCountThreshold > 0) {
+                        $alerts[] = [
+                            'type' => 'error_spike',
+                            'severity' => 'warning',
+                            'title' => 'Pico de errores recientes',
+                            'description' => sprintf('%d errores totales en los últimos %d minutos.', $errorsShort, $shortMinutes),
+                            'meta' => [
+                                'window_minutes' => $shortMinutes,
+                                'errors' => $errorsShort,
+                                'threshold' => $errorCountThreshold,
+                            ],
+                        ];
+                    }
+
+                    $serverErrorThreshold = (int) ($serverErrorCountConfig['threshold'] ?? 3);
+                    if ($serverErrorsShort >= $serverErrorThreshold && $serverErrorThreshold > 0) {
+                        $alerts[] = [
+                            'type' => 'server_error_spike',
+                            'severity' => 'danger',
+                            'title' => 'Errores 5xx consecutivos',
+                            'description' => sprintf('%d respuestas 5xx en los últimos %d minutos.', $serverErrorsShort, $shortMinutes),
+                            'meta' => [
+                                'window_minutes' => $shortMinutes,
+                                'server_errors' => $serverErrorsShort,
+                                'threshold' => $serverErrorThreshold,
+                            ],
+                        ];
+                    }
+
+                    $requestSpikeThreshold = (int) ($requestSpikeConfig['threshold'] ?? 5000);
+                    if ($requestsShort >= $requestSpikeThreshold && $requestSpikeThreshold > 0) {
+                        $alerts[] = [
+                            'type' => 'request_spike',
+                            'severity' => 'info',
+                            'title' => 'Consumo inusual de API',
+                            'description' => sprintf('%d solicitudes realizadas en los últimos %d minutos.', $requestsShort, $shortMinutes),
+                            'meta' => [
+                                'window_minutes' => $shortMinutes,
+                                'requests' => $requestsShort,
+                                'threshold' => $requestSpikeThreshold,
+                            ],
+                        ];
+                    }
+                }
+
                 $aggregated[$id] = [
                     'total_requests' => (int) ($stats->total_requests ?? 0),
                     'last_request_at' => optional($lastRequestAt)->toIso8601String(),
                     'requests_last_7_days' => (int) ($lastWeek[$id] ?? 0),
                     'last_error_at' => optional($errorEntry?->created_at)->toIso8601String(),
                     'last_error_status' => $errorEntry?->status_code,
+                    'requests_last_short_window' => $requestsShort,
+                    'errors_last_short_window' => $errorsShort,
+                    'server_errors_last_short_window' => $serverErrorsShort,
+                    'error_rate_last_short_window' => $errorRateShort,
+                    'requests_last_long_window' => $requestsLong,
+                    'errors_last_long_window' => $errorsLong,
+                    'alerts' => $alerts,
                 ];
             }
         }
@@ -94,7 +206,16 @@ class ApiTokenController extends Controller
                 'requests_last_7_days' => 0,
                 'last_error_at' => null,
                 'last_error_status' => null,
+                'requests_last_short_window' => 0,
+                'errors_last_short_window' => 0,
+                'server_errors_last_short_window' => 0,
+                'error_rate_last_short_window' => 0,
+                'requests_last_long_window' => 0,
+                'errors_last_long_window' => 0,
             ];
+
+            $alerts = $metrics['alerts'] ?? [];
+            unset($metrics['alerts']);
 
             return [
                 'id' => $token->id,
@@ -107,6 +228,7 @@ class ApiTokenController extends Controller
                 'expires_at' => $token->expires_at,
                 'revoked' => $token->isRevoked(),
                 'metrics' => $metrics,
+                'alerts' => $alerts,
             ];
         });
 
@@ -233,8 +355,63 @@ class ApiTokenController extends Controller
             }
         }
 
+        if ($request->filled('until')) {
+            try {
+                $until = Carbon::parse($request->string('until')->toString());
+                $query->where('created_at', '<=', $until);
+            } catch (\Throwable $e) {
+                throw new HttpException(422, 'Fecha "until" inválida');
+            }
+        }
+
         if ($request->boolean('only_errors')) {
             $query->where('status_code', '>=', 400);
+        }
+
+        if ($request->filled('method')) {
+            $method = strtoupper($request->string('method')->toString());
+            $query->where('method', $method);
+        }
+
+        if ($request->filled('status')) {
+            $status = (int) $request->input('status');
+            $query->where('status_code', $status);
+        }
+
+        $statusFrom = $request->input('status_from');
+        $statusTo = $request->input('status_to');
+        if (!is_null($statusFrom) || !is_null($statusTo)) {
+            $statusFrom = !is_null($statusFrom) ? (int) $statusFrom : 0;
+            $statusTo = !is_null($statusTo) ? (int) $statusTo : 599;
+            if ($statusFrom > $statusTo) {
+                throw new HttpException(422, 'Rango de status inválido');
+            }
+            $query->whereBetween('status_code', [$statusFrom, $statusTo]);
+        }
+
+        if ($request->filled('status_family')) {
+            $family = strtolower($request->string('status_family')->toString());
+            if (preg_match('/^[1-5]xx$/', $family)) {
+                $start = (int) $family[0] * 100;
+                $query->whereBetween('status_code', [$start, $start + 99]);
+            }
+        }
+
+        if ($request->filled('path_contains')) {
+            $contains = $request->string('path_contains')->toString();
+            $query->where('path', 'like', '%'.$contains.'%');
+        }
+
+        if ($request->filled('ip')) {
+            $query->where('ip', $request->string('ip')->toString());
+        }
+
+        if ($request->filled('duration_min')) {
+            $query->where('duration_ms', '>=', (int) $request->input('duration_min'));
+        }
+
+        if ($request->filled('duration_max')) {
+            $query->where('duration_ms', '<=', (int) $request->input('duration_max'));
         }
 
         $perPage = (int) $request->integer('per_page', 25);
