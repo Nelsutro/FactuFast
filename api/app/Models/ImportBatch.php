@@ -34,6 +34,13 @@ class ImportBatch extends Model
         'finished_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'alert_level',
+        'has_errors',
+        'duration_seconds',
+        'summary_message',
+    ];
+
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
@@ -129,5 +136,48 @@ class ImportBatch extends Model
             'success_count' => (int) ($counts['success'] ?? 0),
             'error_count' => (int) ($counts['error'] ?? 0),
         ])->save();
+    }
+
+    public function getAlertLevelAttribute(): string
+    {
+        if ($this->status === 'failed') {
+            return 'error';
+        }
+
+        if ($this->status === 'completed') {
+            return $this->error_count > 0 ? 'warning' : 'success';
+        }
+
+        if (in_array($this->status, ['processing', 'pending'], true)) {
+            return 'info';
+        }
+
+        return 'info';
+    }
+
+    public function getHasErrorsAttribute(): bool
+    {
+        return (int) $this->error_count > 0;
+    }
+
+    public function getDurationSecondsAttribute(): ?int
+    {
+        if (!$this->started_at || !$this->finished_at) {
+            return null;
+        }
+
+        return $this->finished_at->diffInSeconds($this->started_at);
+    }
+
+    public function getSummaryMessageAttribute(): string
+    {
+        return match ($this->status) {
+            'failed' => 'Importación fallida. Revisa los detalles y vuelve a intentarlo.',
+            'completed' => $this->error_count > 0
+                ? sprintf('Importación completada con %d errores detectados.', (int) $this->error_count)
+                : 'Importación completada exitosamente.',
+            'processing' => 'Importación en proceso, monitoreando el avance...',
+            default => 'Importación pendiente de procesamiento.',
+        };
     }
 }

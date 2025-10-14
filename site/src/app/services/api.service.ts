@@ -4,6 +4,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { ApiTokenSummary, ApiTokenLogsResponse, PaginationMeta } from '../models/api-token.model';
+import { ImportBatch } from '../models';
 
 export interface ApiResponse<T> {
   data: T;
@@ -192,7 +193,10 @@ export class ApiService {
     let headers = new HttpHeaders({ 'Accept': 'application/json' });
     if (token) headers = headers.set('Authorization', `Bearer ${token}`);
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/invoices/import`, form, { headers })
-      .pipe(catchError(this.handleError));
+      .pipe(
+        map(response => response),
+        catchError(this.handleError)
+      );
   }
 
   // Métodos para Clientes
@@ -394,6 +398,53 @@ export class ApiService {
         map(response => response.data),
         catchError(this.handleError)
       );
+  }
+
+  // Métodos para Importaciones
+  listImportBatches(params?: Record<string, any>): Observable<PaginatedResponse<ImportBatch>> {
+    let httpParams = new HttpParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          return;
+        }
+        httpParams = httpParams.set(key, value instanceof Date ? value.toISOString() : String(value));
+      });
+    }
+
+    return this.http.get<ApiResponseWithPagination<ImportBatch[]>>(`${this.apiUrl}/import-batches`, {
+      headers: this.getHeaders(),
+      params: httpParams
+    }).pipe(
+      map(response => ({
+        success: response.success !== false,
+        message: response.message,
+        data: response.data ?? [],
+        pagination: response.pagination ?? {
+          current_page: 1,
+          per_page: response.data?.length || 0,
+          total: response.data?.length || 0,
+          last_page: 1
+        }
+      })),
+      catchError(this.handleError)
+    );
+  }
+
+  getImportBatch(batchId: number): Observable<ImportBatch> {
+    return this.http.get<ApiResponse<ImportBatch>>(`${this.apiUrl}/import-batches/${batchId}`, {
+      headers: this.getHeaders()
+    }).pipe(
+      map(response => response.data),
+      catchError(this.handleError)
+    );
+  }
+
+  downloadImportErrors(batchId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/import-batches/${batchId}/errors/export`, {
+      headers: this.getHeaders(),
+      responseType: 'blob' as 'json'
+    }) as unknown as Observable<Blob>;
   }
 
   // Métodos para Empresas

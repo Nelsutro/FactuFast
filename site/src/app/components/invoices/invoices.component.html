@@ -229,6 +229,110 @@
                      aria-label="Seleccionar página de facturas">
       </mat-paginator>
     </div>
+
+    <!-- Import History -->
+    <section class="import-history-section" aria-label="Historial de importaciones">
+      <div class="import-history-header">
+        <div>
+          <h3>Historial de importaciones</h3>
+          <p class="import-history-subtitle">Revisa el estado de tus importaciones recientes y descarga los errores si es necesario.</p>
+        </div>
+        <button mat-icon-button (click)="refreshImportHistory()" [disabled]="historyLoading" aria-label="Refrescar historial" matTooltip="Actualizar historial">
+          <mat-icon>refresh</mat-icon>
+        </button>
+      </div>
+
+      <div class="import-history-filters">
+        <mat-form-field appearance="outline">
+          <mat-label>Estado</mat-label>
+          <mat-select [(ngModel)]="historyFilters.status" (selectionChange)="onHistoryStatusChange($event.value)">
+            <mat-option value="all">Todos</mat-option>
+            <mat-option value="completed">Completadas</mat-option>
+            <mat-option value="failed">Fallidas</mat-option>
+            <mat-option value="processing">En proceso</mat-option>
+            <mat-option value="pending">Pendientes</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Período</mat-label>
+          <mat-select [(ngModel)]="historyFilters.range" (selectionChange)="onHistoryRangeChange($event.value)">
+            <mat-option value="all">Todo el historial</mat-option>
+            <mat-option value="7d">Últimos 7 días</mat-option>
+            <mat-option value="30d">Últimos 30 días</mat-option>
+            <mat-option value="90d">Últimos 90 días</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-checkbox [(ngModel)]="historyFilters.alertsOnly" (change)="toggleHistoryAlertsOnly($event.checked)">
+          Solo alertas
+        </mat-checkbox>
+      </div>
+
+      <app-loading *ngIf="historyLoading" message="Cargando historial..." [diameter]="36"></app-loading>
+
+      <div *ngIf="historyError && !historyLoading" class="error-message">
+        <mat-icon>error</mat-icon>
+        <span>{{historyError}}</span>
+        <button mat-button color="primary" (click)="refreshImportHistory()">Reintentar</button>
+      </div>
+
+      <div *ngIf="!historyLoading && !historyError">
+        <div *ngIf="importHistory.length === 0" class="empty-import-history">
+          <mat-icon>inventory_2</mat-icon>
+          <p>No hay importaciones registradas para el período seleccionado.</p>
+        </div>
+
+        <table mat-table [dataSource]="importHistory" class="import-history-table" *ngIf="importHistory.length > 0">
+          <ng-container matColumnDef="file">
+            <th mat-header-cell *matHeaderCellDef> Archivo </th>
+            <td mat-cell *matCellDef="let batch">
+              <div class="primary-text">{{batch.source_filename || ('#' + batch.id)}}</div>
+              <div class="secondary-text">{{formatImportTimestamp(batch.started_at)}} -> {{formatImportTimestamp(batch.finished_at)}}</div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef> Estado </th>
+            <td mat-cell *matCellDef="let batch">
+              <span class="import-status-chip" [ngClass]="getImportStatusClass(batch)">
+                <mat-icon class="status-icon" aria-hidden="true">
+                  {{ batch.status === 'failed' ? 'error' : batch.status === 'completed' && batch.error_count > 0 ? 'warning' : batch.status === 'completed' ? 'check_circle' : 'hourglass_bottom' }}
+                </mat-icon>
+                {{formatImportStatus(batch)}}
+              </span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="summary">
+            <th mat-header-cell *matHeaderCellDef> Resultado </th>
+            <td mat-cell *matCellDef="let batch">
+              <div>{{batch.summary_message}}</div>
+              <small class="secondary-text">Procesadas: {{batch.success_count}} éxito(s) / {{batch.error_count}} error(es)</small>
+              <div *ngIf="batch.last_error_message" class="import-error-hint">{{batch.last_error_message}}</div>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="duration">
+            <th mat-header-cell *matHeaderCellDef> Duración </th>
+            <td mat-cell *matCellDef="let batch">{{formatImportDuration(batch)}}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef> Acciones </th>
+            <td mat-cell *matCellDef="let batch">
+              <button mat-stroked-button color="primary" (click)="downloadImportErrors(batch)" [disabled]="!batch.has_errors" aria-label="Descargar errores">
+                <mat-icon aria-hidden="true">file_download</mat-icon>
+                Errores
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="['file','status','summary','duration','actions']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['file','status','summary','duration','actions'];"></tr>
+        </table>
+      </div>
+    </section>
   </mat-card-content>
 </mat-card>
 

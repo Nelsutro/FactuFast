@@ -101,9 +101,10 @@ Route::middleware(['auth:sanctum', 'token.policies'])->group(function () {
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'downloadPdf']);
     Route::post('invoices/{invoice}/email', [InvoiceController::class, 'sendEmail']);
 
+    Route::get('import-batches', [ImportBatchController::class, 'index']);
     Route::get('import-batches/{batch}', [ImportBatchController::class, 'show']);
     Route::get('import-batches/{batch}/errors', [ImportBatchController::class, 'errors']);
-    Route::get('import-batches/{batch}/errors/export', [ImportBatchController::class, 'downloadErrors']);
+    Route::get('import-batches/{batch}/errors/export', [ImportBatchController::class, 'downloadErrors'])->name('import-batches.errors.export');
 
     // Clientes
     Route::apiResource('clients', ClientController::class);

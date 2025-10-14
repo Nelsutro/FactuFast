@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +14,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -25,7 +26,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { LoadingComponent } from '../shared/loading/loading.component';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Invoice, User } from '../../models';
+import { ImportBatch, Invoice, User } from '../../models';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -45,6 +46,7 @@ import { environment } from '../../../environments/environment';
     MatInputModule,
     MatSelectModule,
     MatChipsModule,
+  MatCheckboxModule,
     MatCardModule,
     MatProgressSpinnerModule,
     MatProgressBarModule,
@@ -56,7 +58,7 @@ import { environment } from '../../../environments/environment';
     LoadingComponent
   ]
 })
-export class InvoicesComponent implements OnInit, AfterViewInit {
+export class InvoicesComponent implements OnInit, AfterViewInit, OnDestroy {
   
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatSort) sort!: MatSort;
@@ -91,6 +93,19 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
     totalAmount: 0
   };
 
+  // Import history
+  importHistory: ImportBatch[] = [];
+  historyLoading = false;
+  historyError: string | null = null;
+  historyFilters: { status: string; range: string; alertsOnly: boolean } = {
+    status: 'all',
+    range: '30d',
+    alertsOnly: true
+  };
+
+  private readonly importPollInterval = 4000;
+  private batchPollers = new Map<number, number>();
+
   // Modal properties
   showDeleteModal = false;
   invoiceToDelete: Invoice | null = null;
@@ -111,6 +126,7 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
     console.log('InvoicesComponent iniciando...');
     this.loadUserData();
     this.loadInvoices();
+    this.loadImportHistory();
 
     // Configurar la función de filtrado (no usada tras unificar filtros, pero dejamos por compatibilidad)
     this.dataSource.filterPredicate = (data: Invoice, filter: string): boolean => {
@@ -140,6 +156,11 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
   ngAfterViewInit() {
     this.dataSource.paginator = this.paginator;
     this.dataSource.sort = this.sort;
+  }
+
+  ngOnDestroy(): void {
+    this.batchPollers.forEach(id => clearInterval(id));
+    this.batchPollers.clear();
   }
 
   async loadInvoices() {
@@ -199,6 +220,223 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
       });
       this.loading = false;
     }
+  }
+
+  loadImportHistory(forceReload = false): void {
+    if (!forceReload && this.historyLoading) {
+      return;
+    }
+
+    this.historyLoading = true;
+    this.historyError = null;
+
+    const params: Record<string, any> = {
+      type: 'invoices',
+      per_page: 10
+    };
+
+    if (this.historyFilters.status !== 'all') {
+      params['status'] = this.historyFilters.status;
+    }
+
+    if (this.historyFilters.alertsOnly) {
+      params['alerts_only'] = 1;
+    }
+
+    const fromDate = this.getHistoryStartDate(this.historyFilters.range);
+    if (fromDate) {
+      params['from'] = fromDate.toISOString();
+    }
+
+    this.apiService.listImportBatches(params).subscribe({
+      next: response => {
+        this.importHistory = response.data ?? [];
+        this.historyLoading = false;
+      },
+      error: err => {
+        console.error('Error cargando historial de importaciones:', err);
+        this.historyError = err.message || 'Error al cargar el historial de importaciones';
+        this.historyLoading = false;
+        this.importHistory = [];
+      }
+    });
+  }
+
+  onHistoryStatusChange(status: string): void {
+    this.historyFilters.status = status || 'all';
+    this.loadImportHistory(true);
+  }
+
+  onHistoryRangeChange(range: string): void {
+    this.historyFilters.range = range || 'all';
+    this.loadImportHistory(true);
+  }
+
+  toggleHistoryAlertsOnly(checked: boolean): void {
+    this.historyFilters.alertsOnly = checked;
+    this.loadImportHistory(true);
+  }
+
+  refreshImportHistory(): void {
+    this.loadImportHistory(true);
+  }
+
+  private getHistoryStartDate(range: string): Date | null {
+    const now = new Date();
+
+    switch (range) {
+      case '7d':
+        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case '30d':
+        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case '90d':
+        return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      default:
+        return null;
+    }
+  }
+
+  formatImportStatus(batch: ImportBatch): string {
+    switch (batch.status) {
+      case 'completed':
+        return batch.error_count > 0 ? 'Completada con observaciones' : 'Completada';
+      case 'processing':
+        return 'Procesando';
+      case 'failed':
+        return 'Fallida';
+      default:
+        return 'Pendiente';
+    }
+  }
+
+  formatImportTimestamp(dateValue?: string | null): string {
+    if (!dateValue) {
+      return 'N/A';
+    }
+
+    return new Date(dateValue).toLocaleString('es-CL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  formatImportDuration(batch: ImportBatch): string {
+    if (batch.duration_seconds && batch.duration_seconds > 0) {
+      const minutes = Math.floor(batch.duration_seconds / 60);
+      const seconds = batch.duration_seconds % 60;
+      return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    }
+
+    if (batch.started_at && batch.finished_at) {
+      const start = new Date(batch.started_at).getTime();
+      const end = new Date(batch.finished_at).getTime();
+      const diffSeconds = Math.max(0, Math.round((end - start) / 1000));
+      const minutes = Math.floor(diffSeconds / 60);
+      const seconds = diffSeconds % 60;
+      return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+    }
+
+    return 'N/A';
+  }
+
+  getImportStatusClass(batch: ImportBatch): string {
+    if (batch.status === 'failed') {
+      return 'import-status-error';
+    }
+    if (batch.status === 'completed' && batch.error_count > 0) {
+      return 'import-status-warning';
+    }
+    if (batch.status === 'completed') {
+      return 'import-status-success';
+    }
+    return 'import-status-info';
+  }
+
+  downloadImportErrors(batch: ImportBatch): void {
+    if (!batch.has_errors) {
+      return;
+    }
+
+    this.apiService.downloadImportErrors(batch.id).subscribe({
+      next: blob => {
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `import_errors_${batch.id}.csv`;
+        anchor.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: err => {
+        console.error('Error descargando errores de importación:', err);
+        this.snackBar.open(err.message || 'No fue posible descargar los errores', 'Cerrar', { duration: 3500 });
+      }
+    });
+  }
+
+  private monitorBatch(batchId: number): void {
+    if (this.batchPollers.has(batchId)) {
+      return;
+    }
+
+    const poller = window.setInterval(() => {
+      this.apiService.getImportBatch(batchId).subscribe({
+        next: batch => {
+          if (batch.status === 'completed' || batch.status === 'failed') {
+            this.handleBatchCompletion(batch);
+            this.stopMonitoring(batchId);
+          }
+        },
+        error: err => {
+          console.error('Error monitoreando importación:', err);
+          this.stopMonitoring(batchId);
+        }
+      });
+    }, this.importPollInterval);
+
+    this.batchPollers.set(batchId, poller);
+  }
+
+  private stopMonitoring(batchId: number): void {
+    const timer = this.batchPollers.get(batchId);
+    if (timer) {
+      clearInterval(timer);
+      this.batchPollers.delete(batchId);
+    }
+  }
+
+  private handleBatchCompletion(batch: ImportBatch): void {
+    const actionLabel = batch.has_errors ? 'Ver errores' : 'Cerrar';
+    const ref = this.snackBar.open(this.buildBatchSnackMessage(batch), actionLabel, {
+      duration: 6000,
+      horizontalPosition: 'end',
+      verticalPosition: 'top'
+    });
+
+    if (batch.has_errors) {
+      ref.onAction().subscribe(() => this.downloadImportErrors(batch));
+    }
+
+    this.loadImportHistory(true);
+    this.loadInvoices();
+  }
+
+  private buildBatchSnackMessage(batch: ImportBatch): string {
+    if (batch.status === 'failed') {
+      return 'La importación de facturas falló. Revisa los detalles antes de reintentar.';
+    }
+
+    if (batch.status === 'completed' && batch.error_count > 0) {
+      return `Importación completada con ${batch.success_count} registro(s) exitoso(s) y ${batch.error_count} con errores.`;
+    }
+
+    if (batch.status === 'completed') {
+      return `Importación completada: ${batch.success_count} registro(s) agregados correctamente.`;
+    }
+
+    return 'Actualización de importación recibida.';
   }
 
   calculateStats() {
@@ -379,13 +617,23 @@ export class InvoicesComponent implements OnInit, AfterViewInit {
     this.snackBar.open('Importando facturas...', undefined, { duration: 1500 });
     this.apiService.importInvoicesCsv(file).subscribe({
       next: (res) => {
-        this.snackBar.open(`Importación completa: ${res.data?.created ?? 0} creadas, ${res.data?.skipped ?? 0} omitidas`, 'Cerrar', { duration: 3500 });
-        this.loadInvoices();
+        const batchId = res?.data?.batch_id;
+        if (batchId) {
+          this.snackBar.open('Importación encolada. Te avisaremos cuando finalice.', 'Cerrar', { duration: 4000 });
+          this.monitorBatch(batchId);
+        } else {
+          const created = res?.data?.created ?? 0;
+          const skipped = res?.data?.skipped ?? res?.data?.errors ?? 0;
+          this.snackBar.open(`Importación completa: ${created} creadas, ${skipped} omitidas`, 'Cerrar', { duration: 3500 });
+          this.loadInvoices();
+        }
+        this.loadImportHistory(true);
         input.value = '';
       },
       error: (err) => {
         this.snackBar.open(err.message || 'Error al importar CSV', 'Cerrar', { duration: 3500 });
         input.value = '';
+        this.loadImportHistory(true);
       }
     });
   }

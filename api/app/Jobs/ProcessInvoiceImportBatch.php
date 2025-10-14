@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\ImportBatchSummary;
 use App\Models\ImportBatch;
 use App\Services\Imports\InvoiceImportService;
 use Illuminate\Bus\Queueable;
@@ -9,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class ProcessInvoiceImportBatch implements ShouldQueue
@@ -76,8 +78,10 @@ class ProcessInvoiceImportBatch implements ShouldQueue
 
             $batch->update(['total_rows' => max(0, $rowNumber - 1)]);
             $batch->markCompleted();
+            $this->notifyStakeholders($batch);
         } catch (\Throwable $e) {
             $batch->markFailed($e->getMessage());
+            $this->notifyStakeholders($batch);
             throw $e;
         }
     }
@@ -91,5 +95,36 @@ class ProcessInvoiceImportBatch implements ShouldQueue
         $row = array_pad($row, count($header), null);
 
         return array_combine($header, $row) ?: [];
+    }
+
+    private function notifyStakeholders(ImportBatch $batch): void
+    {
+        $batch->refresh(['user', 'company']);
+
+        $meta = $batch->meta ?? [];
+        $notifiedStatuses = $meta['notified_statuses'] ?? [];
+        if (in_array($batch->status, $notifiedStatuses, true)) {
+            return;
+        }
+
+        $recipients = collect([
+            optional($batch->user)->email,
+            optional($batch->company)->email,
+        ])->filter()->unique()->values();
+
+        if ($recipients->isNotEmpty()) {
+            foreach ($recipients as $email) {
+                Mail::to($email)->queue(new ImportBatchSummary($batch));
+            }
+        }
+
+        $meta['notified_at'] = now()->toISOString();
+        $notifiedChannels = $meta['notified_channels'] ?? [];
+        $notifiedChannels[] = 'email';
+        $meta['notified_channels'] = array_values(array_unique($notifiedChannels));
+        $notifiedStatuses[] = $batch->status;
+        $meta['notified_statuses'] = array_values(array_unique($notifiedStatuses));
+
+        $batch->forceFill(['meta' => $meta])->save();
     }
 }

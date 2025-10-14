@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
-import { take } from 'rxjs/operators';
+import { take, finalize } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { 
   ApiResponse, 
@@ -60,6 +60,9 @@ export class AuthService {
   logout(): Observable<ApiResponse> {
     return this.http.post<ApiResponse>(`${this.apiUrl}/logout`, {}).pipe(
       tap(() => {
+        console.log('[Auth] Logout exitoso en servidor');
+      }),
+      finalize(() => {
         this.removeToken();
         this.currentUserSubject.next(null);
       })
@@ -195,6 +198,7 @@ export class AuthService {
   private removeToken(): void {
     console.log('Eliminando token de localStorage');
     localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem('user_data');
   }
 
   /**

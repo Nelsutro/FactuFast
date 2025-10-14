@@ -2,6 +2,7 @@ export * from './user.model';
 export * from './company.model';
 export * from './client.model';
 export * from './invoice.model';
+export * from './import-batch.model';
 export * from './payment.model';
 export * from './quote.model';
 export * from './schedule.model';
