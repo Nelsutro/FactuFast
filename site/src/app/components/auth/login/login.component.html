@@ -1,30 +1,24 @@
-<div class="login-container">
-  <mat-card class="login-card">
-    <!-- Logo y Header -->
-    <mat-card-header class="text-center">
-      <div class="logo-container">
-        <mat-icon class="logo-icon">bolt</mat-icon>
+<div class="login-page">
+  <section class="form-panel">
+    <mat-card class="form-card">
+      <div class="form-header">
+        <span class="brand-pill">
+          <mat-icon>bolt</mat-icon>
+          FactuFast
+        </span>
+        <h2>Bienvenido de vuelta</h2>
+        <p>Inicia sesión con tus credenciales para continuar gestionando tu facturación.</p>
       </div>
-      <mat-card-title>FactuFast</mat-card-title>
-      <mat-card-subtitle>Inicia sesión en tu cuenta</mat-card-subtitle>
-    </mat-card-header>
 
-    <mat-card-content>
-      <!-- Error Messages -->
-      <div *ngIf="error" class="error-message">
-        <mat-icon color="warn">error</mat-icon>
+      <div *ngIf="error" class="alert alert-error">
+        <mat-icon>error</mat-icon>
         <span>{{ error }}</span>
       </div>
 
-      <!-- Login Form -->
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-        <!-- Email -->
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Correo Electrónico</mat-label>
-          <input matInput
-                 type="email"
-                 formControlName="email"
-                 placeholder="tu@email.com">
+          <mat-label>Correo electrónico</mat-label>
+          <input matInput type="email" formControlName="email" placeholder="tu@email.com">
           <mat-icon matPrefix>email</mat-icon>
           <mat-error *ngIf="loginForm.get('email')?.hasError('required')">
             El correo es requerido
@@ -34,26 +28,18 @@
           </mat-error>
         </mat-form-field>
 
-        <!-- RUT de Empresa (opcional) -->
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>RUT de Empresa (opcional)</mat-label>
-          <input matInput
-                 type="text"
-                 formControlName="tax_id"
-                 placeholder="12.345.678-9">
+          <mat-label>RUT de empresa (opcional)</mat-label>
+          <input matInput type="text" formControlName="tax_id" placeholder="12.345.678-9">
           <mat-icon matPrefix>badge</mat-icon>
         </mat-form-field>
 
-        <!-- Password -->
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Contraseña</mat-label>
-          <input matInput
-                 [type]="showPassword ? 'text' : 'password'"
-                 formControlName="password"
-                 placeholder="Tu contraseña">
+          <input matInput [type]="showPassword ? 'text' : 'password'" formControlName="password" placeholder="Tu contraseña">
           <mat-icon matPrefix>lock</mat-icon>
-          <button mat-icon-button matSuffix (click)="togglePasswordVisibility()" type="button">
-            <mat-icon>{{showPassword ? 'visibility_off' : 'visibility'}}</mat-icon>
+          <button mat-icon-button matSuffix type="button" (click)="togglePasswordVisibility()">
+            <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
           <mat-error *ngIf="loginForm.get('password')?.hasError('required')">
             La contraseña es requerida
@@ -63,73 +49,77 @@
           </mat-error>
         </mat-form-field>
 
-        <!-- Remember Me -->
-        <div class="remember-section">
+        <div class="form-actions">
           <mat-checkbox formControlName="rememberMe">Recordarme</mat-checkbox>
-          <a href="#" (click)="goToForgotPassword(); $event.preventDefault()" class="forgot-link">¿Olvidaste tu contraseña?</a>
+          <a href="#" class="link" (click)="goToForgotPassword(); $event.preventDefault()">¿Olvidaste tu contraseña?</a>
         </div>
 
-        <!-- Submit Button -->
-        <button mat-raised-button
-                color="primary"
-                type="submit"
-                [disabled]="loginForm.invalid || loading"
-                class="full-width submit-button">
+        <button mat-raised-button color="primary" class="submit-button" type="submit" [disabled]="loginForm.invalid || loading">
           <mat-icon *ngIf="!loading">login</mat-icon>
-          <mat-spinner diameter="20" *ngIf="loading"></mat-spinner>
-          <span>{{ loading ? 'Iniciando sesión...' : 'Iniciar Sesión' }}</span>
+          <mat-spinner *ngIf="loading" diameter="20"></mat-spinner>
+          <span>{{ loading ? 'Iniciando sesión...' : 'Iniciar sesión' }}</span>
         </button>
       </form>
 
-      <!-- Divider -->
-      <mat-divider class="divider"></mat-divider>
-      <div class="divider-text">Accede con tu proveedor favorito</div>
+      <div class="footer-links">
+        <span>¿No tienes una cuenta?</span>
+        <a href="#" class="link" (click)="goToRegister(); $event.preventDefault()">Crear acceso</a>
+      </div>
 
-      <!-- Social Login Buttons -->
-      <div class="social-buttons">
-        <div *ngIf="oauthError" class="oauth-error">
-          <mat-icon>error</mat-icon>
-          <span>{{ oauthError }}</span>
-        </div>
+      <button mat-button color="accent" class="demo-button" (click)="fillDemoCredentials()">
+        Rellenar credenciales de demo
+      </button>
 
-        <button mat-stroked-button
-                class="social-button google"
-                [disabled]="oauthLoading"
-                (click)="startOAuth('google')">
-          <mat-icon class="social-icon">account_circle</mat-icon>
-          <span *ngIf="!(oauthLoading && oauthProvider === 'google')">Continuar con Google</span>
+      <p class="version-text">FactuFast v1.0.0 · © 2025</p>
+    </mat-card>
+  </section>
+
+  <section class="sso-panel">
+    <div class="sso-card">
+      <h3>Acceso corporativo</h3>
+      <p class="sso-subtitle">Conéctate usando tus credenciales empresariales mediante SSO.</p>
+
+      <div *ngIf="oauthError" class="alert alert-oauth">
+        <mat-icon>warning</mat-icon>
+        <span>{{ oauthError }}</span>
+      </div>
+
+      <div class="sso-grid">
+        <button mat-stroked-button class="sso-button google" [disabled]="oauthLoading" (click)="startOAuth('google')">
+          <mat-icon>account_circle</mat-icon>
+          <span *ngIf="!(oauthLoading && oauthProvider === 'google')">Google Workspace</span>
           <mat-spinner *ngIf="oauthLoading && oauthProvider === 'google'" diameter="18"></mat-spinner>
         </button>
 
-        <button mat-stroked-button
-                class="social-button microsoft"
-                [disabled]="oauthLoading"
-                (click)="startOAuth('microsoft')">
-          <mat-icon class="social-icon">cloud</mat-icon>
-          <span *ngIf="!(oauthLoading && oauthProvider === 'microsoft')">Continuar con Microsoft</span>
+        <button mat-stroked-button class="sso-button microsoft" [disabled]="oauthLoading" (click)="startOAuth('microsoft')">
+          <mat-icon>cloud</mat-icon>
+          <span *ngIf="!(oauthLoading && oauthProvider === 'microsoft')">Microsoft Entra</span>
           <mat-spinner *ngIf="oauthLoading && oauthProvider === 'microsoft'" diameter="18"></mat-spinner>
         </button>
 
-        <button mat-stroked-button
-                class="social-button apple"
-                [disabled]="oauthLoading"
-                (click)="startOAuth('apple')">
-          <mat-icon class="social-icon">phone_iphone</mat-icon>
-          <span *ngIf="!(oauthLoading && oauthProvider === 'apple')">Continuar con Apple</span>
+        <button mat-stroked-button class="sso-button apple" [disabled]="oauthLoading" (click)="startOAuth('apple')">
+          <mat-icon>phone_iphone</mat-icon>
+          <span *ngIf="!(oauthLoading && oauthProvider === 'apple')">Apple Business</span>
           <mat-spinner *ngIf="oauthLoading && oauthProvider === 'apple'" diameter="18"></mat-spinner>
         </button>
       </div>
-    </mat-card-content>
 
-    <mat-card-actions class="text-center">
-      <p class="register-text">
-        ¿No tienes una cuenta?
-        <a href="#" (click)="goToRegister(); $event.preventDefault()" class="register-link">Regístrate aquí</a>
-      </p>
-      <button mat-button color="accent" (click)="fillDemoCredentials()" class="demo-button">
-        Usar credenciales de demo
-      </button>
-      <p class="version-text">FactuFast v1.0.0 - © 2025</p>
-    </mat-card-actions>
-  </mat-card>
+      <mat-divider></mat-divider>
+
+      <div class="sso-benefits">
+        <div class="benefit-item">
+          <mat-icon>verified_user</mat-icon>
+          <span>Protocolos seguros con verificación en dos pasos.</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>history</mat-icon>
+          <span>Historial de accesos centralizado para tu equipo.</span>
+        </div>
+        <div class="benefit-item">
+          <mat-icon>support_agent</mat-icon>
+          <span>Soporte preferencial para cuentas corporativas.</span>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
