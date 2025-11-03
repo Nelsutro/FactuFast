@@ -1,33 +1,32 @@
 /* Nuevo layout overlay */
-.layout { position:relative; min-height:100vh; width:100%; background:#f5f7fa; display:flex; flex-direction:column; }
+.layout { position:relative; min-height:100vh; width:100%; background:radial-gradient(ellipse at top left, rgba(79,70,229,0.16), transparent 55%), radial-gradient(ellipse at bottom right, rgba(14,165,233,0.12), transparent 55%), #f1f5f9; display:flex; flex-direction:column; }
 
-/* Sidebar overlay */
-.overlay-sidebar { position:fixed; top:0; left:-270px; width:250px; height:100%; background:#1976d2; z-index:1002; transition:left .25s ease; box-shadow:2px 0 8px rgba(0,0,0,.35); display:flex; flex-direction:column; }
+.overlay-sidebar { position:fixed; top:0; left:-270px; width:250px; height:100%; background:linear-gradient(165deg, rgba(15,23,42,.94) 0%, rgba(79,70,229,.88) 60%, rgba(14,165,233,.78) 100%); z-index:1002; transition:left .25s ease; box-shadow:16px 0 45px rgba(15,23,42,.32); display:flex; flex-direction:column; backdrop-filter:blur(14px); border-right:1px solid rgba(148,163,184,.18); }
 .overlay-sidebar.open { left:0; }
 
 /* Overlay de fondo */
-.global-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1001; backdrop-filter:blur(2px); animation:fadeIn .25s ease; }
+.global-overlay { position:fixed; inset:0; background:linear-gradient(135deg, rgba(15,23,42,0.55), rgba(79,70,229,0.45)); z-index:1001; backdrop-filter:blur(6px); animation:fadeIn .25s ease; }
 @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
 /* Contenedor principal */
 .main-panel { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; min-width:0; }
 
 /* Contenido */
-.main-content { flex:1; padding:80px 24px 24px 24px; background:#fafafa; }
+.main-content { flex:1; padding:88px 32px 28px 32px; background:radial-gradient(circle at top right, rgba(99,102,241,0.08), transparent 40%), #f8fafc; }
 @media (max-width: 767px){
-  .main-content { padding:80px 16px 16px 16px; }
+  .main-content { padding:84px 18px 18px 18px; }
 }
 
 /* Scrollbar */
 .main-content::-webkit-scrollbar { width:8px; }
-.main-content::-webkit-scrollbar-thumb { background:rgba(0,0,0,.15); border-radius:4px; }
-.main-content::-webkit-scrollbar-thumb:hover { background:rgba(0,0,0,.28); }
+.main-content::-webkit-scrollbar-thumb { background:rgba(99,102,241,.18); border-radius:4px; }
+.main-content::-webkit-scrollbar-thumb:hover { background:rgba(79,70,229,.32); }
 
 /* Dialog custom look & feel */
-.ff-dialog-backdrop { background: rgba(0,0,0,.45); backdrop-filter: blur(2px); }
-.ff-dialog-panel .mat-mdc-dialog-surface { border-radius: 12px; overflow: hidden; }
-.ff-dialog-panel .mat-mdc-dialog-content { padding: 0; }
-.ff-dialog-panel .mat-mdc-dialog-content mat-card { box-shadow: none; margin: 0; }
+.ff-dialog-backdrop { background: linear-gradient(135deg, rgba(15,23,42,0.55), rgba(79,70,229,0.45)); backdrop-filter: blur(8px); }
+.ff-dialog-panel .mat-mdc-dialog-surface { border-radius: 18px; overflow: hidden; box-shadow: 0 35px 75px rgba(15,23,42,0.35); border: 1px solid rgba(148,163,184,0.18); }
+.ff-dialog-panel .mat-mdc-dialog-content { padding: 0; background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96)); }
+.ff-dialog-panel .mat-mdc-dialog-content mat-card { box-shadow: none; margin: 0; border-radius: 0; }
 
 /* Layout simplificado para el portal de clientes */
 .client-portal-wrapper {
