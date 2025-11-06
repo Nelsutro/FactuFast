@@ -52,7 +52,7 @@
       <span>Sobre FactuFast</span>
     </button>
 
-    <button mat-icon-button class="about-link show-mobile" (click)="goToAbout()" aria-label="Sobre FactuFast" matTooltip="Sobre FactuFast">
+    <button mat-icon-button class="about-link show-mobile" *ngIf="isAuthenticated" (click)="goToAbout()" aria-label="Sobre FactuFast" matTooltip="Sobre FactuFast">
       <mat-icon aria-hidden="true">travel_explore</mat-icon>
     </button>
 

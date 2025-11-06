@@ -66,6 +66,14 @@
         <a href="#" class="link" (click)="goToRegister(); $event.preventDefault()">Crear acceso</a>
       </div>
 
+      <div class="portal-access">
+        <div class="portal-text">¿Necesitas revisar tus facturas como cliente?</div>
+        <button mat-stroked-button color="accent" class="portal-button" (click)="goToClientPortal()">
+          <mat-icon>open_in_new</mat-icon>
+          <span>Ir al portal de clientes</span>
+        </button>
+      </div>
+
       <button mat-button color="accent" class="demo-button" (click)="fillDemoCredentials()">
         Rellenar credenciales de demo
       </button>

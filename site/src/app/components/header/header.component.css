@@ -306,8 +306,14 @@
 .no-notifications-icon { font-size:48px; width:48px; height:48px; margin-bottom:16px; color:rgba(79,70,229,0.6); }
 .notification-actions button { width:32px; height:32px; line-height:32px; }
 
-.show-mobile { display:none; }
-.hide-mobile { display:inline-flex; }
+.show-mobile {
+  display: none;
+  align-items: center;
+}
+
+.hide-mobile {
+  display: inline-flex;
+}
 
 .quick-create-menu .mat-icon { margin-right:8px; }
 
@@ -371,20 +377,26 @@
 
 /* Responsive */
 @media (max-width:960px){
+  .header-toolbar{ height:64px; padding:0 8px; }
+  .header-content{ padding:0 6px; gap:8px; }
   .primary-nav{ gap:6px; margin-left:4px; }
   .nav-link{ padding:6px 12px; font-size:13px; }
-  .brand{ margin-right:16px; }
+  .brand{ margin-right:12px; }
   .brand-name{ display:none; }
   .page-title{ display:none; }
+  .hide-mobile{ display:none !important; }
+  .show-mobile{ display:inline-flex !important; }
 }
 
 @media (max-width:600px){
-  .primary-nav{ gap:4px; margin-left:4px; }
+  .header-toolbar{ height:auto; padding:4px 6px; }
+  .header-content{ padding:0 2px; gap:6px; flex-wrap:wrap; height:auto; }
+  .primary-nav{ gap:4px; margin-left:0; }
   .nav-link{ padding:6px 10px; font-size:13px; }
-  .header-content{ padding:0 4px; }
   .user-name{ display:none; }
-  .notification-button, .user-button{ margin:0 4px; }
+  .notification-button, .user-button, .quick-create-button{ margin:0 4px; }
   .brand{ padding:0 10px; height:44px; }
+  .spacer{ display:none; }
 }
 
 /* Dark Theme */

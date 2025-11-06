@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -17,6 +17,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { SettingsService, CompanySettings } from '../../core/services/settings.service';
 import { ApiService } from '../../services/api.service';
 import { ApiTokenSummary, ApiTokenLogsResponse, ApiTokenLogEntry, PaginationMeta } from '../../models';
+import { AuthService } from '../../core/services/auth.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-settings',
@@ -47,6 +49,8 @@ export class SettingsComponent implements OnInit {
   private settingsSvc = inject(SettingsService);
   private snackbar = inject(MatSnackBar);
   private apiSvc = inject(ApiService);
+  private authService = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   loading = false;
   logoPreview: string | null = null;
@@ -120,9 +124,31 @@ export class SettingsComponent implements OnInit {
     portal_enabled: [true],
   });
 
+  canViewApiTokens = false;
+
   ngOnInit(): void {
     this.load();
-    this.loadApiTokens();
+    this.authService.currentUser$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(user => {
+        const isAdmin = (user?.role ?? '').toLowerCase() === 'admin';
+        const wasAllowed = this.canViewApiTokens;
+
+        this.canViewApiTokens = isAdmin;
+
+        if (isAdmin) {
+          if (!wasAllowed) {
+            this.loadApiTokens();
+          }
+        } else {
+          this.apiTokensLoading = false;
+          this.tokenLogsLoading = false;
+          this.apiTokens = [];
+          this.selectedToken = null;
+          this.tokenLogs = [];
+          this.tokenLogsPagination = null;
+        }
+      });
   }
 
   load(): void {
@@ -216,10 +242,16 @@ export class SettingsComponent implements OnInit {
   }
 
   refreshApiTokens(): void {
+    if (!this.canViewApiTokens) {
+      return;
+    }
     this.loadApiTokens(true);
   }
 
   private loadApiTokens(force = false): void {
+    if (!this.canViewApiTokens) {
+      return;
+    }
     if (this.apiTokensLoading && !force) {
       return;
     }
@@ -252,6 +284,9 @@ export class SettingsComponent implements OnInit {
   }
 
   selectToken(token: ApiTokenSummary): void {
+    if (!this.canViewApiTokens) {
+      return;
+    }
     if (this.selectedToken?.id === token.id) {
       return;
     }
@@ -262,7 +297,7 @@ export class SettingsComponent implements OnInit {
   }
 
   loadTokenLogs(page = 1): void {
-    if (!this.selectedToken) return;
+    if (!this.canViewApiTokens || !this.selectedToken) return;
 
     this.tokenLogsLoading = true;
     const params: Record<string, string | number | boolean> = {

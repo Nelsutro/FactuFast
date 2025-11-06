@@ -164,6 +164,33 @@
   color: #5c6884;
 }
 
+.portal-access {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: center;
+  text-align: center;
+  padding: 0.85rem 0;
+  border-radius: 16px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+}
+
+.portal-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+  max-width: 22rem;
+  line-height: 1.4;
+}
+
+.portal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  padding: 0.45rem 1.1rem;
+  font-weight: 600;
+}
+
 .demo-button {
   border-radius: 11px;
   padding: 0.7rem 0.95rem;
@@ -326,8 +353,14 @@
 
   .form-header p,
   .footer-links,
+  .portal-text,
   .version-text {
     color: #a5b4fc;
+  }
+
+  .portal-access {
+    background: rgba(37, 99, 235, 0.22);
+    color: #c7d2fe;
   }
 
   .divider::before,

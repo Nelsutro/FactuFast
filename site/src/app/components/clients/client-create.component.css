@@ -1,2 +1,20 @@
-.form-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap:16px; }
-.actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+:host {
+	display: block;
+}
+
+.form-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: var(--ff-space-3);
+	padding: var(--ff-space-4);
+	border-radius: var(--ff-radius-lg);
+	border: 1px solid rgba(148, 163, 184, 0.16);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
+}
+
+.actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--ff-space-2);
+	margin-top: var(--ff-space-3);
+}

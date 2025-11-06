@@ -175,6 +175,10 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.router.navigate(['/forgot-password']);
   }
 
+  goToClientPortal() {
+    this.router.navigate(['/client-portal', 'access']);
+  }
+
   startOAuth(provider: 'google' | 'microsoft' | 'apple') {
     if (this.oauthLoading) {
       return;
