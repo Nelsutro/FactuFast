@@ -1,6 +1,4 @@
 ---
 deployment:
   tasks:
-    - chmod +x deploy/cpanel-deploy.sh
-    - sed -i 's/\r$//' deploy/cpanel-deploy.sh
-    - /bin/bash deploy/cpanel-deploy.sh
+    - /bin/echo "Deployment task ran at $(date)" > $HOME/deployment_test.txt
