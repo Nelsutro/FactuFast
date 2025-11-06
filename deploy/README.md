@@ -18,7 +18,10 @@ environment using cPanel's **Git Version Control** feature.
 4. Ensure that:
    - PHP version selected in cPanel matches Laravel's requirement (`composer.json`).
    - Node.js Selector is set to Node 18 or newer (needed for the Angular build).
-   - A database exists and credentials are added to `api/.env`.
+    - A database exists and credentials are added to `api/.env`.
+    - (Optional) If your document root is not `~/public_html`, copy
+       `deploy/.deploy-env.example` to `deploy/.deploy-env` and set
+       `PUBLIC_HTML` (and any other variables) to your actual paths.
 
 ## 2. Environment variables (.env)
 
@@ -38,11 +41,13 @@ Key values to review:
 ## 3. Document roots
 
 - Laravel API lives inside `api/`. Its `public` directory must be exposed if
-  you intend to serve the backend directly. A common approach is to point a
-  subdomain (e.g., `api.yourdomain.com`) to `~/repositories/FactuFast/api/public`.
-- Angular SPA is copied to `~/public_html` by default. Adjust the
-  `PUBLIC_HTML` environment variable when creating the deployment script if you
-  prefer a different destination (e.g., a subdomain folder).
+   you intend to serve the backend directly. A common approach is to point a
+   subdomain (e.g., `api.yourdomain.com`) to `~/repositories/FactuFast/api/public`.
+- Angular SPA is copied to `~/public_html` by default. If your hosting
+   provider uses a different document root (for example,
+   `/home/<user>/domains/factufast.cl/public_html`), set `PUBLIC_HTML` in
+   `deploy/.deploy-env` or export it in `.cpanel.yml` before invoking the
+   script.
 
 ## 4. Cron & queue workers
 

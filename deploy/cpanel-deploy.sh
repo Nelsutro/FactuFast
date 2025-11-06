@@ -20,8 +20,18 @@ set -euo pipefail
 
 # ---- Configuration ----------------------------------------------------------
 : "${ACCOUNT_HOME:=$HOME}"                           # Override if needed.
-: "${PUBLIC_HTML:=$ACCOUNT_HOME/public_html}"        # Target for the SPA build.
 : "${REPO_ROOT:=$(pwd)}"                             # Assumes script executed from repo root.
+: "${DEPLOY_ENV_FILE:=$REPO_ROOT/deploy/.deploy-env}" # Optional overrides file.
+
+if [ -f "$DEPLOY_ENV_FILE" ]; then
+  printf '\nLoading deployment overrides from %s\n\n' "$DEPLOY_ENV_FILE"
+  # shellcheck source=/dev/null
+  set -a
+  source "$DEPLOY_ENV_FILE"
+  set +a
+fi
+
+: "${PUBLIC_HTML:=$ACCOUNT_HOME/public_html}"        # Target for the SPA build.
 API_DIR="$REPO_ROOT/api"
 SITE_DIR="$REPO_ROOT/site"
 

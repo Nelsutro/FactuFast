@@ -1,0 +1,12 @@
+# Optional overrides for deploy/cpanel-deploy.sh
+# Copy this file to .deploy-env (without the ".example" suffix) and adjust
+# the variables below to match your hosting layout before running a deploy.
+
+# Example: use the document root for the factufast.cl domain
+# PUBLIC_HTML="/home/usuario/domains/factufast.cl/public_html"
+
+# Example: explicit PHP/NPM binaries supplied by cPanel selectors
+# PHP_BIN="/opt/cpanel/ea-php82/root/usr/bin/php"
+# COMPOSER_BIN="/opt/cpanel/composer/bin/composer"
+# NODE_BIN="/opt/cpanel/nodejs18/bin/node"
+# NPM_BIN="/opt/cpanel/nodejs18/bin/npm"
