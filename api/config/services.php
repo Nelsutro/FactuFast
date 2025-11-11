@@ -39,6 +39,14 @@ return [
         'secret' => env('PAYMENT_WEBHOOK_SECRET'),
     ],
 
+    'flow' => [
+        'environment' => env('FLOW_ENVIRONMENT', 'sandbox'),
+        'api_url' => env('FLOW_API_URL', 'https://developers.sandbox.flow.cl/api'),
+        'api_key' => env('FLOW_API_KEY'),
+        'secret_key' => env('FLOW_SECRET_KEY'),
+        'notification_email' => env('PAYMENT_NOTIFICATION_EMAIL', 'pagos@factufast.cl'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

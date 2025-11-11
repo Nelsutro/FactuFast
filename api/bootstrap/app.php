@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // No agregamos EnsureFrontendRequestsAreStateful para APIs puras con tokens Bearer
-        
+        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+
         $middleware->alias([
             'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
             'token.policies' => \App\Http\Middleware\EnforceApiTokenPolicies::class,

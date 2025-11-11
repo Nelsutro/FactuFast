@@ -56,6 +56,7 @@ export class RegisterComponent implements OnInit {
       password: ['', [Validators.required, Validators.minLength(8)]],
       password_confirmation: ['', [Validators.required]],
       company_name: ['', [Validators.required, Validators.minLength(2)]], // Campo requerido para empresas
+      company_tax_id: ['', [Validators.required, Validators.maxLength(50)]], // RUT de la empresa
       terms: [false, [Validators.requiredTrue]]
     }, {
       validators: this.passwordMatchValidator
@@ -157,7 +158,8 @@ export class RegisterComponent implements OnInit {
       email: 'Email',
       password: 'Contraseña',
       password_confirmation: 'Confirmación de contraseña',
-      company_name: 'Nombre de la empresa'
+      company_name: 'Nombre de la empresa',
+      company_tax_id: 'RUT de la empresa'
     };
     return labels[fieldName] || fieldName;
   }

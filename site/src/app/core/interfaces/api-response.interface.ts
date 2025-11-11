@@ -50,6 +50,8 @@ export interface RegisterRequest {
   email: string;
   password: string;
   password_confirmation: string;
+  company_name: string;
+  company_tax_id: string;
   role?: string;
 }
 

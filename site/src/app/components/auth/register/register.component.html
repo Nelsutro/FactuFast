@@ -71,6 +71,18 @@
             </mat-error>
           </mat-form-field>
 
+          <mat-form-field appearance="outline" class="grid-span-2">
+            <mat-label>RUT de la empresa</mat-label>
+            <input matInput
+                   formControlName="company_tax_id"
+                   placeholder="Ej: 12.345.678-9"
+                   [class.is-invalid]="registerForm.get('company_tax_id')?.invalid && registerForm.get('company_tax_id')?.touched">
+            <mat-icon matSuffix>badge</mat-icon>
+            <mat-error *ngIf="registerForm.get('company_tax_id')?.invalid && registerForm.get('company_tax_id')?.touched">
+              {{ getErrorMessage('company_tax_id') }}
+            </mat-error>
+          </mat-form-field>
+
           <mat-form-field appearance="outline">
             <mat-label>Contraseña</mat-label>
             <input matInput

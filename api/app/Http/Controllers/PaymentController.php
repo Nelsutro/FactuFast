@@ -2,66 +2,67 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Payment;
-use App\Models\Invoice;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
 use App\Mail\PaymentReceivedClientMail;
 use App\Mail\PaymentReceivedCompanyMail;
+use App\Models\Invoice;
+use App\Models\Payment;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
 
 class PaymentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request): JsonResponse
     {
         try {
             $user = Auth::user();
-            $query = Payment::with(['invoice', 'invoice.client']);
-
-            // Filtrar por empresa del usuario (multi-tenant)
-            if ($user->role !== 'admin') {
-                $query->whereHas('invoice', function($invoiceQuery) use ($user) {
-                    $invoiceQuery->where('company_id', $user->company_id);
+            
+            $query = Payment::with(['invoice.client', 'company'])
+                ->whereHas('company', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
                 });
+
+            if ($request->has('status') && !empty($request->status)) {
+                $status = $request->status;
+                if ($status === 'paid') {
+                    $query->completed();
+                } elseif ($status === 'pending') {
+                    $query->pending();
+                } elseif ($status === 'unpaid') {
+                    $query->unpaid();
+                } elseif ($status === 'failed') {
+                    $query->failed();
+                } else {
+                    $query->where('status', $status);
+                }
             }
 
-            // Aplicar filtros si se proporcionan
-            if ($request->has('payment_method')) {
-                $query->where('payment_method', $request->payment_method);
-            }
-
-            if ($request->has('invoice_id')) {
+            if ($request->has('invoice_id') && !empty($request->invoice_id)) {
                 $query->where('invoice_id', $request->invoice_id);
             }
 
-            if ($request->has('date_from')) {
-                $query->whereDate('payment_date', '>=', $request->date_from);
+            if ($request->has('payment_method') && !empty($request->payment_method)) {
+                $query->where('payment_method', $request->payment_method);
             }
 
-            if ($request->has('date_to')) {
-                $query->whereDate('payment_date', '<=', $request->date_to);
+            if ($request->has('date_from') && !empty($request->date_from)) {
+                $query->where('created_at', '>=', $request->date_from);
             }
 
-            if ($request->has('amount_from')) {
-                $query->where('amount', '>=', $request->amount_from);
+            if ($request->has('date_to') && !empty($request->date_to)) {
+                $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
             }
 
-            if ($request->has('amount_to')) {
-                $query->where('amount', '<=', $request->amount_to);
-            }
-
-            // Búsqueda por número de factura o nombre de cliente
-            if ($request->has('search')) {
+            if ($request->has('search') && !empty($request->search)) {
                 $search = $request->search;
                 $query->where(function($q) use ($search) {
                     $q->where('reference', 'like', "%{$search}%")
+                      ->orWhere('subject', 'like', "%{$search}%")
+                      ->orWhere('notes', 'like', "%{$search}%")
                       ->orWhereHas('invoice', function($invoiceQuery) use ($search) {
                           $invoiceQuery->where('invoice_number', 'like', "%{$search}%")
                                       ->orWhereHas('client', function($clientQuery) use ($search) {
@@ -72,13 +73,23 @@ class PaymentController extends Controller
                 });
             }
 
-            // Ordenamiento
-            $sortField = $request->get('sort_by', 'created_at');
-            $sortDirection = $request->get('sort_direction', 'desc');
-            $query->orderBy($sortField, $sortDirection);
+            $sortBy = $request->get('sort_by', 'created_at');
+            $sortOrder = $request->get('sort_order', 'desc');
+            
+            $allowedSortFields = ['created_at', 'amount', 'status', 'payment_method', 'reference'];
+            if (!in_array($sortBy, $allowedSortFields)) {
+                $sortBy = 'created_at';
+            }
+            
+            if (!in_array($sortOrder, ['asc', 'desc'])) {
+                $sortOrder = 'desc';
+            }
+            
+            $query->orderBy($sortBy, $sortOrder);
 
-            // Paginación
             $perPage = $request->get('per_page', 15);
+            $perPage = max(1, min($perPage, 100));
+            
             $payments = $query->paginate($perPage);
 
             return response()->json([
@@ -91,41 +102,47 @@ class PaymentController extends Controller
                     'total' => $payments->total()
                 ]
             ]);
-
+        
         } catch (\Exception $e) {
+            Log::error('Error fetching payments: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar los pagos',
+                'message' => 'Error al obtener los pagos',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         try {
             $user = Auth::user();
 
-            $validated = $request->validate([
+            $validator = Validator::make($request->all(), [
                 'invoice_id' => 'required|exists:invoices,id',
                 'amount' => 'required|numeric|min:0.01',
-                'payment_method' => ['required', Rule::in(['cash', 'card', 'transfer', 'check', 'other'])],
-                'payment_date' => 'required|date',
+                'payment_method' => 'required|string|max:255',
                 'reference' => 'nullable|string|max:255',
+                'subject' => 'nullable|string|max:255',
                 'notes' => 'nullable|string'
             ]);
 
-            // Verificar que la factura pertenezca a la empresa del usuario
-            $invoice = Invoice::where('id', $validated['invoice_id']);
-            if ($user->role !== 'admin') {
-                $invoice->where('company_id', $user->company_id);
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de entrada inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
             }
-            $invoice = $invoice->firstOrFail();
 
-            // Verificar que la factura no esté cancelada
+            $validated = $validator->validated();
+
+            $invoice = Invoice::with(['company', 'client'])
+                ->whereHas('company', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->findOrFail($validated['invoice_id']);
+
             if ($invoice->status === 'cancelled') {
                 return response()->json([
                     'success' => false,
@@ -133,11 +150,9 @@ class PaymentController extends Controller
                 ], 422);
             }
 
-            // Calcular el monto total ya pagado
             $totalPaid = $invoice->payments()->sum('amount');
             $remainingAmount = $invoice->amount - $totalPaid;
 
-            // Verificar que el pago no exceda el monto pendiente
             if ($validated['amount'] > $remainingAmount) {
                 return response()->json([
                     'success' => false,
@@ -147,43 +162,39 @@ class PaymentController extends Controller
 
             DB::beginTransaction();
 
-            // Crear el pago
             $payment = Payment::create([
                 'invoice_id' => $validated['invoice_id'],
+                'company_id' => $invoice->company_id,
                 'amount' => $validated['amount'],
                 'payment_method' => $validated['payment_method'],
-                'payment_date' => $validated['payment_date'],
-                'reference' => $validated['reference'] ?? null,
-                'notes' => $validated['notes'] ?? null
+                'reference' => $validated['reference'],
+                'subject' => $validated['subject'],
+                'notes' => $validated['notes'] ?? null,
+                'status' => 'completed'
             ]);
 
-            // Actualizar el estado de la factura si está completamente pagada
             $newTotalPaid = $totalPaid + $validated['amount'];
             if ($newTotalPaid >= $invoice->amount) {
                 $invoice->update(['status' => 'paid']);
-            } else if ($invoice->status === 'overdue' || $invoice->status === 'pending') {
-                $invoice->update(['status' => 'pending']);
+            } elseif ($newTotalPaid > 0 && $invoice->status === 'pending') {
+                $invoice->update(['status' => 'partially_paid']);
             }
 
             DB::commit();
 
-            // Cargar el pago con sus relaciones
-            $payment->load(['invoice', 'invoice.client', 'invoice.company']);
+            $payment->load(['invoice.client', 'company']);
 
-            // Notificaciones por correo (suaves: respetan configuración de la empresa)
-            try {
-                $invoice = $payment->invoice;
-                $sendEnabled = $invoice->company?->send_email_on_payment ?? true;
-                if ($sendEnabled) {
-                    if (!empty($invoice->client?->email)) {
-                        Mail::to($invoice->client->email)->send(new PaymentReceivedClientMail($payment));
-                    }
-                    if (!empty($invoice->company?->email)) {
-                        Mail::to($invoice->company->email)->send(new PaymentReceivedCompanyMail($payment));
-                    }
+            $invoice = $payment->invoice;
+            $sendEnabled = $invoice->company?->send_email_on_payment ?? true;
+
+            if ($sendEnabled) {
+                if (!empty($invoice->client?->email)) {
+                    Mail::to($invoice->client->email)->send(new PaymentReceivedClientMail($payment));
                 }
-            } catch (\Throwable $mailEx) {
-                Log::warning('No se pudo enviar notificación de pago recibido: '.$mailEx->getMessage());
+
+                if (!empty($invoice->company?->email)) {
+                    Mail::to($invoice->company->email)->send(new PaymentReceivedCompanyMail($payment));
+                }
             }
 
             return response()->json([
@@ -193,19 +204,15 @@ class PaymentController extends Controller
             ], 201);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Factura no encontrada'
             ], 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Datos de entrada inválidos',
-                'errors' => $e->errors()
-            ], 422);
+
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error creating payment: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al registrar el pago',
@@ -214,23 +221,16 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(string $id): JsonResponse
     {
         try {
             $user = Auth::user();
-            $query = Payment::with(['invoice', 'invoice.client']);
 
-            // Filtrar por empresa del usuario (multi-tenant)
-            if ($user->role !== 'admin') {
-                $query->whereHas('invoice', function($invoiceQuery) use ($user) {
-                    $invoiceQuery->where('company_id', $user->company_id);
-                });
-            }
-
-            $payment = $query->findOrFail($id);
+            $payment = Payment::with(['invoice.client', 'company'])
+                ->whereHas('company', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->findOrFail($id);
 
             return response()->json([
                 'success' => true,
@@ -242,74 +242,45 @@ class PaymentController extends Controller
                 'success' => false,
                 'message' => 'Pago no encontrado'
             ], 404);
+
         } catch (\Exception $e) {
+            Log::error('Error fetching payment: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cargar el pago',
+                'message' => 'Error al obtener el pago',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id): JsonResponse
     {
         try {
             $user = Auth::user();
-            $query = Payment::with(['invoice']);
 
-            // Filtrar por empresa del usuario (multi-tenant)
-            if ($user->role !== 'admin') {
-                $query->whereHas('invoice', function($invoiceQuery) use ($user) {
-                    $invoiceQuery->where('company_id', $user->company_id);
-                });
-            }
+            $payment = Payment::with(['invoice', 'company'])
+                ->whereHas('company', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->findOrFail($id);
 
-            $payment = $query->findOrFail($id);
-
-            $validated = $request->validate([
-                'amount' => 'sometimes|numeric|min:0.01',
-                'payment_method' => ['sometimes', Rule::in(['cash', 'card', 'transfer', 'check', 'other'])],
-                'payment_date' => 'sometimes|date',
+            $validator = Validator::make($request->all(), [
                 'reference' => 'nullable|string|max:255',
+                'subject' => 'nullable|string|max:255',
                 'notes' => 'nullable|string'
             ]);
 
-            // Si se está actualizando el monto, verificar los límites
-            if (isset($validated['amount']) && $validated['amount'] != $payment->amount) {
-                $invoice = $payment->invoice;
-                $otherPayments = $invoice->payments()->where('id', '!=', $payment->id)->sum('amount');
-                $remainingAmount = $invoice->amount - $otherPayments;
-
-                if ($validated['amount'] > $remainingAmount) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "El monto del pago excede el monto pendiente de {$remainingAmount}"
-                    ], 422);
-                }
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Datos de entrada inválidos',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
-            DB::beginTransaction();
-
-            // Actualizar el pago
+            $validated = $validator->validated();
             $payment->update($validated);
-
-            // Recalcular el estado de la factura
-            $invoice = $payment->invoice;
-            $totalPaid = $invoice->payments()->sum('amount');
-            
-            if ($totalPaid >= $invoice->amount) {
-                $invoice->update(['status' => 'paid']);
-            } else if ($invoice->status === 'paid') {
-                $invoice->update(['status' => 'pending']);
-            }
-
-            DB::commit();
-
-            // Cargar el pago actualizado con sus relaciones
-            $payment->load(['invoice', 'invoice.client']);
+            $payment->load(['invoice.client', 'company']);
 
             return response()->json([
                 'success' => true,
@@ -318,20 +289,13 @@ class PaymentController extends Controller
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Pago no encontrado'
             ], 404);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Datos de entrada inválidos',
-                'errors' => $e->errors()
-            ], 422);
+
         } catch (\Exception $e) {
-            DB::rollBack();
+            Log::error('Error updating payment: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar el pago',
@@ -340,46 +304,37 @@ class PaymentController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id): JsonResponse
     {
         try {
             $user = Auth::user();
-            $query = Payment::with(['invoice']);
 
-            // Filtrar por empresa del usuario (multi-tenant)
-            if ($user->role !== 'admin') {
-                $query->whereHas('invoice', function($invoiceQuery) use ($user) {
-                    $invoiceQuery->where('company_id', $user->company_id);
-                });
+            $payment = Payment::with(['invoice'])
+                ->whereHas('company', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                })
+                ->findOrFail($id);
+
+            if (!empty($payment->flow_transaction_id) || !empty($payment->flow_token)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pueden eliminar pagos procesados por Flow'
+                ], 422);
             }
-
-            $payment = $query->findOrFail($id);
 
             DB::beginTransaction();
 
             $invoice = $payment->invoice;
-            
-            // Eliminar el pago
             $payment->delete();
 
-            // Recalcular el estado de la factura
             $totalPaid = $invoice->payments()->sum('amount');
             
-            if ($totalPaid >= $invoice->amount) {
-                $invoice->update(['status' => 'paid']);
-            } else if ($totalPaid > 0) {
+            if ($totalPaid == 0) {
                 $invoice->update(['status' => 'pending']);
+            } elseif ($totalPaid < $invoice->amount) {
+                $invoice->update(['status' => 'partially_paid']);
             } else {
-                // Si no hay pagos, determinar el estado basado en la fecha de vencimiento
-                $today = now()->toDateString();
-                if ($invoice->due_date < $today) {
-                    $invoice->update(['status' => 'overdue']);
-                } else {
-                    $invoice->update(['status' => 'pending']);
-                }
+                $invoice->update(['status' => 'paid']);
             }
 
             DB::commit();
@@ -390,107 +345,18 @@ class PaymentController extends Controller
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Pago no encontrado'
             ], 404);
+
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error deleting payment: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error al eliminar el pago',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get payment statistics for the current user's company
-     */
-    public function stats(): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-            $query = Payment::query();
-
-            // Filtrar por empresa del usuario (multi-tenant)
-            if ($user->role !== 'admin') {
-                $query->whereHas('invoice', function($invoiceQuery) use ($user) {
-                    $invoiceQuery->where('company_id', $user->company_id);
-                });
-            }
-
-            $stats = [
-                'total_payments' => $query->count(),
-                'total_amount' => $query->sum('amount'),
-                'cash_amount' => $query->where('payment_method', 'cash')->sum('amount'),
-                'card_amount' => $query->where('payment_method', 'card')->sum('amount'),
-                'transfer_amount' => $query->where('payment_method', 'transfer')->sum('amount'),
-                'check_amount' => $query->where('payment_method', 'check')->sum('amount'),
-                'other_amount' => $query->where('payment_method', 'other')->sum('amount'),
-                'today_amount' => $query->whereDate('payment_date', today())->sum('amount'),
-                'month_amount' => $query->whereYear('payment_date', now()->year)
-                                      ->whereMonth('payment_date', now()->month)
-                                      ->sum('amount'),
-                'year_amount' => $query->whereYear('payment_date', now()->year)->sum('amount')
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => $stats
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar las estadísticas',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Get payments for a specific invoice
-     */
-    public function getInvoicePayments(string $invoiceId): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-            
-            // Verificar que la factura existe y pertenece a la empresa del usuario
-            $invoiceQuery = Invoice::where('id', $invoiceId);
-            if ($user->role !== 'admin') {
-                $invoiceQuery->where('company_id', $user->company_id);
-            }
-            $invoice = $invoiceQuery->firstOrFail();
-
-            $payments = Payment::where('invoice_id', $invoiceId)
-                              ->orderBy('payment_date', 'desc')
-                              ->get();
-
-            $totalPaid = $payments->sum('amount');
-            $remainingAmount = $invoice->amount - $totalPaid;
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'payments' => $payments,
-                    'invoice_amount' => $invoice->amount,
-                    'total_paid' => $totalPaid,
-                    'remaining_amount' => $remainingAmount,
-                    'is_fully_paid' => $remainingAmount <= 0
-                ]
-            ]);
-
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Factura no encontrada'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al cargar los pagos de la factura',
                 'error' => $e->getMessage()
             ], 500);
         }

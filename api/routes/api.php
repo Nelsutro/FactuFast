@@ -7,6 +7,8 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\RefundController;
+use App\Http\Controllers\FlowPaymentController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\ClientPortalController;
 use App\Http\Controllers\Api\UserController;
@@ -54,6 +56,12 @@ Route::prefix('public/pay')->group(function () {
 // Webhooks de pagos (públicos, añadir verificación futura)
 // Webhooks de pagos (validados por firma HMAC)
 Route::post('webhooks/payments/{provider}', [PaymentWebhookController::class, 'handle']);
+
+// Webhooks Flow (públicos, validados por firma HMAC)
+Route::prefix('webhooks/flow')->group(function () {
+    Route::post('payment-confirmation', [FlowPaymentController::class, 'flowConfirmation']);
+    Route::post('refund-confirmation', [RefundController::class, 'flowRefundConfirmation']);
+});
 
 // Return URL Webpay (commit)
 Route::match(['GET','POST'],'payments/webpay/return', WebpayReturnController::class);
@@ -122,6 +130,23 @@ Route::middleware(['auth:sanctum', 'token.policies'])->group(function () {
     Route::apiResource('payments', PaymentController::class);
     Route::get('payments-stats', [PaymentController::class, 'stats']);
     Route::get('invoices/{invoice}/payments', [PaymentController::class, 'getInvoicePayments']);
+    
+    // Pagos Flow - nuevos endpoints
+    Route::prefix('flow')->group(function () {
+        // Pagos directos
+        Route::post('payments/direct', [FlowPaymentController::class, 'createDirectPayment']);
+        Route::get('payments/{payment}/status', [FlowPaymentController::class, 'getPaymentStatus']);
+        Route::get('payments', [FlowPaymentController::class, 'listFlowPayments']);
+        
+        // Clientes Flow para pagos recurrentes
+        Route::post('customers', [FlowPaymentController::class, 'createFlowCustomer']);
+        Route::post('customers/{customer}/charge', [FlowPaymentController::class, 'createCustomerPayment']);
+        
+        // Reembolsos
+        Route::post('refunds', [RefundController::class, 'createRefund']);
+        Route::get('refunds/{refund}/status', [RefundController::class, 'getRefundStatus']);
+        Route::get('refunds', [RefundController::class, 'listRefunds']);
+    });
 
     // Empresas
     Route::apiResource('companies', CompanyController::class);
