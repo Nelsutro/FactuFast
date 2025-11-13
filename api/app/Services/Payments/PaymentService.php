@@ -20,6 +20,7 @@ class PaymentService
         return match($provider) {
             'webpay' => WebpayGateway::fromCompany($company),
             'mercadopago' => MercadoPagoGateway::fromCompany($company),
+            'flow' => FlowGateway::fromCompany($company),
             default => throw new \InvalidArgumentException('Proveedor de pago no soportado')
         };
     }
@@ -53,7 +54,7 @@ class PaymentService
             $payment->amount = $invoice->remaining_amount ?? $invoice->amount;
             $payment->payment_date = now();
             $payment->payment_method = match($provider) {
-                'webpay', 'mercadopago' => 'credit_card',
+                'webpay', 'mercadopago', 'flow' => 'credit_card',
                 'bank_transfer' => 'bank_transfer',
                 default => 'other'
             };
@@ -122,6 +123,12 @@ class PaymentService
 
     protected function finalizePaymentFromGateway(Payment $payment, array $gatewayData): Payment
     {
+        Log::info('Finalizando pago desde gateway', [
+            'payment_id' => $payment->id,
+            'current_status' => $payment->status,
+            'gateway_data' => $gatewayData
+        ]);
+
         if (!empty($gatewayData['raw'])) {
             $payment->raw_gateway_response = $gatewayData['raw'];
         }
@@ -136,6 +143,13 @@ class PaymentService
             $payment->paid_at = $payment->paid_at ?: $paidAt;
             $payment->intent_status = $gatewayData['status'] ?? 'paid';
             $payment->save();
+
+            Log::info('Pago marcado como completado', [
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at,
+                'is_paid' => $payment->is_paid
+            ]);
 
             $this->markInvoiceStatus($payment);
             return $payment;

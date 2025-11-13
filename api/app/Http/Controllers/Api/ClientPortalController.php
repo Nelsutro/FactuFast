@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Mail\ClientPortalAccessMail;
 use App\Services\Payments\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ClientPortalController extends Controller
@@ -54,15 +56,41 @@ class ClientPortalController extends Controller
             $token = $client->access_token; // reutilizar
         }
 
-        // TODO: Enviar email con el enlace de acceso
-        // Mail::to($client->email)->send(new ClientAccessMail($client, $token));
+        // Enviar email con el enlace de acceso
+        try {
+            Mail::to($client->email, $client->name)
+                ->send(new ClientPortalAccessMail(
+                    $client, 
+                    $token, 
+                    'Has solicitado acceso a tu portal personal de facturas.'
+                ));
+                
+            $emailSent = true;
+            $message = 'Hemos enviado un enlace de acceso a tu email. Revisa tu bandeja de entrada y spam.';
+        } catch (\Exception $e) {
+            Log::error('Error enviando email de acceso al portal', [
+                'email' => $client->email,
+                'error' => $e->getMessage()
+            ]);
+            $emailSent = false;
+            $message = 'Token generado correctamente. El email se enviará en breve.';
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Se ha enviado (simulado) un enlace de acceso. Token incluido para entorno demo.',
-            'access_link' => url("/cliente/portal?token={$token}&email={$client->email}"),
-            'token' => $token,
-            'expires_at' => $client->access_token_expires_at?->toDateTimeString()
+            'message' => $message,
+            'email_sent' => $emailSent,
+            'data' => [
+                'client_name' => $client->name,
+                'company_name' => $client->company->name ?? 'Sin empresa',
+                'expires_at' => $client->access_token_expires_at?->toDateTimeString(),
+                'invoices_count' => $client->invoices()->count()
+            ],
+            // Solo incluir en ambiente de desarrollo
+            'debug' => config('app.debug') ? [
+                'access_link' => config('app.frontend_url') . "/client-portal/access?token={$token}&email=" . urlencode($client->email),
+                'token' => $token
+            ] : null
         ]);
     }
 
@@ -233,7 +261,7 @@ class ClientPortalController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'provider' => 'sometimes|in:webpay,mercadopago',
+            'provider' => 'sometimes|in:webpay,mercadopago,flow',
             'return_url' => 'sometimes|url'
         ]);
         if ($validator->fails()) {
@@ -281,15 +309,16 @@ class ClientPortalController extends Controller
         }
         /** @var PaymentService $paymentService */
         $paymentService = app(PaymentService::class);
-        $paymentService->refreshStatus($payment->load('invoice.company'));
+        $updatedPayment = $paymentService->refreshStatus($payment->load('invoice.company'));
+        
         return response()->json([
             'success' => true,
             'data' => [
-                'id' => $payment->id,
-                'status' => $payment->status,
-                'intent_status' => $payment->intent_status,
-                'paid_at' => $payment->paid_at,
-                'is_paid' => $payment->is_paid,
+                'id' => $updatedPayment->id,
+                'status' => $updatedPayment->status,
+                'intent_status' => $updatedPayment->intent_status,
+                'paid_at' => $updatedPayment->paid_at,
+                'is_paid' => $updatedPayment->is_paid,
             ]
         ]);
     }

@@ -30,6 +30,14 @@ const PROVIDER_CATALOG: PaymentProviderOption[] = [
     available: true
   },
   {
+    id: 'flow',
+    name: 'Flow',
+    description: 'Múltiples opciones: tarjetas, transferencias, billeteras digitales.',
+    icon: 'account_balance',
+    badge: 'Versátil',
+    available: true
+  },
+  {
     id: 'mercadopago',
     name: 'Mercado Pago',
     description: 'Próximamente: billeteras digitales y cuotas flexibles.',
@@ -220,6 +228,9 @@ export class PaymentComponent implements OnInit, OnDestroy {
     }
     this.stopPolling();
     this.polling = true;
+    
+    let paymentCompleted = false;
+    
     this.pollSub = this.portalPaymentService
       .pollPayment(this.paymentId, email, token, 4000, 180000)
       .subscribe({
@@ -227,18 +238,26 @@ export class PaymentComponent implements OnInit, OnDestroy {
           if (statusResp.success && statusResp.data) {
             this.paymentStatus = statusResp.data.status;
             this.intentStatus = statusResp.data.intent_status;
+            
+            // Verificar si el pago está completado
             if (statusResp.data.is_paid || statusResp.data.status === 'completed') {
+              paymentCompleted = true;
               this.onPaymentCompleted();
             }
           }
         },
         error: (err) => {
           console.warn('Error verificando pago', err);
+          this.polling = false;
         },
         complete: () => {
           this.polling = false;
-          if (this.paymentStatus !== 'completed') {
+          // Solo recargar si el pago NO fue completado exitosamente
+          if (!paymentCompleted && this.paymentStatus !== 'completed') {
+            console.log('Polling completado sin confirmación de pago, recargando...');
             this.reloadInvoiceAfterAttempt();
+          } else if (paymentCompleted) {
+            console.log('Pago completado exitosamente');
           }
         }
       });
@@ -252,8 +271,10 @@ export class PaymentComponent implements OnInit, OnDestroy {
   }
 
   private onPaymentCompleted(): void {
+    console.log('Pago completado detectado, deteniendo polling');
     this.snackBar.open('Pago confirmado correctamente.', 'Cerrar', { duration: 3000 });
     this.stopPolling();
+    this.polling = false; // Asegurar que el indicador visual se oculte
     this.reloadInvoiceAfterAttempt();
   }
 

@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatOptionModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -25,6 +27,8 @@ interface ClientOption { id: number; name: string; email?: string; }
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
+    MatOptionModule,
     MatButtonModule,
     MatIconModule,
     MatSnackBarModule
@@ -47,7 +51,7 @@ export class InvoiceCreateComponent implements OnInit {
     @Optional() private dialogRef?: MatDialogRef<InvoiceCreateComponent>
   ) {
     this.form = this.fb.group({
-      client_name: ['', [Validators.required, Validators.minLength(2)]],
+      client_id: ['', [Validators.required]],
       issue_date: [new Date().toISOString().substring(0,10), Validators.required],
       due_date: [new Date().toISOString().substring(0,10), Validators.required],
       items: this.fb.array([
@@ -85,14 +89,30 @@ export class InvoiceCreateComponent implements OnInit {
   addItem() { this.items.push(this.createItem()); }
   removeItem(i: number) { if (this.items.length>1) this.items.removeAt(i); }
 
+  getItemSubtotal(index: number): number {
+    const item = this.items.at(index);
+    if (!item) return 0;
+    const quantity = parseFloat(item.get('quantity')?.value) || 0;
+    const price = parseFloat(item.get('price')?.value) || 0;
+    return quantity * price;
+  }
+
+  getTotalAmount(): number {
+    let total = 0;
+    for (let i = 0; i < this.items.length; i++) {
+      total += this.getItemSubtotal(i);
+    }
+    return total;
+  }
+
   submit() {
     if (this.loading || this.form.invalid) return;
     this.loading = true;
     this.serverErrors = [];
     const company = this.auth.getUserCompany();
-    // Enviar client_name; backend hará el lookup. No es necesario company_id (derivado).
-    const { client_name, issue_date, due_date, items } = this.form.value;
-    const payload = { client_name, issue_date, due_date, items };
+    // Enviar client_id; backend validará que existe y pertenece a la empresa
+    const { client_id, issue_date, due_date, items } = this.form.value;
+    const payload = { client_id, issue_date, due_date, items };
     this.api.createInvoice(payload).subscribe({
       next: () => {
         this.snack.open('Factura creada', 'Cerrar', { duration: 2500 });

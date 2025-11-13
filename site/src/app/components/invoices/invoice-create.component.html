@@ -9,10 +9,11 @@
     <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid">
       <mat-form-field appearance="outline">
         <mat-label>Cliente</mat-label>
-        <input matInput placeholder="Nombre del cliente" formControlName="client_name" list="clientNameList" />
-        <datalist id="clientNameList">
-          <option *ngFor="let c of clients" [value]="c.name"></option>
-        </datalist>
+        <mat-select formControlName="client_id" placeholder="Seleccionar cliente">
+          <mat-option *ngFor="let c of clients" [value]="c.id">
+            {{c.name}} - {{c.email}}
+          </mat-option>
+        </mat-select>
       </mat-form-field>
 
       <mat-form-field appearance="outline">
@@ -35,11 +36,16 @@
           <mat-form-field appearance="outline">
             <mat-label>Cantidad</mat-label>
             <input matInput type="number" formControlName="quantity" min="1" />
+            <mat-hint>Número de unidades</mat-hint>
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Precio</mat-label>
+            <mat-label>Precio por unidad</mat-label>
             <input matInput type="number" formControlName="price" min="0" />
+            <mat-hint>Precio unitario en CLP</mat-hint>
           </mat-form-field>
+          <div class="subtotal-display" style="display: flex; align-items: center; min-width: 120px;">
+            <strong>Subtotal: ${{getItemSubtotal(i) | number:'1.0-0'}}</strong>
+          </div>
           <button mat-icon-button color="warn" type="button" (click)="removeItem(i)" *ngIf="items.length>1">
             <mat-icon>delete</mat-icon>
           </button>

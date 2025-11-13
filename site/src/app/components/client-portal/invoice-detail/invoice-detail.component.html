@@ -7,15 +7,10 @@
     </button>
     <div class="header-actions">
       <button mat-raised-button color="primary" (click)="payInvoice()"
-              *ngIf="showPayButton()"
-              [disabled]="paying">
-        <mat-icon *ngIf="!paying">payment</mat-icon>
-        <mat-icon *ngIf="paying">hourglass_top</mat-icon>
-        {{ paying ? 'Iniciando...' : 'Pagar Factura' }}
+              *ngIf="showPayButton()">
+        <mat-icon>payment</mat-icon>
+        Pagar Factura
       </button>
-      <mat-chip *ngIf="paymentId" [color]="getPaymentBadgeColor()" selected>
-        {{ paymentStatus === 'completed' ? 'Pago completado' : (intentStatus || 'Procesando') }}
-      </mat-chip>
     </div>
   </div>
 
@@ -24,8 +19,6 @@
     <mat-card-header>
       <mat-card-title>
         Factura {{ invoice.invoice_number }}
-        <span *ngIf="paymentId && !invoice?.status || invoice.status !== 'paid'" class="inline-status" >
-        </span>
       </mat-card-title>
       <mat-card-subtitle>
         <mat-chip [color]="getStatusColor(invoice.status)" selected>
@@ -122,18 +115,6 @@
     </mat-card-content>
   </mat-card>
 
-  <!-- Progreso del pago / Polling -->
-  <mat-card *ngIf="paymentId && paying" class="payment-progress-card">
-    <mat-card-content class="payment-progress">
-      <mat-progress-spinner mode="indeterminate" diameter="36"></mat-progress-spinner>
-      <div class="progress-text">
-        <strong>Procesando pago...</strong>
-        <div *ngIf="intentStatus && intentStatus !== 'completed'">Estado gateway: {{ intentStatus }}</div>
-        <div *ngIf="paymentStatus === 'completed'">Confirmando actualización de factura...</div>
-      </div>
-    </mat-card-content>
-  </mat-card>
-
   <!-- Totales -->
   <mat-card class="totals-card">
     <mat-card-content>
@@ -157,13 +138,6 @@
       </div>
     </mat-card-content>
   </mat-card>
-
-  <!-- Botón reintentar si falla -->
-  <div class="retry-container" *ngIf="!paying && paymentId && intentStatus && ['failed','canceled','expired','error'].includes(intentStatus)">
-    <button mat-stroked-button color="warn" (click)="payInvoice()">
-      <mat-icon>replay</mat-icon> Reintentar pago
-    </button>
-  </div>
 
   <!-- Historial de pagos -->
   <mat-card class="payments-card" *ngIf="invoice.payments && invoice.payments.length > 0">

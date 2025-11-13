@@ -41,7 +41,7 @@ return [
 
     'flow' => [
         'environment' => env('FLOW_ENVIRONMENT', 'sandbox'),
-        'api_url' => env('FLOW_API_URL', 'https://developers.sandbox.flow.cl/api'),
+        'api_url' => env('FLOW_API_URL', 'https://sandbox.flow.cl/api'),
         'api_key' => env('FLOW_API_KEY'),
         'secret_key' => env('FLOW_SECRET_KEY'),
         'notification_email' => env('PAYMENT_NOTIFICATION_EMAIL', 'pagos@factufast.cl'),

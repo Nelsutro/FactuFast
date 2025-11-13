@@ -14,15 +14,24 @@ class FlowService
     private string $apiUrl;
     private string $environment;
 
-    public function __construct()
+    public function __construct(?string $apiKey = null, ?string $secretKey = null, ?bool $sandbox = null)
     {
-        $this->apiKey = Config::get('services.flow.api_key');
-        $this->secretKey = Config::get('services.flow.secret_key');
-        $this->apiUrl = Config::get('services.flow.api_url');
-        $this->environment = Config::get('services.flow.environment');
+        // Usar parámetros proporcionados o fallback a configuración
+        $this->apiKey = $apiKey ?? Config::get('services.flow.api_key');
+        $this->secretKey = $secretKey ?? Config::get('services.flow.secret_key');
+        $this->environment = $sandbox !== null 
+            ? ($sandbox ? 'sandbox' : 'production') 
+            : Config::get('services.flow.environment', 'sandbox');
+        
+        // Configurar URL según el ambiente
+        if ($this->environment === 'production') {
+            $this->apiUrl = 'https://www.flow.cl/api';
+        } else {
+            $this->apiUrl = Config::get('services.flow.api_url', 'https://developers.sandbox.flow.cl/api');
+        }
 
         if (!$this->apiKey || !$this->secretKey) {
-            throw new \Exception('Flow API credentials not configured');
+            Log::warning('Flow API credentials not configured, operating in simulation mode');
         }
     }
 
@@ -238,14 +247,20 @@ class FlowService
         // Excluir 's' del firmado
         unset($params['s']);
         
-        // Ordenar parámetros alfabéticamente
+        // Ordenar parámetros alfabéticamente por las claves
         ksort($params);
         
-        // Concatenar parámetros: nombre_parametro + valor
+        // Concatenar parámetros: nombre_parametro + valor (sin separadores)
         $toSign = '';
         foreach ($params as $key => $value) {
             $toSign .= $key . $value;
         }
+        
+        Log::debug('Flow HMAC signing', [
+            'sorted_params' => $params,
+            'string_to_sign' => $toSign,
+            'secret_key_prefix' => substr($this->secretKey, 0, 8) . '...'
+        ]);
         
         // Firmar con HMAC SHA256
         return hash_hmac('sha256', $toSign, $this->secretKey);
@@ -266,32 +281,52 @@ class FlowService
             ]);
 
             if ($method === 'GET') {
-                $response = Http::timeout(30)->get($url, $params);
+                $response = Http::timeout(30)
+                    ->acceptJson()
+                    ->get($url, $params);
             } else {
-                $response = Http::timeout(30)->asForm()->post($url, $params);
+                $response = Http::timeout(30)
+                    ->acceptJson()
+                    ->asForm()
+                    ->post($url, $params);
             }
 
+            $statusCode = $response->status();
             $responseData = $response->json();
             
             Log::info('Flow API Response', [
-                'status' => $response->status(),
-                'response' => $responseData
+                'status' => $statusCode,
+                'response' => $responseData,
+                'headers' => $response->headers()
             ]);
 
             if (!$response->successful()) {
-                throw new \Exception('Flow API request failed: ' . $response->status());
+                Log::error('Flow API Error Response', [
+                    'status' => $statusCode,
+                    'response' => $responseData,
+                    'request_url' => $url,
+                    'request_params' => $this->sanitizeLogParams($params)
+                ]);
+                
+                // Verificar si es error de autenticación
+                if ($statusCode === 403) {
+                    throw new \Exception('Flow API: Credenciales inválidas o firma HMAC incorrecta');
+                }
+                
+                throw new \Exception('Flow API request failed: HTTP ' . $statusCode . ' - ' . ($responseData['message'] ?? 'Unknown error'));
             }
 
             return $responseData ?? [];
             
         } catch (\Exception $e) {
-            Log::error('Flow API Error', [
+            Log::error('Flow API Exception', [
                 'error' => $e->getMessage(),
                 'endpoint' => $endpoint,
-                'method' => $method
+                'method' => $method,
+                'params' => $this->sanitizeLogParams($params)
             ]);
             
-            throw new \Exception('Flow API Error: ' . $e->getMessage());
+            throw $e;
         }
     }
 
