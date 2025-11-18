@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\PaymentReceivedClientMail;
 use App\Mail\PaymentReceivedCompanyMail;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
@@ -32,52 +33,21 @@ class PaymentController extends Controller
             }
 
             Log::info('PaymentController::index - Usuario autenticado: ' . $user->id);
+            $companyTaxId = $this->resolveCompanyTaxId($request, $user);
 
-            // Debugging: Obtener información detallada
-            $totalPayments = Payment::count();
-            $userCompanies = \App\Models\Company::where('user_id', $user->id)->get();
-            $userCompanyIds = $userCompanies->pluck('id');
-            
-            Log::info('PaymentController::index - Total pagos en sistema: ' . $totalPayments);
-            Log::info('PaymentController::index - Empresas del usuario: ' . $userCompanies->count());
-            Log::info('PaymentController::index - IDs empresas: ' . $userCompanyIds->toJson());
-
-            // Si es modo debug, retornar información adicional
-            if ($request->get('debug') === '1') {
-                $paymentsWithoutFilter = Payment::with(['invoice.client'])->take(5)->get();
-                $companiesInfo = $userCompanies->map(function($company) {
-                    return [
-                        'id' => $company->id,
-                        'name' => $company->name,
-                        'payments_count' => Payment::where('company_id', $company->id)->count()
-                    ];
-                });
-                
-                return response()->json([
-                    'debug_info' => [
-                        'user_id' => $user->id,
-                        'total_payments' => $totalPayments,
-                        'user_companies' => $companiesInfo,
-                        'sample_payments' => $paymentsWithoutFilter,
-                        'all_companies' => \App\Models\Company::select('id', 'name', 'user_id')->get()
-                    ]
-                ]);
+            if (!$companyTaxId) {
+                Log::warning('PaymentController::index - Usuario sin tax_id asociado', ['user_id' => $user->id]);
+                return $this->respondMissingCompany();
             }
 
-            // Query base de pagos
-            $query = Payment::select([
-                'id', 'company_id', 'client_id', 'invoice_id', 'amount', 
-                'payment_date', 'payment_method', 'status', 'reference',
-                'subject', 'notes', 'created_at', 'updated_at'
-            ]);
+            $company = Company::where('tax_id', $companyTaxId)->first();
 
-            // Filtrar por empresas del usuario
-            if ($userCompanyIds->isNotEmpty()) {
-                $query->whereIn('company_id', $userCompanyIds);
-                $paymentsForUser = $query->count();
-                Log::info('PaymentController::index - Pagos del usuario: ' . $paymentsForUser);
-            } else {
-                Log::info('PaymentController::index - Usuario sin empresas, devolviendo vacío');
+            if (!$company) {
+                Log::warning('PaymentController::index - Tax ID no corresponde a una empresa registrada', [
+                    'user_id' => $user->id,
+                    'company_tax_id' => $companyTaxId
+                ]);
+
                 return response()->json([
                     'success' => true,
                     'data' => [],
@@ -89,14 +59,53 @@ class PaymentController extends Controller
                         'from' => null,
                         'to' => null
                     ],
-                    'message' => 'No hay empresas asociadas al usuario',
+                    'message' => 'No se encontraron pagos para el RUT solicitado',
                     'debug' => [
                         'user_id' => $user->id,
-                        'total_payments' => $totalPayments,
-                        'user_companies_count' => 0
+                        'company_tax_id' => $companyTaxId
                     ]
                 ]);
             }
+
+            $totalPayments = Payment::count();
+            Log::info('PaymentController::index - Total pagos en sistema: ' . $totalPayments);
+            Log::info('PaymentController::index - Empresa detectada', [
+                'company_id' => $company->id,
+                'company_tax_id' => $companyTaxId
+            ]);
+
+            if ($request->get('debug') === '1') {
+                $paymentsWithoutFilter = Payment::with(['invoice.client'])->take(5)->get();
+                $companiesInfo = [[
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'tax_id' => $companyTaxId,
+                    'payments_count' => Payment::where('company_id', $company->id)->count()
+                ]];
+                
+                return response()->json([
+                    'debug_info' => [
+                        'user_id' => $user->id,
+                        'company_tax_id' => $companyTaxId,
+                        'total_payments' => $totalPayments,
+                        'user_companies' => $companiesInfo,
+                        'sample_payments' => $paymentsWithoutFilter,
+                        'all_companies' => Company::select('id', 'name', 'tax_id')->get()
+                    ]
+                ]);
+            }
+
+            $query = Payment::select([
+                'id', 'company_id', 'client_id', 'invoice_id', 'amount', 
+                'payment_date', 'payment_method', 'status', 'reference',
+                'subject', 'notes', 'created_at', 'updated_at'
+            ])->where('company_id', $company->id);
+
+            $paymentsForCompany = $query->count();
+            Log::info('PaymentController::index - Pagos vinculados al RUT', [
+                'company_tax_id' => $companyTaxId,
+                'payments_count' => $paymentsForCompany
+            ]);
 
             // Aplicar filtros
             if ($request->has('status') && !empty($request->status)) {
@@ -161,10 +170,11 @@ class PaymentController extends Controller
                 ];
                 
                 // Cargar company
-                $company = \App\Models\Company::find($payment->company_id);
-                $payment->company = $company ? [
-                    'id' => $company->id,
-                    'name' => $company->name
+                $companyData = Company::find($payment->company_id);
+                $payment->company = $companyData ? [
+                    'id' => $companyData->id,
+                    'name' => $companyData->name,
+                    'tax_id' => $companyData->tax_id
                 ] : [
                     'name' => 'Empresa no disponible'
                 ];
@@ -204,6 +214,13 @@ class PaymentController extends Controller
         try {
             $user = Auth::user();
 
+            $companyTaxId = $this->resolveCompanyTaxId($request, $user);
+
+            if (!$companyTaxId) {
+                Log::warning('PaymentController::store - Usuario sin tax_id asociado', ['user_id' => $user->id]);
+                return $this->respondMissingCompany();
+            }
+
             $validator = Validator::make($request->all(), [
                 'invoice_id' => 'required|exists:invoices,id',
                 'amount' => 'required|numeric|min:0.01',
@@ -224,8 +241,8 @@ class PaymentController extends Controller
             $validated = $validator->validated();
 
             $invoice = Invoice::with(['company', 'client'])
-                ->whereHas('company', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                ->whereHas('company', function ($q) use ($companyTaxId) {
+                    $q->where('tax_id', $companyTaxId);
                 })
                 ->findOrFail($validated['invoice_id']);
 
@@ -312,9 +329,16 @@ class PaymentController extends Controller
         try {
             $user = Auth::user();
 
+            $companyTaxId = $this->resolveCompanyTaxId(request(), $user);
+
+            if (!$companyTaxId) {
+                Log::warning('PaymentController::show - Usuario sin tax_id asociado', ['user_id' => $user->id]);
+                return $this->respondMissingCompany();
+            }
+
             $payment = Payment::with(['invoice.client', 'company'])
-                ->whereHas('company', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                ->whereHas('company', function ($q) use ($companyTaxId) {
+                    $q->where('tax_id', $companyTaxId);
                 })
                 ->findOrFail($id);
 
@@ -344,9 +368,16 @@ class PaymentController extends Controller
         try {
             $user = Auth::user();
 
+            $companyTaxId = $this->resolveCompanyTaxId($request, $user);
+
+            if (!$companyTaxId) {
+                Log::warning('PaymentController::update - Usuario sin tax_id asociado', ['user_id' => $user->id]);
+                return $this->respondMissingCompany();
+            }
+
             $payment = Payment::with(['invoice', 'company'])
-                ->whereHas('company', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                ->whereHas('company', function ($q) use ($companyTaxId) {
+                    $q->where('tax_id', $companyTaxId);
                 })
                 ->findOrFail($id);
 
@@ -395,9 +426,16 @@ class PaymentController extends Controller
         try {
             $user = Auth::user();
 
+            $companyTaxId = $this->resolveCompanyTaxId(request(), $user);
+
+            if (!$companyTaxId) {
+                Log::warning('PaymentController::destroy - Usuario sin tax_id asociado', ['user_id' => $user->id]);
+                return $this->respondMissingCompany();
+            }
+
             $payment = Payment::with(['invoice'])
-                ->whereHas('company', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
+                ->whereHas('company', function ($q) use ($companyTaxId) {
+                    $q->where('tax_id', $companyTaxId);
                 })
                 ->findOrFail($id);
 
@@ -446,5 +484,28 @@ class PaymentController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+    
+    private function resolveCompanyTaxId(?Request $request, $user): ?string
+    {
+        $request = $request ?? request();
+
+        $taxId = $request->input('company_tax_id')
+            ?? $request->input('tax_id')
+            ?? $request->header('X-Company-TaxId');
+
+        if ($taxId) {
+            return $taxId;
+        }
+
+        return optional($user->company)->tax_id;
+    }
+
+    private function respondMissingCompany(): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'No se pudo determinar la empresa asociada al usuario. Envía el RUT (tax_id) o asigna una empresa al perfil.'
+        ], 403);
     }
 }

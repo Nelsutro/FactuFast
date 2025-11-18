@@ -13,6 +13,7 @@ import { InvoiceService } from '../../services/invoice.service';
 import { ClientService } from '../../services/client.service';
 import { QuoteService } from '../../services/quote.service';
 import { PaymentService } from '../../services/payment.service';
+import { Invoice } from '../../models/invoice.model';
 
 @Component({
   selector: 'app-sidebar',
@@ -97,7 +98,13 @@ export class SidebarComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (invoices) => {
-          this.pendingInvoices = invoices.filter(inv => inv.status === 'pending').length;
+          const invoiceList: Invoice[] = Array.isArray(invoices)
+            ? invoices as Invoice[]
+            : Array.isArray((invoices as any)?.data)
+              ? (invoices as any).data as Invoice[]
+              : [];
+
+          this.pendingInvoices = invoiceList.filter((inv: Invoice) => inv.status === 'pending').length;
         },
         error: (error) => {
           console.error('Error loading invoice data:', error);
