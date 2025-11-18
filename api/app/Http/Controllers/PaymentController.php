@@ -19,64 +19,101 @@ class PaymentController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
+            Log::info('PaymentController::index - Iniciando');
+            
             $user = Auth::user();
             
-            $query = Payment::with(['invoice.client', 'company'])
-                ->whereHas('company', function ($q) use ($user) {
-                    $q->where('user_id', $user->id);
-                });
-
-            if ($request->has('status') && !empty($request->status)) {
-                $status = $request->status;
-                if ($status === 'paid') {
-                    $query->completed();
-                } elseif ($status === 'pending') {
-                    $query->pending();
-                } elseif ($status === 'unpaid') {
-                    $query->unpaid();
-                } elseif ($status === 'failed') {
-                    $query->failed();
-                } else {
-                    $query->where('status', $status);
-                }
+            if (!$user) {
+                Log::warning('PaymentController::index - Usuario no autenticado');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no autenticado'
+                ], 401);
             }
 
-            if ($request->has('invoice_id') && !empty($request->invoice_id)) {
-                $query->where('invoice_id', $request->invoice_id);
+            Log::info('PaymentController::index - Usuario autenticado: ' . $user->id);
+
+            // Debugging: Obtener información detallada
+            $totalPayments = Payment::count();
+            $userCompanies = \App\Models\Company::where('user_id', $user->id)->get();
+            $userCompanyIds = $userCompanies->pluck('id');
+            
+            Log::info('PaymentController::index - Total pagos en sistema: ' . $totalPayments);
+            Log::info('PaymentController::index - Empresas del usuario: ' . $userCompanies->count());
+            Log::info('PaymentController::index - IDs empresas: ' . $userCompanyIds->toJson());
+
+            // Si es modo debug, retornar información adicional
+            if ($request->get('debug') === '1') {
+                $paymentsWithoutFilter = Payment::with(['invoice.client'])->take(5)->get();
+                $companiesInfo = $userCompanies->map(function($company) {
+                    return [
+                        'id' => $company->id,
+                        'name' => $company->name,
+                        'payments_count' => Payment::where('company_id', $company->id)->count()
+                    ];
+                });
+                
+                return response()->json([
+                    'debug_info' => [
+                        'user_id' => $user->id,
+                        'total_payments' => $totalPayments,
+                        'user_companies' => $companiesInfo,
+                        'sample_payments' => $paymentsWithoutFilter,
+                        'all_companies' => \App\Models\Company::select('id', 'name', 'user_id')->get()
+                    ]
+                ]);
+            }
+
+            // Query base de pagos
+            $query = Payment::select([
+                'id', 'company_id', 'client_id', 'invoice_id', 'amount', 
+                'payment_date', 'payment_method', 'status', 'reference',
+                'subject', 'notes', 'created_at', 'updated_at'
+            ]);
+
+            // Filtrar por empresas del usuario
+            if ($userCompanyIds->isNotEmpty()) {
+                $query->whereIn('company_id', $userCompanyIds);
+                $paymentsForUser = $query->count();
+                Log::info('PaymentController::index - Pagos del usuario: ' . $paymentsForUser);
+            } else {
+                Log::info('PaymentController::index - Usuario sin empresas, devolviendo vacío');
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'pagination' => [
+                        'current_page' => 1,
+                        'last_page' => 1,
+                        'per_page' => 15,
+                        'total' => 0,
+                        'from' => null,
+                        'to' => null
+                    ],
+                    'message' => 'No hay empresas asociadas al usuario',
+                    'debug' => [
+                        'user_id' => $user->id,
+                        'total_payments' => $totalPayments,
+                        'user_companies_count' => 0
+                    ]
+                ]);
+            }
+
+            // Aplicar filtros
+            if ($request->has('status') && !empty($request->status)) {
+                $query->where('status', $request->status);
+                Log::info('PaymentController::index - Filtro por status: ' . $request->status);
             }
 
             if ($request->has('payment_method') && !empty($request->payment_method)) {
                 $query->where('payment_method', $request->payment_method);
+                Log::info('PaymentController::index - Filtro por método: ' . $request->payment_method);
             }
 
-            if ($request->has('date_from') && !empty($request->date_from)) {
-                $query->where('created_at', '>=', $request->date_from);
-            }
-
-            if ($request->has('date_to') && !empty($request->date_to)) {
-                $query->where('created_at', '<=', $request->date_to . ' 23:59:59');
-            }
-
-            if ($request->has('search') && !empty($request->search)) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('reference', 'like', "%{$search}%")
-                      ->orWhere('subject', 'like', "%{$search}%")
-                      ->orWhere('notes', 'like', "%{$search}%")
-                      ->orWhereHas('invoice', function($invoiceQuery) use ($search) {
-                          $invoiceQuery->where('invoice_number', 'like', "%{$search}%")
-                                      ->orWhereHas('client', function($clientQuery) use ($search) {
-                                          $clientQuery->where('name', 'like', "%{$search}%")
-                                                     ->orWhere('email', 'like', "%{$search}%");
-                                      });
-                      });
-                });
-            }
-
+            // Ordenamiento
             $sortBy = $request->get('sort_by', 'created_at');
             $sortOrder = $request->get('sort_order', 'desc');
             
-            $allowedSortFields = ['created_at', 'amount', 'status', 'payment_method', 'reference'];
+            $allowedSortFields = ['created_at', 'amount', 'status', 'payment_method', 'payment_date'];
             if (!in_array($sortBy, $allowedSortFields)) {
                 $sortBy = 'created_at';
             }
@@ -86,29 +123,78 @@ class PaymentController extends Controller
             }
             
             $query->orderBy($sortBy, $sortOrder);
+            Log::info("PaymentController::index - Ordenamiento: {$sortBy} {$sortOrder}");
 
+            // Paginación
             $perPage = $request->get('per_page', 15);
             $perPage = max(1, min($perPage, 100));
             
             $payments = $query->paginate($perPage);
+            Log::info('PaymentController::index - Pagos obtenidos: ' . $payments->total());
+
+            // Cargar relaciones manualmente para cada pago
+            $paymentsData = $payments->items();
+            foreach ($paymentsData as $payment) {
+                // Cargar invoice con client
+                $invoice = \App\Models\Invoice::with('client')
+                    ->find($payment->invoice_id);
+                
+                $payment->invoice = $invoice ? [
+                    'id' => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
+                    'amount' => $invoice->amount,
+                    'client' => $invoice->client ? [
+                        'id' => $invoice->client->id,
+                        'name' => $invoice->client->name,
+                        'email' => $invoice->client->email
+                    ] : [
+                        'name' => 'Cliente no disponible',
+                        'email' => ''
+                    ]
+                ] : [
+                    'invoice_number' => 'N/A',
+                    'amount' => 0,
+                    'client' => [
+                        'name' => 'Factura no encontrada',
+                        'email' => ''
+                    ]
+                ];
+                
+                // Cargar company
+                $company = \App\Models\Company::find($payment->company_id);
+                $payment->company = $company ? [
+                    'id' => $company->id,
+                    'name' => $company->name
+                ] : [
+                    'name' => 'Empresa no disponible'
+                ];
+            }
+
+            Log::info('PaymentController::index - Respuesta exitosa');
 
             return response()->json([
                 'success' => true,
-                'data' => $payments->items(),
+                'data' => $paymentsData,
                 'pagination' => [
                     'current_page' => $payments->currentPage(),
                     'last_page' => $payments->lastPage(),
                     'per_page' => $payments->perPage(),
-                    'total' => $payments->total()
+                    'total' => $payments->total(),
+                    'from' => $payments->firstItem(),
+                    'to' => $payments->lastItem()
                 ]
             ]);
-        
+
         } catch (\Exception $e) {
-            Log::error('Error fetching payments: ' . $e->getMessage());
+            Log::error('PaymentController::index - Error: ' . $e->getMessage());
+            Log::error('PaymentController::index - Stack trace: ' . $e->getTraceAsString());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los pagos',
-                'error' => $e->getMessage()
+                'message' => 'Error al cargar los pagos',
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => basename($e->getFile())
             ], 500);
         }
     }

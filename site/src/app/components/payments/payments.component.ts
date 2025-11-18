@@ -112,6 +112,10 @@ export class PaymentsComponent implements OnInit {
       this.loading = true;
       this.error = null;
 
+      // Debug: verificar autenticación
+      const token = localStorage.getItem('auth_token');
+      console.log('Token presente:', !!token);
+      
       // Usar las rutas reales con autenticación
       this.apiService.getPayments().subscribe({
         next: (response) => {
@@ -158,8 +162,18 @@ export class PaymentsComponent implements OnInit {
           this.loading = false;
         },
         error: (error) => {
-          console.error('Error cargando pagos:', error);
-          this.error = 'Error al cargar los pagos';
+          console.error('Error completo cargando pagos:', error);
+          console.error('Status del error:', error.status);
+          console.error('Mensaje del error:', error.message);
+          console.error('Detalles del error:', error.error);
+          
+          if (error.status === 401) {
+            this.error = 'No estás autenticado. Por favor, inicia sesión nuevamente.';
+          } else if (error.status === 500) {
+            this.error = 'Error interno del servidor. Revisa los logs del backend.';
+          } else {
+            this.error = `Error al cargar los pagos: ${error.message || 'Error desconocido'}`;
+          }
           this.loading = false;
         }
       });

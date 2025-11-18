@@ -27,6 +27,15 @@ use App\Http\Controllers\Api\ApiTokenController;
 */
 
 // Rutas públicas (sin autenticación)
+Route::get('test', function () {
+    return response()->json([
+        'success' => true,
+        'message' => 'API funcionando correctamente',
+        'timestamp' => now(),
+        'environment' => app()->environment()
+    ]);
+});
+
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('register', [AuthController::class, 'register']);

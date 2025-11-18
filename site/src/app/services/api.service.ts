@@ -333,26 +333,33 @@ export class ApiService {
 
   // Métodos para Pagos
   getPayments(params?: any): Observable<PaginatedResponse<any>> {
-    let url = `${this.apiUrl}/payments`;
+    let httpParams = new HttpParams();
     if (params) {
-      const queryParams = new URLSearchParams(params).toString();
-      url += `?${queryParams}`;
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+          return;
+        }
+        httpParams = httpParams.set(key, value instanceof Date ? value.toISOString() : String(value));
+      });
     }
-    return this.http.get<any>(url, { headers: this.getHeaders() })
-      .pipe(
-        map(response => ({
-          success: response.success !== false,
-          message: response.message,
-          data: response.data ?? [],
-          pagination: response.pagination ?? {
-            current_page: 1,
-            per_page: response.data?.length || 0,
-            total: response.data?.length || 0,
-            last_page: 1
-          }
-        } as PaginatedResponse<any>)),
-        catchError(this.handleError)
-      );
+
+    return this.http.get<ApiResponseWithPagination<any[]>>(`${this.apiUrl}/payments`, {
+      headers: this.getHeaders(),
+      params: httpParams
+    }).pipe(
+      map(response => ({
+        success: response.success !== false,
+        message: response.message,
+        data: response.data ?? [],
+        pagination: response.pagination ?? {
+          current_page: 1,
+          per_page: response.data?.length || 0,
+          total: response.data?.length || 0,
+          last_page: 1
+        }
+      })),
+      catchError(this.handleError)
+    );
   }
 
   createPayment(payment: any): Observable<any> {

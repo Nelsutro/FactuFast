@@ -1,0 +1,207 @@
+<div class="help-container">
+  <div class="help-header">
+    <h1>Centro de Ayuda y Soporte</h1>
+    <p>Encuentra respuestas a tus preguntas y aprende a usar FactuFast</p>
+  </div>
+
+  <mat-tab-group class="help-tabs">
+    <!-- FAQ Tab -->
+    <mat-tab label="Preguntas Frecuentes">
+      <div class="tab-content">
+        <div class="search-section">
+          <mat-form-field class="search-field">
+            <mat-label>Buscar en preguntas frecuentes</mat-label>
+            <input matInput [(ngModel)]="searchTerm" (ngModelChange)="filterFAQs()" 
+                   placeholder="¿Qué necesitas saber?">
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+        </div>
+
+        <mat-accordion class="faq-accordion">
+          <mat-expansion-panel *ngFor="let faq of filteredFAQs" class="faq-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ faq.question }}</mat-panel-title>
+              <mat-panel-description>{{ faq.category }}</mat-panel-description>
+            </mat-expansion-panel-header>
+            <div class="faq-answer" [innerHTML]="faq.answer"></div>
+          </mat-expansion-panel>
+        </mat-accordion>
+
+        <div *ngIf="filteredFAQs.length === 0" class="no-results">
+          <mat-icon>help_outline</mat-icon>
+          <h3>No se encontraron preguntas</h3>
+          <p>Intenta con otros términos de búsqueda o contacta con soporte</p>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Guides Tab -->
+    <mat-tab label="Guías de Usuario">
+      <div class="tab-content">
+        <div class="guides-grid">
+          <mat-card *ngFor="let guide of guides" class="guide-card">
+            <mat-card-header>
+              <div mat-card-avatar>
+                <mat-icon>{{ guide.icon }}</mat-icon>
+              </div>
+              <mat-card-title>{{ guide.title }}</mat-card-title>
+              <mat-card-subtitle>{{ guide.description }}</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="guide-steps">
+                <h4>Pasos a seguir:</h4>
+                <ol>
+                  <li *ngFor="let step of guide.steps">{{ step }}</li>
+                </ol>
+              </div>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary">
+                <mat-icon>play_arrow</mat-icon>
+                Ver Tutorial
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Contact Tab -->
+    <mat-tab label="Contacto y Soporte">
+      <div class="tab-content">
+        <div class="contact-grid">
+          <mat-card class="contact-card">
+            <mat-card-header>
+              <div mat-card-avatar>
+                <mat-icon>email</mat-icon>
+              </div>
+              <mat-card-title>Soporte por Email</mat-card-title>
+              <mat-card-subtitle>Respuesta en 24 horas</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Para consultas generales y soporte técnico</p>
+              <strong>soporte&#64;factufast.com</strong>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-raised-button color="primary" (click)="openEmail()">
+                <mat-icon>send</mat-icon>
+                Enviar Email
+              </button>
+            </mat-card-actions>
+          </mat-card>
+
+          <mat-card class="contact-card">
+            <mat-card-header>
+              <div mat-card-avatar>
+                <mat-icon>phone</mat-icon>
+              </div>
+              <mat-card-title>Soporte Telefónico</mat-card-title>
+              <mat-card-subtitle>Lun-Vie 9:00-18:00</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Atención inmediata para urgencias</p>
+              <strong>+1 (555) 123-4567</strong>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-raised-button color="accent" (click)="makeCall()">
+                <mat-icon>call</mat-icon>
+                Llamar Ahora
+              </button>
+            </mat-card-actions>
+          </mat-card>
+
+          <mat-card class="contact-card">
+            <mat-card-header>
+              <div mat-card-avatar>
+                <mat-icon>chat</mat-icon>
+              </div>
+              <mat-card-title>Chat en Vivo</mat-card-title>
+              <mat-card-subtitle>Disponible ahora</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Obtén ayuda instantánea de nuestro equipo</p>
+              <strong>Chat disponible 24/7</strong>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-raised-button color="primary" (click)="openChat()">
+                <mat-icon>chat_bubble</mat-icon>
+                Iniciar Chat
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Resources Tab -->
+    <mat-tab label="Recursos">
+      <div class="tab-content">
+        <div class="resources-grid">
+          <mat-card class="resource-card">
+            <mat-card-header>
+              <mat-card-title>Documentación API</mat-card-title>
+              <mat-card-subtitle>Para desarrolladores</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Documentación completa de nuestra API REST para integraciones personalizadas</p>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary">
+                <mat-icon>code</mat-icon>
+                Ver Documentación
+              </button>
+            </mat-card-actions>
+          </mat-card>
+
+          <mat-card class="resource-card">
+            <mat-card-header>
+              <mat-card-title>Videos Tutoriales</mat-card-title>
+              <mat-card-subtitle>Aprende visualmente</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Biblioteca completa de videos explicativos paso a paso</p>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary">
+                <mat-icon>play_circle</mat-icon>
+                Ver Videos
+              </button>
+            </mat-card-actions>
+          </mat-card>
+
+          <mat-card class="resource-card">
+            <mat-card-header>
+              <mat-card-title>Plantillas</mat-card-title>
+              <mat-card-subtitle>Documentos prediseñados</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Plantillas de facturas, cotizaciones y reportes listas para usar</p>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary">
+                <mat-icon>download</mat-icon>
+                Descargar
+              </button>
+            </mat-card-actions>
+          </mat-card>
+
+          <mat-card class="resource-card">
+            <mat-card-header>
+              <mat-card-title>Actualizaciones</mat-card-title>
+              <mat-card-subtitle>Últimas novedades</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <p>Mantente al día con las últimas funcionalidades y mejoras</p>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-button color="primary">
+                <mat-icon>new_releases</mat-icon>
+                Ver Novedades
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

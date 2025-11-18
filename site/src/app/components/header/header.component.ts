@@ -276,7 +276,7 @@ export class HeaderComponent implements OnInit {
   }
 
   viewHelp(): void {
-    this.router.navigate(['/ayuda']);
+    this.router.navigate(['/help']);
   }
 
   viewUpdates(): void {
