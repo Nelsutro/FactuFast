@@ -445,6 +445,29 @@
 }
 
 /* Dialogo de eliminación */
+/* Modal de confirmación de borrado */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--ff-space-3);
+  animation: backdropFadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: var(--ff-radius-lg);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  animation: modalSlideIn 0.25s ease-out;
+}
+
 .delete-dialog-content {
   display: flex;
   flex-direction: column;
@@ -467,6 +490,14 @@
 .delete-dialog-content .warning-text {
   color: #dc2626;
   font-weight: 600;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--ff-space-2);
+  justify-content: flex-end;
+  padding: var(--ff-space-4) var(--ff-space-5);
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 /* Indicadores de estado */
